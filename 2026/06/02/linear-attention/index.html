@@ -368,54 +368,162 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h1 id="1-Delta-Net"><a href="#1-Delta-Net" class="headerlink" title="1 Delta Net"></a>1 Delta Net</h1><p>论文链接：[<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.06484" >2406.06484] Parallelizing Linear Transformers with the Delta Rule over Sequence Length<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+			<h1 id="1-Delta-Net"><a href="#1-Delta-Net" class="headerlink" title="1 Delta Net"></a>1 Delta Net</h1><p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.06484" >[2406.06484] Parallelizing Linear Transformers with the Delta Rule over Sequence Length<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
 <p><img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src=".%5Clinear-attention%5C1.png"
+                     data-src=".\linear-attention\1.png"
                       alt="DeltaBet"
                 ></p>
-<h2 id="1-1"><a href="#1-1" class="headerlink" title="1.1"></a>1.1</h2><p>Delta Net的更新公式<br>$$<br>S_t &#x3D; S_{t-1}(\mathbf{I} - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top &#x3D; \sum_{i&#x3D;1}^t \beta_i(v_i k_i^\top) \left( \prod_{j&#x3D;i+1}^t (\mathbf{I} - \beta_j k_j k_j^\top) \right).<br>$$</p>
-<p>$$<br>P_j^i &#x3D; \prod_{t&#x3D;i}^j (\mathbf{I} - \beta_t k_t k_t^\top) \in \mathbb{R}^{d \times d}, \quad<br>\mathbf{H}<em>i^j &#x3D; \sum</em>{t&#x3D;i}^j \beta_t (v_t k_t^\top) P_{t+1}^j \in \mathbb{R}^{d \times d}<br>$$</p>
-<p><strong>开始推导</strong><br>$$<br>S_{t}&#x3D;S_{t-1}(I-\beta_{t}k_{t}k_{t}^T)+\beta_{t}v_{t}k_{t}^T<br>&#x3D;S_{t-1}+\beta_{t}(v_{t}-S_{t-1}k_{t})k_{t}^T<br>$$<br>展开递推式<br>$$<br>S_{1}&#x3D;\beta_{1}v_{1}k_{1}^T<br>$$</p>
-<p>$$<br>S_{2}&#x3D;S_{1}(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T<br>&#x3D;\beta_{1}v_{1}k_{1}^T(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T<br>$$</p>
-<p>$$<br>S_{t}&#x3D;\sum_{i&#x3D;1}^t[\beta_{i}(v_{i}k_{i}^T)\prod_{j&#x3D;i+1}^t(I-\beta_{j}k_{j}k_{j}^T)]<br>$$</p>
-<h2 id="1-2"><a href="#1-2" class="headerlink" title="1.2"></a>1.2</h2><p>定义如下变量<br>$$<br>P_{i}^j&#x3D;\prod_{t&#x3D;i}^j(I-\beta_{t}k_{t}k_{t}^T)\in\mathbb{R}^{d\times d}<br>$$</p>
-<p>$$<br>H_{i}^j&#x3D;\sum_{t&#x3D;i}^j\beta_{t}(v_{t}k_{t}^T)P_{t+1}^j\in\mathbb{R}^{d\times d}<br>$$</p>
-<p>$$<br>\mathbf{S}<em>{[t]}^r &#x3D; \mathbf{S}</em>{[t]}^0 \mathbf{P}<em>{[t]}^r + \mathbf{H}</em>{[t]}^r \tag{3}<br>$$</p>
-<p><strong>开始推导</strong><br>$$<br>S_{tC+r}&#x3D;H_{1}^{tC+r}&#x3D;\sum_{t&#x3D;1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}<br>&#x3D;\sum_{t&#x3D;1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}+\sum_{t&#x3D;tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}<br>$$</p>
-<p>$$<br>P_{a}^{c}&#x3D;P_{a}^{b}*P_{b}^c<br>$$</p>
-<p>$$<br>S_{tC+r}&#x3D;[\sum_{t&#x3D;1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC}]P_{tC+1}^{tC+r}+\sum_{t&#x3D;tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}&#x3D;S_{tC}P_{tC+1}^{tC+r}+H_{tC+1}^{tC+r}<br>$$</p>
-<p>$$<br>S_{[t]}^{r}&#x3D;S_{[t]}^{0}P_{[t]}^{r}+H_{[t]}^{r}<br>$$</p>
-<h2 id="1-3"><a href="#1-3" class="headerlink" title="1.3"></a>1.3</h2><p>引入变化<br>$$<br>\mathbf{P}<em>{[t]}^r &#x3D; \mathbf{I} - \sum</em>{i&#x3D;1}^r \mathbf{w}<em>{[t]}^i \mathbf{k}</em>{[t]}^{i^T}, \quad \mathbf{H}<em>{[t]}^r &#x3D; \sum</em>{t&#x3D;1}^r \mathbf{u}<em>{[t]}^i \mathbf{k}</em>{[t]}^{i^T} \quad \in \mathbb{R}^{d \times d}<br>$$</p>
-<p>$$<br>\mathbf{w}<em>{[t]}^r &#x3D; \beta</em>{[t]}^r \left( \mathbf{k}<em>{[t]}^r - \sum</em>{i&#x3D;1}^{r-1} \left( \mathbf{w}<em>{[t]}^i (\mathbf{k}</em>{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) \quad \in \mathbb{R}^d<br>$$</p>
-<p>$$<br>\mathbf{u}<em>{[t]}^r &#x3D; \beta</em>{[t]}^r \left( \mathbf{v}<em>{[t]}^r - \sum</em>{i&#x3D;1}^{r-1} \left( \mathbf{u}<em>{[t]}^i (\mathbf{k}</em>{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) \quad \in \mathbb{R}^d<br>$$</p>
-<p><strong>开始推导</strong></p>
+<h2 id="1-1"><a href="#1-1" class="headerlink" title="1.1"></a>1.1</h2><p>Delta Net的更新公式</p>
+<script type="math/tex; mode=display">
+S_t = S_{t-1}(\mathbf{I} - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top = \sum_{i=1}^t \beta_i(v_i k_i^\top) \left( \prod_{j=i+1}^t (\mathbf{I} - \beta_j k_j k_j^\top) \right).</script><script type="math/tex; mode=display">
+P_j^i = \prod_{t=i}^j (\mathbf{I} - \beta_t k_t k_t^\top) \in \mathbb{R}^{d \times d}, \quad 
+\mathbf{H}_i^j = \sum_{t=i}^j \beta_t (v_t k_t^\top) P_{t+1}^j \in \mathbb{R}^{d \times d}</script><p><strong>开始推导</strong></p>
+<script type="math/tex; mode=display">
+S_{t}=S_{t-1}(I-\beta_{t}k_{t}k_{t}^T)+\beta_{t}v_{t}k_{t}^T
+=S_{t-1}+\beta_{t}(v_{t}-S_{t-1}k_{t})k_{t}^T</script><p>展开递推式</p>
+<script type="math/tex; mode=display">
+S_{1}=\beta_{1}v_{1}k_{1}^T</script><script type="math/tex; mode=display">
+S_{2}=S_{1}(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T
+=\beta_{1}v_{1}k_{1}^T(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T</script><script type="math/tex; mode=display">
+S_{t}=\sum_{i=1}^t[\beta_{i}(v_{i}k_{i}^T)\prod_{j=i+1}^t(I-\beta_{j}k_{j}k_{j}^T)]</script><h2 id="1-2"><a href="#1-2" class="headerlink" title="1.2"></a>1.2</h2><p>定义如下变量</p>
+<script type="math/tex; mode=display">
+P_{i}^j=\prod_{t=i}^j(I-\beta_{t}k_{t}k_{t}^T)\in\mathbb{R}^{d\times d}</script><script type="math/tex; mode=display">
+H_{i}^j=\sum_{t=i}^j\beta_{t}(v_{t}k_{t}^T)P_{t+1}^j\in\mathbb{R}^{d\times d}</script><script type="math/tex; mode=display">
+\mathbf{S}_{[t]}^r = \mathbf{S}_{[t]}^0 \mathbf{P}_{[t]}^r + \mathbf{H}_{[t]}^r \tag{3}</script><p><strong>开始推导</strong></p>
+<script type="math/tex; mode=display">
+S_{tC+r}=H_{1}^{tC+r}=\sum_{t=1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}
+=\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}</script><script type="math/tex; mode=display">
+P_{a}^{c}=P_{a}^{b}*P_{b}^c</script><script type="math/tex; mode=display">
+S_{tC+r}=[\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC}]P_{tC+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}=S_{tC}P_{tC+1}^{tC+r}+H_{tC+1}^{tC+r}</script><script type="math/tex; mode=display">
+S_{[t]}^{r}=S_{[t]}^{0}P_{[t]}^{r}+H_{[t]}^{r}</script><h2 id="1-3"><a href="#1-3" class="headerlink" title="1.3"></a>1.3</h2><p>引入变化</p>
+<script type="math/tex; mode=display">
+\mathbf{P}_{[t]}^r = \mathbf{I} - \sum_{i=1}^r \mathbf{w}_{[t]}^i \mathbf{k}_{[t]}^{i^T}, \quad \mathbf{H}_{[t]}^r = \sum_{t=1}^r \mathbf{u}_{[t]}^i \mathbf{k}_{[t]}^{i^T} \quad \in \mathbb{R}^{d \times d}</script><script type="math/tex; mode=display">
+\mathbf{w}_{[t]}^r = \beta_{[t]}^r \left( \mathbf{k}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{w}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) \quad \in \mathbb{R}^d</script><script type="math/tex; mode=display">
+\mathbf{u}_{[t]}^r = \beta_{[t]}^r \left( \mathbf{v}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{u}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) \quad \in \mathbb{R}^d</script><p><strong>开始推导</strong></p>
 <ul>
 <li>定义</li>
 </ul>
-<p>$$<br>\prod_{i&#x3D;1}^{t} (\mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}<em>i^\top) &#x3D; \mathbf{I} - \sum</em>{i&#x3D;1}^{t} \mathbf{w}_i \mathbf{k}_i^\top<br>$$</p>
-<ul>
+<script type="math/tex; mode=display">
+\prod_{i=1}^{t} (\mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}_i^\top) = \mathbf{I} - \sum_{i=1}^{t} \mathbf{w}_i \mathbf{k}_i^\top</script><ul>
 <li>数学归纳法得</li>
 </ul>
-<p>$$<br>\begin{aligned}<br>\mathbf{P}<em>n &amp;&#x3D; \mathbf{P}</em>{n-1} (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}<em>n^\top) \<br>&amp;&#x3D; \left(\mathbf{I} - \sum</em>{t&#x3D;1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}<em>n^\top) \<br>&amp;&#x3D; \mathbf{I} - \sum</em>{t&#x3D;1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \beta_n \mathbf{k}_n \mathbf{k}<em>n^\top + \left(\sum</em>{t&#x3D;1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) \beta_n \mathbf{k}_n \mathbf{k}<em>n^\top \<br>&amp;&#x3D; \mathbf{I} - \sum</em>{t&#x3D;1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \underbrace{\left(\beta_n \mathbf{k}<em>n - \beta_n \sum</em>{t&#x3D;1}^{n-1} \left(\mathbf{w}_t (\mathbf{k}_t^\top \mathbf{k}<em>n)\right)\right)}</em>{\mathbf{w}_n} \mathbf{k}<em>n^\top \<br>&amp;&#x3D; \mathbf{I} - \sum</em>{t&#x3D;1}^{n} \mathbf{w}_t \mathbf{k}_t^\top<br>\end{aligned}<br>$$</p>
-<p>同理，我们可以通过归纳法证明 ：<br>$$<br>S_n &#x3D; \sum_{t&#x3D;1}^n u_t k_t^T<br>$$</p>
-<p>$$<br>S_n &#x3D; S_{n-1} (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T<br>$$</p>
-<p>$$<br>&#x3D; \left( \sum_{t&#x3D;1}^{n-1} u_t k_t^T \right) (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T<br>$$</p>
-<p>$$<br>&#x3D; \sum_{t&#x3D;1}^{n-1} u_t k_t^T - \left( \sum_{t&#x3D;1}^{n-1} u_t k_t^T \right) \beta_n k_n k_n^T + \beta_n v_n k_n^T<br>$$</p>
-<p>$$<br>&#x3D; \sum_{t&#x3D;1}^{n-1} u_t k_t^T + \left( \beta_n v_n - \beta_n \sum_{t&#x3D;1}^{n-1} u_t (k_t^T k_n) \right) k_n^T<br>$$</p>
-<p>$$<br>&#x3D; \sum_{t&#x3D;1}^n u_t k_t^T<br>$$</p>
-<h2 id="1-4"><a href="#1-4" class="headerlink" title="1.4"></a>1.4</h2><p>代入得到最终公式如下：</p>
-<p>$$<br>S_t^r &#x3D; S_{[t]}^0 - \left( S_{[t]}^0 \sum_{i&#x3D;1}^r w_i^t k_i^r \right) + \sum_{i&#x3D;1}^r u_i^t k_i^r &#x3D; S_{[t]}^0 + \sum_{i&#x3D;1}^r \left( u_i^t - S_{[t]}^0 w_i^t \right) k_i^r,<br>$$</p>
-<p>$$<br>\sigma_t^r &#x3D; S_t^r q_t^r &#x3D; S_{[t]}^0 q_t^r + \sum_{i&#x3D;1}^r \left( u_i^t - S_{[t]}^0 w_i^t \right) \left( k_i^r q_i^t \right).<br>$$</p>
-<p>令<br>$$<br>S_{[t]} &#x3D; S_{[t]}^0<br>$$<br>则<br>$$<br>S_{[t+1]} &#x3D; S_{[t]} + \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)^T K_{[t+1]}<br>$$</p>
-<p>$$<br>O_{[t+1]} &#x3D; Q_{[t+1]} S_{[t]}^T + \left( Q_{[t+1]} K_{[t+1]}^T \odot M \right) \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)<br>$$</p>
-<h2 id="1-5"><a href="#1-5" class="headerlink" title="1.5"></a>1.5</h2><p>其中u、w的求解采用<strong>UT变换</strong>求解如下<br>$$<br>其中 M_{-1} &#x3D; M - I 表示对角线元素为 0 的严格下三角掩码矩阵。<br>$$</p>
-<h1 id="u-t-r"><a href="#u-t-r" class="headerlink" title="$$u_{[t]}^{r}"></a>$$<br>u_{[t]}^{r}</h1><h2 id="beta-t-r-left-v-t-r"><a href="#beta-t-r-left-v-t-r" class="headerlink" title="\beta_{[t]}^{r}\left(v_{[t]}^{r}"></a>\beta_{[t]}^{r}<br>\left(<br>v_{[t]}^{r}</h2><p>\sum_{i&#x3D;1}^{r-1}<br>u_{[t]}^{i}<br>, k_{[t]}^{i\top}<br>, k_{[t]}^{r}<br>\right)<br>$$</p>
-<h1 id="Rightarrow-mathbf-U-t"><a href="#Rightarrow-mathbf-U-t" class="headerlink" title="$$\Rightarrow\mathbf{U}_{[t]}"></a>$$<br>\Rightarrow<br>\mathbf{U}_{[t]}</h1><h2 id="operatorname-Diag-beta-t-mathbf-V-t"><a href="#operatorname-Diag-beta-t-mathbf-V-t" class="headerlink" title="\operatorname{Diag}(\beta_{[t]})\mathbf{V}_{[t]}"></a>\operatorname{Diag}(\beta_{[t]})<br>\mathbf{V}_{[t]}</h2><p>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf{K}<em>{[t]}<br>\mathbf{K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\mathbf{U}_{[t]}<br>$$</p>
-<h1 id="Rightarrow-left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-mathbf-U-t"><a href="#Rightarrow-left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-mathbf-U-t" class="headerlink" title="$$\Rightarrow\left(I+\operatorname{Diag}(\beta_{[t]})\left(\mathbf{K}{[t]}\mathbf{K}{[t]}^{\top}\odotM_{-1}\right)\right)\mathbf{U}_{[t]}"></a>$$<br>\Rightarrow<br>\left(<br>I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf{K}<em>{[t]}<br>\mathbf{K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)<br>\mathbf{U}_{[t]}</h1><p>\operatorname{Diag}(\beta_{[t]})<br>\mathbf{V}_{[t]}<br>$$</p>
-<h1 id="Rightarrow-mathbf-U-t-1"><a href="#Rightarrow-mathbf-U-t-1" class="headerlink" title="$$\Rightarrow\mathbf{U}_{[t]}"></a>$$<br>\Rightarrow<br>\mathbf{U}_{[t]}</h1><p>\left(<br>I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf{K}<em>{[t]}<br>\mathbf{K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>\mathbf{V}_{[t]}<br>$$</p>
-<h1 id="同理：-mathbf-W-t"><a href="#同理：-mathbf-W-t" class="headerlink" title="同理：$$\mathbf{W}_{[t]}"></a>同理：<br>$$<br>\mathbf{W}_{[t]}</h1><h1 id="left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-因此，要求-mathbf-U-t-、-mathbf-W-t-核心在于计算：-mathbf-T-t"><a href="#left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-因此，要求-mathbf-U-t-、-mathbf-W-t-核心在于计算：-mathbf-T-t" class="headerlink" title="\left(I+\operatorname{Diag}(\beta_{[t]})\left(\mathbf{K}{[t]}\mathbf{K}{[t]}^{\top}\odotM_{-1}\right)\right)^{-1}\operatorname{Diag}(\beta_{[t]})\mathbf{K}{[t]}$$因此，要求$$\mathbf{U}{[t]}、\mathbf{W}{[t]}$$核心在于计算：$$\mathbf{T}{[t]}"></a>\left(<br>I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf{K}<em>{[t]}<br>\mathbf{K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>\mathbf{K}<em>{[t]}<br>$$<br>因此，要求<br>$$<br>\mathbf{U}</em>{[t]}、\mathbf{W}<em>{[t]}<br>$$<br>核心在于计算：<br>$$<br>\mathbf{T}</em>{[t]}</h1><p>\left(<br>I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf{K}<em>{[t]}<br>\mathbf{K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>$$<br>Q：为什么 <img  
+<script type="math/tex; mode=display">
+\begin{aligned}
+\mathbf{P}_n &= \mathbf{P}_{n-1} (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\
+&= \left(\mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\
+&= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \beta_n \mathbf{k}_n \mathbf{k}_n^\top + \left(\sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) \beta_n \mathbf{k}_n \mathbf{k}_n^\top \\
+&= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \underbrace{\left(\beta_n \mathbf{k}_n - \beta_n \sum_{t=1}^{n-1} \left(\mathbf{w}_t (\mathbf{k}_t^\top \mathbf{k}_n)\right)\right)}_{\mathbf{w}_n} \mathbf{k}_n^\top \\
+&= \mathbf{I} - \sum_{t=1}^{n} \mathbf{w}_t \mathbf{k}_t^\top
+\end{aligned}</script><p>同理，我们可以通过归纳法证明 ：</p>
+<script type="math/tex; mode=display">
+S_n = \sum_{t=1}^n u_t k_t^T</script><script type="math/tex; mode=display">
+S_n = S_{n-1} (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T</script><script type="math/tex; mode=display">
+= \left( \sum_{t=1}^{n-1} u_t k_t^T \right) (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T</script><script type="math/tex; mode=display">
+= \sum_{t=1}^{n-1} u_t k_t^T - \left( \sum_{t=1}^{n-1} u_t k_t^T \right) \beta_n k_n k_n^T + \beta_n v_n k_n^T</script><script type="math/tex; mode=display">
+= \sum_{t=1}^{n-1} u_t k_t^T + \left( \beta_n v_n - \beta_n \sum_{t=1}^{n-1} u_t (k_t^T k_n) \right) k_n^T</script><script type="math/tex; mode=display">
+= \sum_{t=1}^n u_t k_t^T</script><h2 id="1-4"><a href="#1-4" class="headerlink" title="1.4"></a>1.4</h2><p>代入得到最终公式如下：</p>
+<script type="math/tex; mode=display">
+S_t^r = S_{[t]}^0 - \left( S_{[t]}^0 \sum_{i=1}^r w_i^t k_i^r \right) + \sum_{i=1}^r u_i^t k_i^r = S_{[t]}^0 + \sum_{i=1}^r \left( u_i^t - S_{[t]}^0 w_i^t \right) k_i^r,</script><script type="math/tex; mode=display">
+\sigma_t^r = S_t^r q_t^r = S_{[t]}^0 q_t^r + \sum_{i=1}^r \left( u_i^t - S_{[t]}^0 w_i^t \right) \left( k_i^r q_i^t \right).</script><p>令</p>
+<script type="math/tex; mode=display">
+S_{[t]} = S_{[t]}^0</script><p>则</p>
+<script type="math/tex; mode=display">
+S_{[t+1]} = S_{[t]} + \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)^T K_{[t+1]}</script><script type="math/tex; mode=display">
+O_{[t+1]} = Q_{[t+1]} S_{[t]}^T + \left( Q_{[t+1]} K_{[t+1]}^T \odot M \right) \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)</script><h2 id="1-5"><a href="#1-5" class="headerlink" title="1.5"></a>1.5</h2><p>其中u、w的求解采用<strong>UT变换</strong>求解如下</p>
+<script type="math/tex; mode=display">
+其中 M_{-1} = M - I 表示对角线元素为 0 的严格下三角掩码矩阵。</script><script type="math/tex; mode=display">
+u_{[t]}^{r}
+=
+\beta_{[t]}^{r}
+\left(
+v_{[t]}^{r}
+-
+\sum_{i=1}^{r-1}
+u_{[t]}^{i}
+\, k_{[t]}^{i\top}
+\, k_{[t]}^{r}
+\right)</script><script type="math/tex; mode=display">
+\Rightarrow
+\mathbf{U}_{[t]}
+=
+\operatorname{Diag}(\beta_{[t]})
+\mathbf{V}_{[t]}
+-
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf{K}_{[t]}
+\mathbf{K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\mathbf{U}_{[t]}</script><script type="math/tex; mode=display">
+\Rightarrow
+\left(
+I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf{K}_{[t]}
+\mathbf{K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)
+\mathbf{U}_{[t]}
+=
+\operatorname{Diag}(\beta_{[t]})
+\mathbf{V}_{[t]}</script><script type="math/tex; mode=display">
+\Rightarrow
+\mathbf{U}_{[t]}
+=
+\left(
+I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf{K}_{[t]}
+\mathbf{K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})
+\mathbf{V}_{[t]}</script><p>同理：</p>
+<script type="math/tex; mode=display">
+\mathbf{W}_{[t]}
+=
+\left(
+I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf{K}_{[t]}
+\mathbf{K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})
+\mathbf{K}_{[t]}</script><p>因此，要求 </p>
+<script type="math/tex; mode=display">
+\mathbf{U}_{[t]}、\mathbf{W}_{[t]}</script><p>核心在于计算：</p>
+<script type="math/tex; mode=display">
+\mathbf{T}_{[t]}
+=
+\left(
+I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf{K}_{[t]}
+\mathbf{K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})</script><p>Q：为什么 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="https://cdn.nlark.com/yuque/__latex/0d7dc1bf33bc6c685eb7ca864c3381dd.svg"
@@ -481,55 +589,575 @@
                       alt="img"
                 ></p>
 <p>这正是原始递推式中的求和项。</p>
-<h1 id="2-Gated-Delta-Net"><a href="#2-Gated-Delta-Net" class="headerlink" title="2 Gated Delta Net"></a>2 Gated Delta Net</h1><p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2412.06464" >arxiv.org&#x2F;pdf&#x2F;2412.06464<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h1 id="2-Gated-Delta-Net"><a href="#2-Gated-Delta-Net" class="headerlink" title="2 Gated Delta Net"></a>2 Gated Delta Net</h1><p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2412.06464" >arxiv.org/pdf/2412.06464<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
 <p><img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src=".%5Clinear-attention%5C2.png"
+                     data-src=".\linear-attention\2.png"
                       alt="DeltaBet"
                 ></p>
-<h2 id="2-1"><a href="#2-1" class="headerlink" title="2.1"></a>2.1</h2><h1 id="Gated-DeltaNet-的更新公式：-mathbf-S-t"><a href="#Gated-DeltaNet-的更新公式：-mathbf-S-t" class="headerlink" title="Gated DeltaNet 的更新公式：$$\mathbf{S}_t"></a>Gated DeltaNet 的更新公式：<br>$$<br>\mathbf{S}_t</h1><h2 id="mathbf-S-t-1-alpha-t-left-mathbf-I"><a href="#mathbf-S-t-1-alpha-t-left-mathbf-I" class="headerlink" title="\mathbf{S}_{t-1}\alpha_t\left(\mathbf{I}"></a>\mathbf{S}_{t-1}<br>\alpha_t<br>\left(<br>\mathbf{I}</h2><h1 id="beta-t-mathbf-k-t-mathbf-k-t-top-right-beta-t-mathbf-v-t-mathbf-k-t-top-仿照-DeltaNet-和-GLA-中的推导，定义-mathbf-P-t-r"><a href="#beta-t-mathbf-k-t-mathbf-k-t-top-right-beta-t-mathbf-v-t-mathbf-k-t-top-仿照-DeltaNet-和-GLA-中的推导，定义-mathbf-P-t-r" class="headerlink" title="\beta_t \mathbf{k}_t \mathbf{k}_t^\top\right)+\beta_t \mathbf{v}_t \mathbf{k}t^\top$$仿照 DeltaNet 和 GLA 中的推导，定义$$\mathbf{P}{[t]}^{,r}"></a>\beta_t \mathbf{k}_t \mathbf{k}_t^\top<br>\right)<br>+<br>\beta_t \mathbf{v}_t \mathbf{k}<em>t^\top<br>$$<br>仿照 DeltaNet 和 GLA 中的推导，定义<br>$$<br>\mathbf{P}</em>{[t]}^{,r}</h1><h2 id="prod-i-tC-1-tC-r-left-mathbf-I"><a href="#prod-i-tC-1-tC-r-left-mathbf-I" class="headerlink" title="\prod_{i&#x3D;tC+1}^{tC+r}\left(\mathbf{I}"></a>\prod_{i&#x3D;tC+1}^{tC+r}<br>\left(<br>\mathbf{I}</h2><h1 id="beta-i-mathbf-k-i-mathbf-k-i-top-right-in-mathbb-R-d-times-d-qquad-gamma-t-r"><a href="#beta-i-mathbf-k-i-mathbf-k-i-top-right-in-mathbb-R-d-times-d-qquad-gamma-t-r" class="headerlink" title="\beta_i \mathbf{k}_i \mathbf{k}i^\top\right)\in \mathbb{R}^{d \times d},\qquad\gamma{[t]}^{,r}"></a>\beta_i \mathbf{k}_i \mathbf{k}<em>i^\top<br>\right)<br>\in \mathbb{R}^{d \times d},<br>\qquad<br>\gamma</em>{[t]}^{,r}</h1><p>\prod_{i&#x3D;tC+1}^{tC+r}<br>\alpha_i<br>$$</p>
-<h1 id="mathbf-H-t-r"><a href="#mathbf-H-t-r" class="headerlink" title="$$\mathbf{H}_{[t]}^{,r}"></a>$$<br>\mathbf{H}_{[t]}^{,r}</h1><h2 id="sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-frac-gamma-t-r-gamma-t-i-left-prod-j-i-1-tC-r-left-mathbf-I"><a href="#sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-frac-gamma-t-r-gamma-t-i-left-prod-j-i-1-tC-r-left-mathbf-I" class="headerlink" title="\sum_{i&#x3D;tC+1}^{tC+r}\beta_i\left(\mathbf{v}i \mathbf{k}i^\top\right)\frac{\gamma{[t]}^{,r}}{\gamma{[t]}^{,i}}\left(\prod_{j&#x3D;i+1}^{tC+r}\left(\mathbf{I}"></a>\sum_{i&#x3D;tC+1}^{tC+r}<br>\beta_i<br>\left(<br>\mathbf{v}<em>i \mathbf{k}<em>i^\top<br>\right)<br>\frac{\gamma</em>{[t]}^{,r}}{\gamma</em>{[t]}^{,i}}<br>\left(<br>\prod_{j&#x3D;i+1}^{tC+r}<br>\left(<br>\mathbf{I}</h2><p>\beta_j \mathbf{k}_j \mathbf{k}_j^\top<br>\right)<br>\right)<br>\in \mathbb{R}^{d \times d}<br>$$</p>
-<h1 id="于是，分块后的状态可以写成：-mathbf-S-t-r"><a href="#于是，分块后的状态可以写成：-mathbf-S-t-r" class="headerlink" title="于是，分块后的状态可以写成：$$\mathbf{S}_{[t]}^{,r}"></a>于是，分块后的状态可以写成：<br>$$<br>\mathbf{S}_{[t]}^{,r}</h1><h1 id="mathbf-S-t-1-C-gamma-t-r-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C"><a href="#mathbf-S-t-1-C-gamma-t-r-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C" class="headerlink" title="\mathbf{S}{[t-1]}^{,C},\gamma{[t]}^{,r}\mathbf{P}{[t]}^{,r}+\mathbf{H}{[t]}^{,r},\qquad\text{where }\mathbf{S}_{[-1]}^{,C}"></a>\mathbf{S}<em>{[t-1]}^{,C}<br>,<br>\gamma</em>{[t]}^{,r}<br>\mathbf{P}<em>{[t]}^{,r}<br>+<br>\mathbf{H}</em>{[t]}^{,r},<br>\qquad<br>\text{where }<br>\mathbf{S}_{[-1]}^{,C}</h1><p>0<br>$$</p>
-<h2 id="2-2"><a href="#2-2" class="headerlink" title="2.2"></a>2.2</h2><h1 id="这跟1-3是一样的，假设-mathbf-H-t"><a href="#这跟1-3是一样的，假设-mathbf-H-t" class="headerlink" title="这跟1.3是一样的，假设$$\mathbf H_t"></a>这跟1.3是一样的，假设<br>$$<br>\mathbf H_t</h1><h1 id="eta-t-sum-i-1-t-mathbf-u-i-0-mathbf-k-i-top-那么由数学归纳法可得：-mathbf-H-t"><a href="#eta-t-sum-i-1-t-mathbf-u-i-0-mathbf-k-i-top-那么由数学归纳法可得：-mathbf-H-t" class="headerlink" title="\eta_t\sum_{i&#x3D;1}^{t}\mathbf u_i^{0}\mathbf k_i^\top$$那么由数学归纳法可得：$$\mathbf H_t"></a>\eta_t<br>\sum_{i&#x3D;1}^{t}<br>\mathbf u_i^{0}<br>\mathbf k_i^\top<br>$$<br>那么由数学归纳法可得：<br>$$<br>\mathbf H_t</h1><h2 id="alpha-t-mathbf-H-t-1-beta-t-left-mathbf-v-t"><a href="#alpha-t-mathbf-H-t-1-beta-t-left-mathbf-v-t" class="headerlink" title="\alpha_t \mathbf H_{t-1}+\beta_t\left(\mathbf v_t"></a>\alpha_t \mathbf H_{t-1}<br>+<br>\beta_t<br>\left(<br>\mathbf v_t</h2><p>\alpha_t \mathbf H_{t-1}\mathbf k_t<br>\right)<br>\mathbf k_t^\top<br>$$</p>
-<h1 id=""><a href="#" class="headerlink" title="$$"></a>$$</h1><h2 id="alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-beta-t-left-mathbf-v-t"><a href="#alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-beta-t-left-mathbf-v-t" class="headerlink" title="\alpha_t \eta_{t-1}\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0 \mathbf k_i^\top+\beta_t\left(\mathbf v_t"></a>\alpha_t \eta_{t-1}<br>\sum_{i&#x3D;1}^{t-1}<br>\mathbf u_i^0 \mathbf k_i^\top<br>+<br>\beta_t<br>\left(<br>\mathbf v_t</h2><h1 id="alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-right-mathbf-k-t-top"><a href="#alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-right-mathbf-k-t-top" class="headerlink" title="\alpha_t \eta_{t-1}\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0 \mathbf k_i^\top \mathbf k_t\right)\mathbf k_t^\top"></a>\alpha_t \eta_{t-1}<br>\sum_{i&#x3D;1}^{t-1}<br>\mathbf u_i^0 \mathbf k_i^\top \mathbf k_t<br>\right)<br>\mathbf k_t^\top</h1><p>\eta_t<br>\sum_{i&#x3D;1}^{t}<br>\mathbf u_i^0 \mathbf k_i^\top<br>$$</p>
-<h1 id="其中：-eta-t"><a href="#其中：-eta-t" class="headerlink" title="其中：$$\eta_t"></a>其中：<br>$$<br>\eta_t</h1><h1 id="alpha-t-eta-t-1"><a href="#alpha-t-eta-t-1" class="headerlink" title="\alpha_t \eta_{t-1}"></a>\alpha_t \eta_{t-1}</h1><h1 id="gamma-t-qquad-mathbf-u-t-0"><a href="#gamma-t-qquad-mathbf-u-t-0" class="headerlink" title="\gamma_t,\qquad\mathbf u_t^0"></a>\gamma_t,<br>\qquad<br>\mathbf u_t^0</h1><h2 id="frac-beta-t-eta-t-mathbf-v-t"><a href="#frac-beta-t-eta-t-mathbf-v-t" class="headerlink" title="\frac{\beta_t}{\eta_t}\mathbf v_t"></a>\frac{\beta_t}{\eta_t}\mathbf v_t</h2><h1 id="beta-t-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-等价地，也可以写成：-mathbf-H-t"><a href="#beta-t-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-等价地，也可以写成：-mathbf-H-t" class="headerlink" title="\beta_t\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0\mathbf k_i^\top\mathbf k_t$$等价地，也可以写成：$$\mathbf H_t"></a>\beta_t<br>\sum_{i&#x3D;1}^{t-1}<br>\mathbf u_i^0<br>\mathbf k_i^\top<br>\mathbf k_t<br>$$<br>等价地，也可以写成：<br>$$<br>\mathbf H_t</h1><h1 id="sum-i-1-t-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-qquad-mathbf-u-t"><a href="#sum-i-1-t-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-qquad-mathbf-u-t" class="headerlink" title="\sum_{i&#x3D;1}^{t}\frac{\gamma_t}{\gamma_i}\mathbf u_i\mathbf k_i^\top,\qquad\mathbf u_t"></a>\sum_{i&#x3D;1}^{t}<br>\frac{\gamma_t}{\gamma_i}<br>\mathbf u_i<br>\mathbf k_i^\top,<br>\qquad<br>\mathbf u_t</h1><h2 id="beta-t-left-mathbf-v-t"><a href="#beta-t-left-mathbf-v-t" class="headerlink" title="\beta_t\left(\mathbf v_t"></a>\beta_t<br>\left(<br>\mathbf v_t</h2><h1 id="sum-i-1-t-1-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-mathbf-k-t-right-P同理-mathbf-P-t-r"><a href="#sum-i-1-t-1-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-mathbf-k-t-right-P同理-mathbf-P-t-r" class="headerlink" title="\sum_{i&#x3D;1}^{t-1}\frac{\gamma_t}{\gamma_i}\mathbf u_i\mathbf k_i^\top\mathbf k_t\right)$$P同理$$\mathbf P_{[t]}^{,r}"></a>\sum_{i&#x3D;1}^{t-1}<br>\frac{\gamma_t}{\gamma_i}<br>\mathbf u_i<br>\mathbf k_i^\top<br>\mathbf k_t<br>\right)<br>$$<br>P同理<br>$$<br>\mathbf P_{[t]}^{,r}</h1><h2 id="mathbf-I"><a href="#mathbf-I" class="headerlink" title="\mathbf I"></a>\mathbf I</h2><h1 id="sum-i-1-r-mathbf-w-t-i-mathbf-k-t-i-top-qquad-mathbf-w-t-r"><a href="#sum-i-1-r-mathbf-w-t-i-mathbf-k-t-i-top-qquad-mathbf-w-t-r" class="headerlink" title="\sum_{i&#x3D;1}^{r}\mathbf w_{[t]}^{,i}\mathbf k_{[t]}^{,i\top},\qquad\mathbf w_{[t]}^{,r}"></a>\sum_{i&#x3D;1}^{r}<br>\mathbf w_{[t]}^{,i}<br>\mathbf k_{[t]}^{,i\top},<br>\qquad<br>\mathbf w_{[t]}^{,r}</h1><h2 id="beta-t-r-mathbf-k-t-r"><a href="#beta-t-r-mathbf-k-t-r" class="headerlink" title="\beta_{[t]}^{,r}\mathbf k_{[t]}^{,r}"></a>\beta_{[t]}^{,r}\mathbf k_{[t]}^{,r}</h2><p>\beta_{[t]}^{,r}<br>\sum_{i&#x3D;1}^{r-1}<br>\mathbf w_{[t]}^{,i}<br>\mathbf k_{[t]}^{,i\top}<br>\mathbf k_{[t]}^{,r}<br>$$</p>
-<h2 id="2-3"><a href="#2-3" class="headerlink" title="2.3"></a>2.3</h2><h1 id="代回到-chunkwise-递推式中，就有-mathbf-S-t-r"><a href="#代回到-chunkwise-递推式中，就有-mathbf-S-t-r" class="headerlink" title="代回到 chunkwise 递推式中，就有$$\mathbf S_{[t]}^{,r}"></a>代回到 chunkwise 递推式中，就有<br>$$<br>\mathbf S_{[t]}^{,r}</h1><h2 id="mathbf-S-t-1-C-gamma-t-r-left-mathbf-I"><a href="#mathbf-S-t-1-C-gamma-t-r-left-mathbf-I" class="headerlink" title="\mathbf S_{[t-1]}^{,C}\gamma_{[t]}^{,r}\left(\mathbf I"></a>\mathbf S_{[t-1]}^{,C}<br>\gamma_{[t]}^{,r}<br>\left(<br>\mathbf I</h2><p>\sum_{i&#x3D;1}^{r}<br>\mathbf w_{[t]}^{,i}<br>\mathbf k_{[t]}^{,i\top}<br>\right)<br>+<br>\sum_{i&#x3D;1}^{r}<br>\frac{\gamma_{[t]}^{,r}}<br>{\gamma_{[t]}^{,i}}<br>\mathbf u_{[t]}^{,i}<br>\mathbf k_{[t]}^{,i\top}<br>$$</p>
-<h1 id="-1"><a href="#-1" class="headerlink" title="$$"></a>$$</h1><h2 id="gamma-t-r-mathbf-S-t-1-C-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i"><a href="#gamma-t-r-mathbf-S-t-1-C-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i" class="headerlink" title="\gamma_{[t]}^{,r}\mathbf S_{[t-1]}^{,C}+\gamma_{[t]}^{,r}\sum_{i&#x3D;1}^{r}\left(\mathbf u_{[t]}^{,i}"></a>\gamma_{[t]}^{,r}<br>\mathbf S_{[t-1]}^{,C}<br>+<br>\gamma_{[t]}^{,r}<br>\sum_{i&#x3D;1}^{r}<br>\left(<br>\mathbf u_{[t]}^{,i}</h2><p>\mathbf S_{[t-1]}^{,C}<br>\gamma_{[t]}^{,i}<br>\mathbf w_{[t]}^{,i}<br>\right)<br>\frac{\mathbf k_{[t]}^{,i\top}}<br>{\gamma_{[t]}^{,i}}<br>$$</p>
-<h1 id="mathbf-o-t-r"><a href="#mathbf-o-t-r" class="headerlink" title="$$\mathbf o_{[t]}^{,r}"></a>$$<br>\mathbf o_{[t]}^{,r}</h1><h1 id="mathbf-S-t-r-mathbf-q-t-r"><a href="#mathbf-S-t-r-mathbf-q-t-r" class="headerlink" title="\mathbf S_{[t]}^{,r}\mathbf q_{[t]}^{,r}"></a>\mathbf S_{[t]}^{,r}<br>\mathbf q_{[t]}^{,r}</h1><h2 id="mathbf-S-t-1-C-mathbf-q-t-r-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i"><a href="#mathbf-S-t-1-C-mathbf-q-t-r-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i" class="headerlink" title="\mathbf S_{[t-1]}^{,C}\mathbf q_{[t]}^{,r}\gamma_{[t]}^{,r}+\sum_{i&#x3D;1}^{r}\left(\mathbf u_{[t]}^{,i}"></a>\mathbf S_{[t-1]}^{,C}<br>\mathbf q_{[t]}^{,r}<br>\gamma_{[t]}^{,r}<br>+<br>\sum_{i&#x3D;1}^{r}<br>\left(<br>\mathbf u_{[t]}^{,i}</h2><p>\mathbf S_{[t-1]}^{,C}<br>\gamma_{[t]}^{,i}<br>\mathbf w_{[t]}^{,i}<br>\right)<br>\frac{\mathbf k_{[t]}^{,i\top}}<br>{\gamma_{[t]}^{,i}}<br>\mathbf q_{[t]}^{,r}<br>\gamma_{[t]}^{,r}<br>$$</p>
-<h2 id="2-4"><a href="#2-4" class="headerlink" title="2.4"></a>2.4</h2><h1 id="现在再定义：-overleftarrow-mathbf-X-t"><a href="#现在再定义：-overleftarrow-mathbf-X-t" class="headerlink" title="现在再定义：$$\overleftarrow{\mathbf X}_{[t]}"></a>现在再定义：<br>$$<br>\overleftarrow{\mathbf X}_{[t]}</h1><h1 id="operatorname-Diag-gamma-t-mathbf-X-t-qquad-overrightarrow-mathbf-X-t"><a href="#operatorname-Diag-gamma-t-mathbf-X-t-qquad-overrightarrow-mathbf-X-t" class="headerlink" title="\operatorname{Diag}(\gamma_{[t]})\mathbf X_{[t]},\qquad\overrightarrow{\mathbf X}_{[t]}"></a>\operatorname{Diag}(\gamma_{[t]})<br>\mathbf X_{[t]},<br>\qquad<br>\overrightarrow{\mathbf X}_{[t]}</h1><h1 id="operatorname-Diag-gamma-t-1-mathbf-X-t-qquad-text-for-mathbf-X-in-mathbf-Q-mathbf-K-mathbf-W-于是，整体计算可以进一步写成矩阵形式：-mathbf-S-t-C"><a href="#operatorname-Diag-gamma-t-1-mathbf-X-t-qquad-text-for-mathbf-X-in-mathbf-Q-mathbf-K-mathbf-W-于是，整体计算可以进一步写成矩阵形式：-mathbf-S-t-C" class="headerlink" title="\operatorname{Diag}(\gamma_{[t]})^{-1}\mathbf X_{[t]},\qquad\text{for }\mathbf X \in {\mathbf Q,\mathbf K,\mathbf W}$$于是，整体计算可以进一步写成矩阵形式：$$\mathbf S_{[t]}^{C}"></a>\operatorname{Diag}(\gamma_{[t]})^{-1}<br>\mathbf X_{[t]},<br>\qquad<br>\text{for }<br>\mathbf X \in {\mathbf Q,\mathbf K,\mathbf W}<br>$$<br>于是，整体计算可以进一步写成矩阵形式：<br>$$<br>\mathbf S_{[t]}^{C}</h1><h2 id="gamma-t-C-mathbf-S-t-1-C-gamma-t-C-left-mathbf-U-t-top"><a href="#gamma-t-C-mathbf-S-t-1-C-gamma-t-C-left-mathbf-U-t-top" class="headerlink" title="\gamma_{[t]}^{C}\mathbf S_{[t-1]}^{C}+\gamma_{[t]}^{C}\left(\mathbf U_{[t]}^{\top}"></a>\gamma_{[t]}^{C}<br>\mathbf S_{[t-1]}^{C}<br>+<br>\gamma_{[t]}^{C}<br>\left(<br>\mathbf U_{[t]}^{\top}</h2><p>\mathbf S_{[t-1]}^{C}<br>\overleftarrow{\mathbf W}<em>{[t]}^{\top}<br>\right)<br>\overrightarrow{\mathbf K}</em>{[t]}<br>$$</p>
-<h1 id="mathbf-O-t"><a href="#mathbf-O-t" class="headerlink" title="$$\mathbf O_{[t]}"></a>$$<br>\mathbf O_{[t]}</h1><h2 id="overleftarrow-mathbf-Q-t-mathbf-S-t-1-C-top-left-overleftarrow-mathbf-Q-t-overrightarrow-mathbf-K-t-top-odot-mathbf-M-right-left-mathbf-U-t"><a href="#overleftarrow-mathbf-Q-t-mathbf-S-t-1-C-top-left-overleftarrow-mathbf-Q-t-overrightarrow-mathbf-K-t-top-odot-mathbf-M-right-left-mathbf-U-t" class="headerlink" title="\overleftarrow{\mathbf Q}{[t]}\mathbf S{[t-1]}^{C\top}+\left(\overleftarrow{\mathbf Q}{[t]}\overrightarrow{\mathbf K}{[t]}^{\top}\odot\mathbf M\right)\left(\mathbf U_{[t]}"></a>\overleftarrow{\mathbf Q}<em>{[t]}<br>\mathbf S</em>{[t-1]}^{C\top}<br>+<br>\left(<br>\overleftarrow{\mathbf Q}<em>{[t]}<br>\overrightarrow{\mathbf K}</em>{[t]}^{\top}<br>\odot<br>\mathbf M<br>\right)<br>\left(<br>\mathbf U_{[t]}</h2><p>\overleftarrow{\mathbf W}<em>{[t]}<br>\mathbf S</em>{[t-1]}^{C\top}<br>\right)<br>$$</p>
-<h2 id="2-5"><a href="#2-5" class="headerlink" title="2.5"></a>2.5</h2><p>接下来处理 U、W，采用<strong>UT变换</strong>求解如下<br>$$<br>\mathbf u_{[t]} 和 \mathbf w_{[t]}<br>$$</p>
-<p>其中<br>$$<br>M_{-1}&#x3D;M-I<br>$$<br>表示主对角线为零的严格下三角掩码。</p>
-<h1 id="从-mathbf-u-t-的递推式出发，可以得到：-mathbf-u-t-r"><a href="#从-mathbf-u-t-的递推式出发，可以得到：-mathbf-u-t-r" class="headerlink" title="从$$\mathbf u_{[t]}$$的递推式出发，可以得到：$$\mathbf u_{[t]}^{,r}"></a>从<br>$$<br>\mathbf u_{[t]}<br>$$<br>的递推式出发，可以得到：<br>$$<br>\mathbf u_{[t]}^{,r}</h1><h2 id="beta-t-r-left-mathbf-v-t-r"><a href="#beta-t-r-left-mathbf-v-t-r" class="headerlink" title="\beta_{[t]}^{,r}\left(\mathbf v_{[t]}^{,r}"></a>\beta_{[t]}^{,r}<br>\left(<br>\mathbf v_{[t]}^{,r}</h2><p>\sum_{i&#x3D;1}^{r-1}<br>\frac{\gamma_{[t]}^{,r}}<br>{\gamma_{[t]}^{,i}}<br>\mathbf u_{[t]}^{,i}<br>\mathbf k_{[t]}^{,i\top}<br>\mathbf k_{[t]}^{,r}<br>\right)<br>$$</p>
-<h1 id="Rightarrow-mathbf-U-t-2"><a href="#Rightarrow-mathbf-U-t-2" class="headerlink" title="$$\Rightarrow\mathbf U_{[t]}"></a>$$<br>\Rightarrow<br>\mathbf U_{[t]}</h1><h2 id="operatorname-Diag-beta-t-mathbf-V-t-1"><a href="#operatorname-Diag-beta-t-mathbf-V-t-1" class="headerlink" title="\operatorname{Diag}(\beta_{[t]})\mathbf V_{[t]}"></a>\operatorname{Diag}(\beta_{[t]})<br>\mathbf V_{[t]}</h2><p>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\overleftarrow{\mathbf K}<em>{[t]}<br>\overrightarrow{\mathbf K}</em>{[t]}^{\top}<br>\odot M_{-1}<br>\right)<br>\mathbf U_{[t]}<br>$$</p>
-<h1 id="Rightarrow-mathbf-U-t-3"><a href="#Rightarrow-mathbf-U-t-3" class="headerlink" title="$$\Rightarrow\mathbf U_{[t]}"></a>$$<br>\Rightarrow<br>\mathbf U_{[t]}</h1><p>\left(<br>\mathbf I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\overleftarrow{\mathbf K}<em>{[t]}<br>\overrightarrow{\mathbf K}</em>{[t]}^{\top}<br>\odot M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>\mathbf V_{[t]}<br>$$</p>
-<h1 id="同理，也有：-mathbf-W-t"><a href="#同理，也有：-mathbf-W-t" class="headerlink" title="同理，也有：$$\mathbf W_{[t]}"></a>同理，也有：<br>$$<br>\mathbf W_{[t]}</h1><h1 id="left-mathbf-I-operatorname-Diag-beta-t-left-overleftarrow-mathbf-K-t-overrightarrow-mathbf-K-t-top-odot-M-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-因此，要计算-U-和-W，关键就在于下面两个量：-mathbf-T-t"><a href="#left-mathbf-I-operatorname-Diag-beta-t-left-overleftarrow-mathbf-K-t-overrightarrow-mathbf-K-t-top-odot-M-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-因此，要计算-U-和-W，关键就在于下面两个量：-mathbf-T-t" class="headerlink" title="\left(\mathbf I+\operatorname{Diag}(\beta_{[t]})\left(\overleftarrow{\mathbf K}{[t]}\overrightarrow{\mathbf K}{[t]}^{\top}\odot M_{-1}\right)\right)^{-1}\operatorname{Diag}(\beta_{[t]})\mathbf K_{[t]}$$因此，要计算 U 和 W，关键就在于下面两个量：$$\mathbf T_{[t]}"></a>\left(<br>\mathbf I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\overleftarrow{\mathbf K}<em>{[t]}<br>\overrightarrow{\mathbf K}</em>{[t]}^{\top}<br>\odot M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>\mathbf K_{[t]}<br>$$<br>因此，要计算 U 和 W，关键就在于下面两个量：<br>$$<br>\mathbf T_{[t]}</h1><p>\left(<br>\mathbf I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\mathbf K_{[t]}<br>\mathbf K_{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>$$</p>
-<h1 id="widetilde-mathbf-T-t"><a href="#widetilde-mathbf-T-t" class="headerlink" title="$$\widetilde{\mathbf T}_{[t]}"></a>$$<br>\widetilde{\mathbf T}_{[t]}</h1><p>\left(<br>\mathbf I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\overleftarrow{\mathbf K}<em>{[t]}<br>\overrightarrow{\mathbf K}</em>{[t]}^{\top}<br>\odot<br>M_{-1}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>$$</p>
-<h1 id="需要注意的是，这个表达式与原论文中的写法是等价的：-widetilde-mathbf-T-t"><a href="#需要注意的是，这个表达式与原论文中的写法是等价的：-widetilde-mathbf-T-t" class="headerlink" title="需要注意的是，这个表达式与原论文中的写法是等价的：$$\widetilde{\mathbf T}_{[t]}"></a>需要注意的是，这个表达式与原论文中的写法是等价的：<br>$$<br>\widetilde{\mathbf T}_{[t]}</h1><h1 id="left-mathbf-I-operatorname-Diag-beta-t-Bigl-mathbf-K-t-mathbf-K-t-top-odot-Gamma-t-odotM-1-Bigr-right-1-operatorname-Diag-beta-t-其中-Gamma-t-ij"><a href="#left-mathbf-I-operatorname-Diag-beta-t-Bigl-mathbf-K-t-mathbf-K-t-top-odot-Gamma-t-odotM-1-Bigr-right-1-operatorname-Diag-beta-t-其中-Gamma-t-ij" class="headerlink" title="\left(\mathbf I+\operatorname{Diag}(\beta_{[t]})\Bigl((\mathbf K_{[t]}\mathbf K_{[t]}^{\top}\odot\Gamma_{[t]})\odotM_{-1}\Bigr)\right)^{-1}\operatorname{Diag}(\beta_{[t]})$$其中$$(\Gamma_{[t]})_{ij}"></a>\left(<br>\mathbf I<br>+<br>\operatorname{Diag}(\beta_{[t]})<br>\Bigl(<br>(<br>\mathbf K_{[t]}<br>\mathbf K_{[t]}^{\top}<br>\odot<br>\Gamma_{[t]}<br>)<br>\odot<br>M_{-1}<br>\Bigr)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>$$<br>其中<br>$$<br>(\Gamma_{[t]})_{ij}</h1><p>\frac{\gamma_i}{\gamma_j}.<br>$$</p>
-<h1 id="3-Kimi-Delta-Attention"><a href="#3-Kimi-Delta-Attention" class="headerlink" title="3 Kimi Delta Attention"></a>3 Kimi Delta Attention</h1><p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2510.26692" >arxiv.org&#x2F;pdf&#x2F;2510.26692<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="2-1"><a href="#2-1" class="headerlink" title="2.1"></a>2.1</h2><p>Gated DeltaNet 的更新公式：</p>
+<script type="math/tex; mode=display">
+\mathbf{S}_t
+=
+\mathbf{S}_{t-1}
+\alpha_t
+\left(
+\mathbf{I}
+-
+\beta_t \mathbf{k}_t \mathbf{k}_t^\top
+\right)
++
+\beta_t \mathbf{v}_t \mathbf{k}_t^\top</script><p>仿照 DeltaNet 和 GLA 中的推导，定义</p>
+<script type="math/tex; mode=display">
+\mathbf{P}_{[t]}^{\,r}
+=
+\prod_{i=tC+1}^{tC+r}
+\left(
+\mathbf{I}
+-
+\beta_i \mathbf{k}_i \mathbf{k}_i^\top
+\right)
+\in \mathbb{R}^{d \times d},
+\qquad
+\gamma_{[t]}^{\,r}
+=
+\prod_{i=tC+1}^{tC+r}
+\alpha_i</script><script type="math/tex; mode=display">
+\mathbf{H}_{[t]}^{\,r}
+=
+\sum_{i=tC+1}^{tC+r}
+\beta_i
+\left(
+\mathbf{v}_i \mathbf{k}_i^\top
+\right)
+\frac{\gamma_{[t]}^{\,r}}{\gamma_{[t]}^{\,i}}
+\left(
+\prod_{j=i+1}^{tC+r}
+\left(
+\mathbf{I}
+-
+\beta_j \mathbf{k}_j \mathbf{k}_j^\top
+\right)
+\right)
+\in \mathbb{R}^{d \times d}</script><p>于是，分块后的状态可以写成：</p>
+<script type="math/tex; mode=display">
+\mathbf{S}_{[t]}^{\,r}
+=
+\mathbf{S}_{[t-1]}^{\,C}
+\,
+\gamma_{[t]}^{\,r}
+\mathbf{P}_{[t]}^{\,r}
++
+\mathbf{H}_{[t]}^{\,r},
+\qquad
+\text{where }
+\mathbf{S}_{[-1]}^{\,C}
+=
+0</script><h2 id="2-2"><a href="#2-2" class="headerlink" title="2.2"></a>2.2</h2><p>这跟1.3是一样的，假设</p>
+<script type="math/tex; mode=display">
+\mathbf H_t
+=
+\eta_t
+\sum_{i=1}^{t}
+\mathbf u_i^{0}
+\mathbf k_i^\top</script><p>那么由数学归纳法可得：</p>
+<script type="math/tex; mode=display">
+\mathbf H_t
+=
+\alpha_t \mathbf H_{t-1}
++
+\beta_t
+\left(
+\mathbf v_t
+-
+\alpha_t \mathbf H_{t-1}\mathbf k_t
+\right)
+\mathbf k_t^\top</script><script type="math/tex; mode=display">
+=
+\alpha_t \eta_{t-1}
+\sum_{i=1}^{t-1}
+\mathbf u_i^0 \mathbf k_i^\top
++
+\beta_t
+\left(
+\mathbf v_t
+-
+\alpha_t \eta_{t-1}
+\sum_{i=1}^{t-1}
+\mathbf u_i^0 \mathbf k_i^\top \mathbf k_t
+\right)
+\mathbf k_t^\top
+=
+\eta_t
+\sum_{i=1}^{t}
+\mathbf u_i^0 \mathbf k_i^\top</script><p>其中：</p>
+<script type="math/tex; mode=display">
+\eta_t
+=
+\alpha_t \eta_{t-1}
+=
+\gamma_t,
+\qquad
+\mathbf u_t^0
+=
+\frac{\beta_t}{\eta_t}\mathbf v_t
+-
+\beta_t
+\sum_{i=1}^{t-1}
+\mathbf u_i^0
+\mathbf k_i^\top
+\mathbf k_t</script><p>等价地，也可以写成：</p>
+<script type="math/tex; mode=display">
+\mathbf H_t
+=
+\sum_{i=1}^{t}
+\frac{\gamma_t}{\gamma_i}
+\mathbf u_i
+\mathbf k_i^\top,
+\qquad
+\mathbf u_t
+=
+\beta_t
+\left(
+\mathbf v_t
+-
+\sum_{i=1}^{t-1}
+\frac{\gamma_t}{\gamma_i}
+\mathbf u_i
+\mathbf k_i^\top
+\mathbf k_t
+\right)</script><p>P同理</p>
+<script type="math/tex; mode=display">
+\mathbf P_{[t]}^{\,r}
+=
+\mathbf I
+-
+\sum_{i=1}^{r}
+\mathbf w_{[t]}^{\,i}
+\mathbf k_{[t]}^{\,i\top},
+\qquad
+\mathbf w_{[t]}^{\,r}
+=
+\beta_{[t]}^{\,r}\mathbf k_{[t]}^{\,r}
+-
+\beta_{[t]}^{\,r}
+\sum_{i=1}^{r-1}
+\mathbf w_{[t]}^{\,i}
+\mathbf k_{[t]}^{\,i\top}
+\mathbf k_{[t]}^{\,r}</script><h2 id="2-3"><a href="#2-3" class="headerlink" title="2.3"></a>2.3</h2><p>代回到 chunkwise 递推式中，就有</p>
+<script type="math/tex; mode=display">
+\mathbf S_{[t]}^{\,r}
+=
+\mathbf S_{[t-1]}^{\,C}
+\gamma_{[t]}^{\,r}
+\left(
+\mathbf I
+-
+\sum_{i=1}^{r}
+\mathbf w_{[t]}^{\,i}
+\mathbf k_{[t]}^{\,i\top}
+\right)
++
+\sum_{i=1}^{r}
+\frac{\gamma_{[t]}^{\,r}}
+{\gamma_{[t]}^{\,i}}
+\mathbf u_{[t]}^{\,i}
+\mathbf k_{[t]}^{\,i\top}</script><script type="math/tex; mode=display">
+=
+\gamma_{[t]}^{\,r}
+\mathbf S_{[t-1]}^{\,C}
++
+\gamma_{[t]}^{\,r}
+\sum_{i=1}^{r}
+\left(
+\mathbf u_{[t]}^{\,i}
+-
+\mathbf S_{[t-1]}^{\,C}
+\gamma_{[t]}^{\,i}
+\mathbf w_{[t]}^{\,i}
+\right)
+\frac{\mathbf k_{[t]}^{\,i\top}}
+{\gamma_{[t]}^{\,i}}</script><script type="math/tex; mode=display">
+\mathbf o_{[t]}^{\,r}
+=
+\mathbf S_{[t]}^{\,r}
+\mathbf q_{[t]}^{\,r}
+=
+\mathbf S_{[t-1]}^{\,C}
+\mathbf q_{[t]}^{\,r}
+\gamma_{[t]}^{\,r}
++
+\sum_{i=1}^{r}
+\left(
+\mathbf u_{[t]}^{\,i}
+-
+\mathbf S_{[t-1]}^{\,C}
+\gamma_{[t]}^{\,i}
+\mathbf w_{[t]}^{\,i}
+\right)
+\frac{\mathbf k_{[t]}^{\,i\top}}
+{\gamma_{[t]}^{\,i}}
+\mathbf q_{[t]}^{\,r}
+\gamma_{[t]}^{\,r}</script><h2 id="2-4"><a href="#2-4" class="headerlink" title="2.4"></a>2.4</h2><p>现在再定义：</p>
+<script type="math/tex; mode=display">
+\overleftarrow{\mathbf X}_{[t]}
+=
+\operatorname{Diag}(\gamma_{[t]})
+\mathbf X_{[t]},
+\qquad
+\overrightarrow{\mathbf X}_{[t]}
+=
+\operatorname{Diag}(\gamma_{[t]})^{-1}
+\mathbf X_{[t]},
+\qquad
+\text{for }
+\mathbf X \in \{\mathbf Q,\mathbf K,\mathbf W\}</script><p>于是，整体计算可以进一步写成矩阵形式：</p>
+<script type="math/tex; mode=display">
+\mathbf S_{[t]}^{C}
+=
+\gamma_{[t]}^{C}
+\mathbf S_{[t-1]}^{C}
++
+\gamma_{[t]}^{C}
+\left(
+\mathbf U_{[t]}^{\top}
+-
+\mathbf S_{[t-1]}^{C}
+\overleftarrow{\mathbf W}_{[t]}^{\top}
+\right)
+\overrightarrow{\mathbf K}_{[t]}</script><script type="math/tex; mode=display">
+\mathbf O_{[t]}
+=
+\overleftarrow{\mathbf Q}_{[t]}
+\mathbf S_{[t-1]}^{C\top}
++
+\left(
+\overleftarrow{\mathbf Q}_{[t]}
+\overrightarrow{\mathbf K}_{[t]}^{\top}
+\odot
+\mathbf M
+\right)
+\left(
+\mathbf U_{[t]}
+-
+\overleftarrow{\mathbf W}_{[t]}
+\mathbf S_{[t-1]}^{C\top}
+\right)</script><h2 id="2-5"><a href="#2-5" class="headerlink" title="2.5"></a>2.5</h2><p>接下来处理 U、W，采用<strong>UT变换</strong>求解如下</p>
+<script type="math/tex; mode=display">
+\mathbf u_{[t]} 和 \mathbf w_{[t]}</script><p>其中</p>
+<script type="math/tex; mode=display">
+M_{-1}=M-I</script><p>表示主对角线为零的严格下三角掩码。</p>
+<p>从</p>
+<script type="math/tex; mode=display">
+\mathbf u_{[t]}</script><p>的递推式出发，可以得到：</p>
+<script type="math/tex; mode=display">
+\mathbf u_{[t]}^{\,r}
+=
+\beta_{[t]}^{\,r}
+\left(
+\mathbf v_{[t]}^{\,r}
+-
+\sum_{i=1}^{r-1}
+\frac{\gamma_{[t]}^{\,r}}
+{\gamma_{[t]}^{\,i}}
+\mathbf u_{[t]}^{\,i}
+\mathbf k_{[t]}^{\,i\top}
+\mathbf k_{[t]}^{\,r}
+\right)</script><script type="math/tex; mode=display">
+\Rightarrow
+\mathbf U_{[t]}
+=
+\operatorname{Diag}(\beta_{[t]})
+\mathbf V_{[t]}
+-
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\overleftarrow{\mathbf K}_{[t]}
+\overrightarrow{\mathbf K}_{[t]}^{\top}
+\odot M_{-1}
+\right)
+\mathbf U_{[t]}</script><script type="math/tex; mode=display">
+\Rightarrow
+\mathbf U_{[t]}
+=
+\left(
+\mathbf I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\overleftarrow{\mathbf K}_{[t]}
+\overrightarrow{\mathbf K}_{[t]}^{\top}
+\odot M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})
+\mathbf V_{[t]}</script><p>同理，也有：</p>
+<script type="math/tex; mode=display">
+\mathbf W_{[t]}
+=
+\left(
+\mathbf I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\overleftarrow{\mathbf K}_{[t]}
+\overrightarrow{\mathbf K}_{[t]}^{\top}
+\odot M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})
+\mathbf K_{[t]}</script><p>因此，要计算 U 和 W，关键就在于下面两个量：</p>
+<script type="math/tex; mode=display">
+\mathbf T_{[t]}
+=
+\left(
+\mathbf I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\mathbf K_{[t]}
+\mathbf K_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})</script><script type="math/tex; mode=display">
+\widetilde{\mathbf T}_{[t]}
+=
+\left(
+\mathbf I
++
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\overleftarrow{\mathbf K}_{[t]}
+\overrightarrow{\mathbf K}_{[t]}^{\top}
+\odot
+M_{-1}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})</script><p>需要注意的是，这个表达式与原论文中的写法是等价的：</p>
+<script type="math/tex; mode=display">
+\widetilde{\mathbf T}_{[t]}
+=
+\left(
+\mathbf I
++
+\operatorname{Diag}(\beta_{[t]})
+\Bigl(
+(
+\mathbf K_{[t]}
+\mathbf K_{[t]}^{\top}
+\odot
+\Gamma_{[t]}
+)
+\odot
+M_{-1}
+\Bigr)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})</script><p>其中</p>
+<script type="math/tex; mode=display">
+(\Gamma_{[t]})_{ij}
+=
+\frac{\gamma_i}{\gamma_j}.</script><h1 id="3-Kimi-Delta-Attention"><a href="#3-Kimi-Delta-Attention" class="headerlink" title="3 Kimi Delta Attention"></a>3 Kimi Delta Attention</h1><p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2510.26692" >arxiv.org/pdf/2510.26692<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
 <p><img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src=".%5Clinear-attention%5C3.png"
+                     data-src=".\linear-attention\3.png"
                       alt="DeltaBet"
                 ></p>
-<h2 id="3-1"><a href="#3-1" class="headerlink" title="3.1"></a>3.1</h2><h1 id="原始公式：-mathbf-S-t"><a href="#原始公式：-mathbf-S-t" class="headerlink" title="原始公式：$$\mathbf S_t"></a>原始公式：<br>$$<br>\mathbf S_t</h1><h2 id="mathbf-S-t-1-operatorname-Diag-alpha-t-left-mathbf-I"><a href="#mathbf-S-t-1-operatorname-Diag-alpha-t-left-mathbf-I" class="headerlink" title="\mathbf S_{t-1}\operatorname{Diag}(\alpha_t)\left(\mathbf I"></a>\mathbf S_{t-1}<br>\operatorname{Diag}(\alpha_t)<br>\left(<br>\mathbf I</h2><p>\beta_t \mathbf k_t \mathbf k_t^\top<br>\right)<br>+<br>\beta_t \mathbf v_t \mathbf k_t^\top<br>\in \mathbb R^{d_v\times d_k}<br>$$</p>
-<h1 id="mathbf-o-t"><a href="#mathbf-o-t" class="headerlink" title="$$\mathbf o_t"></a>$$<br>\mathbf o_t</h1><p>\mathbf S_t \mathbf q_t<br>$$</p>
-<h1 id="接下来，遵循-DeltaNet-的推导，定义块级符号和以下辅助量：-mathbf-P-t-r"><a href="#接下来，遵循-DeltaNet-的推导，定义块级符号和以下辅助量：-mathbf-P-t-r" class="headerlink" title="接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：$$\mathbf P_{[t]}^{,r}"></a>接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：<br>$$<br>\mathbf P_{[t]}^{,r}</h1><h2 id="prod-i-tC-1-tC-r-operatorname-Diag-alpha-i-left-mathbf-I"><a href="#prod-i-tC-1-tC-r-operatorname-Diag-alpha-i-left-mathbf-I" class="headerlink" title="\prod_{i&#x3D;tC+1}^{tC+r}\operatorname{Diag}(\alpha_i)\left(\mathbf I"></a>\prod_{i&#x3D;tC+1}^{tC+r}<br>\operatorname{Diag}(\alpha_i)<br>\left(<br>\mathbf I</h2><p>\beta_i \mathbf k_i \mathbf k_i^\top<br>\right)<br>\in \mathbb R^{d_k\times d_k}<br>$$</p>
-<h1 id="mathbf-H-t-r-1"><a href="#mathbf-H-t-r-1" class="headerlink" title="$$\mathbf H_{[t]}^{,r}"></a>$$<br>\mathbf H_{[t]}^{,r}</h1><h2 id="sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-prod-j-i-1-tC-r-operatorname-Diag-alpha-j-left-mathbf-I"><a href="#sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-prod-j-i-1-tC-r-operatorname-Diag-alpha-j-left-mathbf-I" class="headerlink" title="\sum_{i&#x3D;tC+1}^{tC+r}\beta_i\left(\mathbf v_i \mathbf k_i^\top\right)\prod_{j&#x3D;i+1}^{tC+r}\operatorname{Diag}(\alpha_j)\left(\mathbf I"></a>\sum_{i&#x3D;tC+1}^{tC+r}<br>\beta_i<br>\left(<br>\mathbf v_i \mathbf k_i^\top<br>\right)<br>\prod_{j&#x3D;i+1}^{tC+r}<br>\operatorname{Diag}(\alpha_j)<br>\left(<br>\mathbf I</h2><p>\beta_j \mathbf k_j \mathbf k_j^\top<br>\right)<br>\in \mathbb R^{d_v\times d_k}<br>$$</p>
-<h1 id="然后，块级状态可以写为：-mathbf-S-t-r"><a href="#然后，块级状态可以写为：-mathbf-S-t-r" class="headerlink" title="然后，块级状态可以写为：$$\mathbf S_{[t]}^{,r}"></a>然后，块级状态可以写为：<br>$$<br>\mathbf S_{[t]}^{,r}</h1><h1 id="mathbf-S-t-1-C-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C"><a href="#mathbf-S-t-1-C-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C" class="headerlink" title="\mathbf S_{[t-1]}^{,C}\mathbf P_{[t]}^{,r}+\mathbf H_{[t]}^{,r},\qquad\text{where }\mathbf S_{[-1]}^{,C}"></a>\mathbf S_{[t-1]}^{,C}<br>\mathbf P_{[t]}^{,r}<br>+<br>\mathbf H_{[t]}^{,r},<br>\qquad<br>\text{where }<br>\mathbf S_{[-1]}^{,C}</h1><p>0<br>$$</p>
-<p>$$</p>
-<p>$$</p>
-<h2 id="3-2"><a href="#3-2" class="headerlink" title="3.2"></a>3.2</h2><h1 id="定义-P-t-r"><a href="#定义-P-t-r" class="headerlink" title="定义$$P_{[t]}^{,r}"></a>定义<br>$$<br>P_{[t]}^{,r}</h1><h2 id="operatorname-Diag-left-gamma-t-r-right"><a href="#operatorname-Diag-left-gamma-t-r-right" class="headerlink" title="\operatorname{Diag}!\left(\gamma_{[t]}^{,r}\right)"></a>\operatorname{Diag}<br>!\left(<br>\gamma_{[t]}^{,r}<br>\right)</h2><p>\sum_{i&#x3D;1}^{r}<br>\operatorname{Diag}<br>!\left(<br>\gamma_{[t]}^{,i\to r}<br>\right)<br>k_{[t]}^{,i}<br>w_{[t]}^{,i\top}<br>$$</p>
-<h1 id="H-t-r"><a href="#H-t-r" class="headerlink" title="$$H_{[t]}^{,r}"></a>$$<br>H_{[t]}^{,r}</h1><p>\sum_{i&#x3D;1}^{r}<br>\operatorname{Diag}<br>!\left(<br>\gamma_{[t]}^{,i\to r}<br>\right)<br>k_{[t]}^{,i}<br>u_{[t]}^{,i\top}<br>$$</p>
-<h1 id="其中-w-t-r"><a href="#其中-w-t-r" class="headerlink" title="其中$$w_{[t]}^{,r}"></a>其中<br>$$<br>w_{[t]}^{,r}</h1><h2 id="beta-t-r-left-operatorname-Diag-gamma-t-r-k-t-r"><a href="#beta-t-r-left-operatorname-Diag-gamma-t-r-k-t-r" class="headerlink" title="\beta_{[t]}^{,r}\left(\operatorname{Diag}(\gamma_{[t]}^{,r})k_{[t]}^{,r}"></a>\beta_{[t]}^{,r}<br>\left(<br>\operatorname{Diag}(\gamma_{[t]}^{,r})<br>k_{[t]}^{,r}</h2><p>\sum_{i&#x3D;1}^{r-1}<br>w_{[t]}^{,i}<br>\left(<br>k_{[t]}^{,i\top}<br>\operatorname{Diag}(\gamma_{[t]}^{,i\to r})<br>k_{[t]}^{,r}<br>\right)<br>\right)<br>$$</p>
-<h1 id="u-t-r-1"><a href="#u-t-r-1" class="headerlink" title="$$u_{[t]}^{,r}"></a>$$<br>u_{[t]}^{,r}</h1><h2 id="beta-t-r-left-v-t-r-1"><a href="#beta-t-r-left-v-t-r-1" class="headerlink" title="\beta_{[t]}^{,r}\left(v_{[t]}^{,r}"></a>\beta_{[t]}^{,r}<br>\left(<br>v_{[t]}^{,r}</h2><p>\sum_{i&#x3D;1}^{r-1}<br>u_{[t]}^{,i}<br>\left(<br>k_{[t]}^{,i\top}<br>\operatorname{Diag}(\gamma_{[t]}^{,i\to r})<br>k_{[t]}^{,r}<br>\right)<br>\right)<br>$$</p>
-<h2 id="3-3"><a href="#3-3" class="headerlink" title="3.3"></a>3.3</h2><h1 id="UT-变换-M-t"><a href="#UT-变换-M-t" class="headerlink" title="UT 变换$$M_{[t]}"></a>UT 变换<br>$$<br>M_{[t]}</h1><p>\left(<br>I<br>+<br>\operatorname{StrictTril}<br>\left(<br>\operatorname{Diag}(\beta_{[t]})<br>\left(<br>\Gamma_{[t]}^{1\to C}<br>\odot<br>K_{[t]}<br>\right)<br>\left(<br>\frac{K_{[t]}}<br>{\Gamma_{[t]}^{1\to C}}<br>\right)^{!\top}<br>\right)<br>\right)^{-1}<br>\operatorname{Diag}(\beta_{[t]})<br>$$</p>
-<h1 id="W-t"><a href="#W-t" class="headerlink" title="$$W_{[t]}"></a>$$<br>W_{[t]}</h1><h1 id="M-t-left-Gamma-t-1-to-C-odotK-t-right-qquadU-t"><a href="#M-t-left-Gamma-t-1-to-C-odotK-t-right-qquadU-t" class="headerlink" title="M_{[t]}\left(\Gamma_{[t]}^{1\to C}\odotK_{[t]}\right),\qquadU_{[t]}"></a>M_{[t]}<br>\left(<br>\Gamma_{[t]}^{1\to C}<br>\odot<br>K_{[t]}<br>\right),<br>\qquad<br>U_{[t]}</h1><p>M_{[t]}V_{[t]}<br>$$</p>
-<h2 id="3-4"><a href="#3-4" class="headerlink" title="3.4"></a>3.4</h2><h1 id="最终的-chunk-wise-表达式-S-t-1"><a href="#最终的-chunk-wise-表达式-S-t-1" class="headerlink" title="最终的 chunk-wise 表达式$$S_{[t+1]}"></a>最终的 chunk-wise 表达式<br>$$<br>S_{[t+1]}</h1><h2 id="operatorname-Diag-left-gamma-t-C-right-S-t-left-Gamma-t-1-to-C-odotK-t-right-top-left-U-t"><a href="#operatorname-Diag-left-gamma-t-C-right-S-t-left-Gamma-t-1-to-C-odotK-t-right-top-left-U-t" class="headerlink" title="\operatorname{Diag}!\left(\gamma_{[t]}^{C}\right)S_{[t]}+\left(\Gamma_{[t]}^{1\to C}\odotK_{[t]}\right)^{!\top}\left(U_{[t]}"></a>\operatorname{Diag}<br>!\left(<br>\gamma_{[t]}^{C}<br>\right)<br>S_{[t]}<br>+<br>\left(<br>\Gamma_{[t]}^{1\to C}<br>\odot<br>K_{[t]}<br>\right)^{!\top}<br>\left(<br>U_{[t]}</h2><p>W_{[t]}S_{[t]}<br>\right)<br>\in<br>\mathbb{R}^{d_k\times d_v}<br>$$</p>
-<h1 id="O-t"><a href="#O-t" class="headerlink" title="$$O_{[t]}"></a>$$<br>O_{[t]}</h1><h2 id="left-Gamma-t-1-to-C-odotQ-t-right-S-t-operatorname-Tril-left-left-Gamma-t-1-to-C-odotQ-t-right-left-frac-K-t-Gamma-t-1-to-C-right-top-right-left-U-t"><a href="#left-Gamma-t-1-to-C-odotQ-t-right-S-t-operatorname-Tril-left-left-Gamma-t-1-to-C-odotQ-t-right-left-frac-K-t-Gamma-t-1-to-C-right-top-right-left-U-t" class="headerlink" title="\left(\Gamma_{[t]}^{1\to C}\odotQ_{[t]}\right)S_{[t]}+\operatorname{Tril}\left(\left(\Gamma_{[t]}^{1\to C}\odotQ_{[t]}\right)\left(\frac{K_{[t]}}{\Gamma_{[t]}^{1\to C}}\right)^{!\top}\right)\left(U_{[t]}"></a>\left(<br>\Gamma_{[t]}^{1\to C}<br>\odot<br>Q_{[t]}<br>\right)<br>S_{[t]}<br>+<br>\operatorname{Tril}<br>\left(<br>\left(<br>\Gamma_{[t]}^{1\to C}<br>\odot<br>Q_{[t]}<br>\right)<br>\left(<br>\frac{K_{[t]}}<br>{\Gamma_{[t]}^{1\to C}}<br>\right)^{!\top}<br>\right)<br>\left(<br>U_{[t]}</h2><p>W_{[t]}S_{[t]}<br>\right)<br>\in<br>\mathbb{R}^{C\times d_v}<br>$$</p>
-
+<h2 id="3-1"><a href="#3-1" class="headerlink" title="3.1"></a>3.1</h2><p>原始公式：</p>
+<script type="math/tex; mode=display">
+\mathbf S_t
+=
+\mathbf S_{t-1}
+\operatorname{Diag}(\alpha_t)
+\left(
+\mathbf I
+-
+\beta_t \mathbf k_t \mathbf k_t^\top
+\right)
++
+\beta_t \mathbf v_t \mathbf k_t^\top
+\in \mathbb R^{d_v\times d_k}</script><script type="math/tex; mode=display">
+\mathbf o_t
+=
+\mathbf S_t \mathbf q_t</script><p>接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：</p>
+<script type="math/tex; mode=display">
+\mathbf P_{[t]}^{\,r}
+=
+\prod_{i=tC+1}^{tC+r}
+\operatorname{Diag}(\alpha_i)
+\left(
+\mathbf I
+-
+\beta_i \mathbf k_i \mathbf k_i^\top
+\right)
+\in \mathbb R^{d_k\times d_k}</script><script type="math/tex; mode=display">
+\mathbf H_{[t]}^{\,r}
+=
+\sum_{i=tC+1}^{tC+r}
+\beta_i
+\left(
+\mathbf v_i \mathbf k_i^\top
+\right)
+\prod_{j=i+1}^{tC+r}
+\operatorname{Diag}(\alpha_j)
+\left(
+\mathbf I
+-
+\beta_j \mathbf k_j \mathbf k_j^\top
+\right)
+\in \mathbb R^{d_v\times d_k}</script><p>然后，块级状态可以写为：</p>
+<script type="math/tex; mode=display">
+\mathbf S_{[t]}^{\,r}
+=
+\mathbf S_{[t-1]}^{\,C}
+\mathbf P_{[t]}^{\,r}
++
+\mathbf H_{[t]}^{\,r},
+\qquad
+\text{where }
+\mathbf S_{[-1]}^{\,C}
+=
+0</script><script type="math/tex; mode=display">
+</script><h2 id="3-2"><a href="#3-2" class="headerlink" title="3.2"></a>3.2</h2><p>定义</p>
+<script type="math/tex; mode=display">
+P_{[t]}^{\,r}
+=
+\operatorname{Diag}
+\!\left(
+\gamma_{[t]}^{\,r}
+\right)
+-
+\sum_{i=1}^{r}
+\operatorname{Diag}
+\!\left(
+\gamma_{[t]}^{\,i\to r}
+\right)
+k_{[t]}^{\,i}
+w_{[t]}^{\,i\top}</script><script type="math/tex; mode=display">
+H_{[t]}^{\,r}
+=
+\sum_{i=1}^{r}
+\operatorname{Diag}
+\!\left(
+\gamma_{[t]}^{\,i\to r}
+\right)
+k_{[t]}^{\,i}
+u_{[t]}^{\,i\top}</script><p>其中</p>
+<script type="math/tex; mode=display">
+w_{[t]}^{\,r}
+=
+\beta_{[t]}^{\,r}
+\left(
+\operatorname{Diag}(\gamma_{[t]}^{\,r})
+k_{[t]}^{\,r}
+-
+\sum_{i=1}^{r-1}
+w_{[t]}^{\,i}
+\left(
+k_{[t]}^{\,i\top}
+\operatorname{Diag}(\gamma_{[t]}^{\,i\to r})
+k_{[t]}^{\,r}
+\right)
+\right)</script><script type="math/tex; mode=display">
+u_{[t]}^{\,r}
+=
+\beta_{[t]}^{\,r}
+\left(
+v_{[t]}^{\,r}
+-
+\sum_{i=1}^{r-1}
+u_{[t]}^{\,i}
+\left(
+k_{[t]}^{\,i\top}
+\operatorname{Diag}(\gamma_{[t]}^{\,i\to r})
+k_{[t]}^{\,r}
+\right)
+\right)</script><h2 id="3-3"><a href="#3-3" class="headerlink" title="3.3"></a>3.3</h2><p>UT 变换</p>
+<script type="math/tex; mode=display">
+M_{[t]}
+=
+\left(
+I
++
+\operatorname{StrictTril}
+\left(
+\operatorname{Diag}(\beta_{[t]})
+\left(
+\Gamma_{[t]}^{1\to C}
+\odot
+K_{[t]}
+\right)
+\left(
+\frac{K_{[t]}}
+{\Gamma_{[t]}^{1\to C}}
+\right)^{\!\top}
+\right)
+\right)^{-1}
+\operatorname{Diag}(\beta_{[t]})</script><script type="math/tex; mode=display">
+W_{[t]}
+=
+M_{[t]}
+\left(
+\Gamma_{[t]}^{1\to C}
+\odot
+K_{[t]}
+\right),
+\qquad
+U_{[t]}
+=
+M_{[t]}V_{[t]}</script><h2 id="3-4"><a href="#3-4" class="headerlink" title="3.4"></a>3.4</h2><p>最终的 chunk-wise 表达式</p>
+<script type="math/tex; mode=display">
+S_{[t+1]}
+=
+\operatorname{Diag}
+\!\left(
+\gamma_{[t]}^{C}
+\right)
+S_{[t]}
++
+\left(
+\Gamma_{[t]}^{1\to C}
+\odot
+K_{[t]}
+\right)^{\!\top}
+\left(
+U_{[t]}
+-
+W_{[t]}S_{[t]}
+\right)
+\in
+\mathbb{R}^{d_k\times d_v}</script><script type="math/tex; mode=display">
+O_{[t]}
+=
+\left(
+\Gamma_{[t]}^{1\to C}
+\odot
+Q_{[t]}
+\right)
+S_{[t]}
++
+\operatorname{Tril}
+\left(
+\left(
+\Gamma_{[t]}^{1\to C}
+\odot
+Q_{[t]}
+\right)
+\left(
+\frac{K_{[t]}}
+{\Gamma_{[t]}^{1\to C}}
+\right)^{\!\top}
+\right)
+\left(
+U_{[t]}
+-
+W_{[t]}S_{[t]}
+\right)
+\in
+\mathbb{R}^{C\times d_v}</script>
 		</div>
 
 		
@@ -668,7 +1296,7 @@
 	<div class="post-toc">
 		<div class="toc-title">目录</div>
 		<div class="page-title">linear attention</div>
-		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-Delta-Net"><span class="nav-text">1 Delta Net</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1"><span class="nav-text">1.1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2"><span class="nav-text">1.2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3"><span class="nav-text">1.3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-4"><span class="nav-text">1.4</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-5"><span class="nav-text">1.5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#u-t-r"><span class="nav-text">$$u_{[t]}^{r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-r-left-v-t-r"><span class="nav-text">\beta_{[t]}^{r}\left(v_{[t]}^{r}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rightarrow-mathbf-U-t"><span class="nav-text">$$\Rightarrow\mathbf{U}_{[t]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#operatorname-Diag-beta-t-mathbf-V-t"><span class="nav-text">\operatorname{Diag}(\beta_{[t]})\mathbf{V}_{[t]}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rightarrow-left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-mathbf-U-t"><span class="nav-text">$$\Rightarrow\left(I+\operatorname{Diag}(\beta_{[t]})\left(\mathbf{K}{[t]}\mathbf{K}{[t]}^{\top}\odotM_{-1}\right)\right)\mathbf{U}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rightarrow-mathbf-U-t-1"><span class="nav-text">$$\Rightarrow\mathbf{U}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%8C%E7%90%86%EF%BC%9A-mathbf-W-t"><span class="nav-text">同理：$$\mathbf{W}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#left-I-operatorname-Diag-beta-t-left-mathbf-K-t-mathbf-K-t-top-odotM-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-%E5%9B%A0%E6%AD%A4%EF%BC%8C%E8%A6%81%E6%B1%82-mathbf-U-t-%E3%80%81-mathbf-W-t-%E6%A0%B8%E5%BF%83%E5%9C%A8%E4%BA%8E%E8%AE%A1%E7%AE%97%EF%BC%9A-mathbf-T-t"><span class="nav-text">\left(I+\operatorname{Diag}(\beta_{[t]})\left(\mathbf{K}{[t]}\mathbf{K}{[t]}^{\top}\odotM_{-1}\right)\right)^{-1}\operatorname{Diag}(\beta_{[t]})\mathbf{K}{[t]}$$因此，要求$$\mathbf{U}{[t]}、\mathbf{W}{[t]}$$核心在于计算：$$\mathbf{T}{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-Gated-Delta-Net"><span class="nav-text">2 Gated Delta Net</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1"><span class="nav-text">2.1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Gated-DeltaNet-%E7%9A%84%E6%9B%B4%E6%96%B0%E5%85%AC%E5%BC%8F%EF%BC%9A-mathbf-S-t"><span class="nav-text">Gated DeltaNet 的更新公式：$$\mathbf{S}_t</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#mathbf-S-t-1-alpha-t-left-mathbf-I"><span class="nav-text">\mathbf{S}_{t-1}\alpha_t\left(\mathbf{I}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#beta-t-mathbf-k-t-mathbf-k-t-top-right-beta-t-mathbf-v-t-mathbf-k-t-top-%E4%BB%BF%E7%85%A7-DeltaNet-%E5%92%8C-GLA-%E4%B8%AD%E7%9A%84%E6%8E%A8%E5%AF%BC%EF%BC%8C%E5%AE%9A%E4%B9%89-mathbf-P-t-r"><span class="nav-text">\beta_t \mathbf{k}_t \mathbf{k}_t^\top\right)+\beta_t \mathbf{v}_t \mathbf{k}t^\top$$仿照 DeltaNet 和 GLA 中的推导，定义$$\mathbf{P}{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#prod-i-tC-1-tC-r-left-mathbf-I"><span class="nav-text">\prod_{i&#x3D;tC+1}^{tC+r}\left(\mathbf{I}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#beta-i-mathbf-k-i-mathbf-k-i-top-right-in-mathbb-R-d-times-d-qquad-gamma-t-r"><span class="nav-text">\beta_i \mathbf{k}_i \mathbf{k}i^\top\right)\in \mathbb{R}^{d \times d},\qquad\gamma{[t]}^{,r}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-H-t-r"><span class="nav-text">$$\mathbf{H}_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-frac-gamma-t-r-gamma-t-i-left-prod-j-i-1-tC-r-left-mathbf-I"><span class="nav-text">\sum_{i&#x3D;tC+1}^{tC+r}\beta_i\left(\mathbf{v}i \mathbf{k}i^\top\right)\frac{\gamma{[t]}^{,r}}{\gamma{[t]}^{,i}}\left(\prod_{j&#x3D;i+1}^{tC+r}\left(\mathbf{I}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8E%E6%98%AF%EF%BC%8C%E5%88%86%E5%9D%97%E5%90%8E%E7%9A%84%E7%8A%B6%E6%80%81%E5%8F%AF%E4%BB%A5%E5%86%99%E6%88%90%EF%BC%9A-mathbf-S-t-r"><span class="nav-text">于是，分块后的状态可以写成：$$\mathbf{S}_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-S-t-1-C-gamma-t-r-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C"><span class="nav-text">\mathbf{S}{[t-1]}^{,C},\gamma{[t]}^{,r}\mathbf{P}{[t]}^{,r}+\mathbf{H}{[t]}^{,r},\qquad\text{where }\mathbf{S}_{[-1]}^{,C}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2"><span class="nav-text">2.2</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BF%99%E8%B7%9F1-3%E6%98%AF%E4%B8%80%E6%A0%B7%E7%9A%84%EF%BC%8C%E5%81%87%E8%AE%BE-mathbf-H-t"><span class="nav-text">这跟1.3是一样的，假设$$\mathbf H_t</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#eta-t-sum-i-1-t-mathbf-u-i-0-mathbf-k-i-top-%E9%82%A3%E4%B9%88%E7%94%B1%E6%95%B0%E5%AD%A6%E5%BD%92%E7%BA%B3%E6%B3%95%E5%8F%AF%E5%BE%97%EF%BC%9A-mathbf-H-t"><span class="nav-text">\eta_t\sum_{i&#x3D;1}^{t}\mathbf u_i^{0}\mathbf k_i^\top$$那么由数学归纳法可得：$$\mathbf H_t</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#alpha-t-mathbf-H-t-1-beta-t-left-mathbf-v-t"><span class="nav-text">\alpha_t \mathbf H_{t-1}+\beta_t\left(\mathbf v_t</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-text">$$</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-beta-t-left-mathbf-v-t"><span class="nav-text">\alpha_t \eta_{t-1}\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0 \mathbf k_i^\top+\beta_t\left(\mathbf v_t</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#alpha-t-eta-t-1-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-right-mathbf-k-t-top"><span class="nav-text">\alpha_t \eta_{t-1}\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0 \mathbf k_i^\top \mathbf k_t\right)\mathbf k_t^\top</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B6%E4%B8%AD%EF%BC%9A-eta-t"><span class="nav-text">其中：$$\eta_t</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#alpha-t-eta-t-1"><span class="nav-text">\alpha_t \eta_{t-1}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#gamma-t-qquad-mathbf-u-t-0"><span class="nav-text">\gamma_t,\qquad\mathbf u_t^0</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#frac-beta-t-eta-t-mathbf-v-t"><span class="nav-text">\frac{\beta_t}{\eta_t}\mathbf v_t</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#beta-t-sum-i-1-t-1-mathbf-u-i-0-mathbf-k-i-top-mathbf-k-t-%E7%AD%89%E4%BB%B7%E5%9C%B0%EF%BC%8C%E4%B9%9F%E5%8F%AF%E4%BB%A5%E5%86%99%E6%88%90%EF%BC%9A-mathbf-H-t"><span class="nav-text">\beta_t\sum_{i&#x3D;1}^{t-1}\mathbf u_i^0\mathbf k_i^\top\mathbf k_t$$等价地，也可以写成：$$\mathbf H_t</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#sum-i-1-t-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-qquad-mathbf-u-t"><span class="nav-text">\sum_{i&#x3D;1}^{t}\frac{\gamma_t}{\gamma_i}\mathbf u_i\mathbf k_i^\top,\qquad\mathbf u_t</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-left-mathbf-v-t"><span class="nav-text">\beta_t\left(\mathbf v_t</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#sum-i-1-t-1-frac-gamma-t-gamma-i-mathbf-u-i-mathbf-k-i-top-mathbf-k-t-right-P%E5%90%8C%E7%90%86-mathbf-P-t-r"><span class="nav-text">\sum_{i&#x3D;1}^{t-1}\frac{\gamma_t}{\gamma_i}\mathbf u_i\mathbf k_i^\top\mathbf k_t\right)$$P同理$$\mathbf P_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#mathbf-I"><span class="nav-text">\mathbf I</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#sum-i-1-r-mathbf-w-t-i-mathbf-k-t-i-top-qquad-mathbf-w-t-r"><span class="nav-text">\sum_{i&#x3D;1}^{r}\mathbf w_{[t]}^{,i}\mathbf k_{[t]}^{,i\top},\qquad\mathbf w_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-r-mathbf-k-t-r"><span class="nav-text">\beta_{[t]}^{,r}\mathbf k_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3"><span class="nav-text">2.3</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%A3%E5%9B%9E%E5%88%B0-chunkwise-%E9%80%92%E6%8E%A8%E5%BC%8F%E4%B8%AD%EF%BC%8C%E5%B0%B1%E6%9C%89-mathbf-S-t-r"><span class="nav-text">代回到 chunkwise 递推式中，就有$$\mathbf S_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#mathbf-S-t-1-C-gamma-t-r-left-mathbf-I"><span class="nav-text">\mathbf S_{[t-1]}^{,C}\gamma_{[t]}^{,r}\left(\mathbf I</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#-1"><span class="nav-text">$$</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#gamma-t-r-mathbf-S-t-1-C-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i"><span class="nav-text">\gamma_{[t]}^{,r}\mathbf S_{[t-1]}^{,C}+\gamma_{[t]}^{,r}\sum_{i&#x3D;1}^{r}\left(\mathbf u_{[t]}^{,i}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-o-t-r"><span class="nav-text">$$\mathbf o_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-S-t-r-mathbf-q-t-r"><span class="nav-text">\mathbf S_{[t]}^{,r}\mathbf q_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#mathbf-S-t-1-C-mathbf-q-t-r-gamma-t-r-sum-i-1-r-left-mathbf-u-t-i"><span class="nav-text">\mathbf S_{[t-1]}^{,C}\mathbf q_{[t]}^{,r}\gamma_{[t]}^{,r}+\sum_{i&#x3D;1}^{r}\left(\mathbf u_{[t]}^{,i}</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-4"><span class="nav-text">2.4</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%8E%B0%E5%9C%A8%E5%86%8D%E5%AE%9A%E4%B9%89%EF%BC%9A-overleftarrow-mathbf-X-t"><span class="nav-text">现在再定义：$$\overleftarrow{\mathbf X}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#operatorname-Diag-gamma-t-mathbf-X-t-qquad-overrightarrow-mathbf-X-t"><span class="nav-text">\operatorname{Diag}(\gamma_{[t]})\mathbf X_{[t]},\qquad\overrightarrow{\mathbf X}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#operatorname-Diag-gamma-t-1-mathbf-X-t-qquad-text-for-mathbf-X-in-mathbf-Q-mathbf-K-mathbf-W-%E4%BA%8E%E6%98%AF%EF%BC%8C%E6%95%B4%E4%BD%93%E8%AE%A1%E7%AE%97%E5%8F%AF%E4%BB%A5%E8%BF%9B%E4%B8%80%E6%AD%A5%E5%86%99%E6%88%90%E7%9F%A9%E9%98%B5%E5%BD%A2%E5%BC%8F%EF%BC%9A-mathbf-S-t-C"><span class="nav-text">\operatorname{Diag}(\gamma_{[t]})^{-1}\mathbf X_{[t]},\qquad\text{for }\mathbf X \in {\mathbf Q,\mathbf K,\mathbf W}$$于是，整体计算可以进一步写成矩阵形式：$$\mathbf S_{[t]}^{C}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#gamma-t-C-mathbf-S-t-1-C-gamma-t-C-left-mathbf-U-t-top"><span class="nav-text">\gamma_{[t]}^{C}\mathbf S_{[t-1]}^{C}+\gamma_{[t]}^{C}\left(\mathbf U_{[t]}^{\top}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-O-t"><span class="nav-text">$$\mathbf O_{[t]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#overleftarrow-mathbf-Q-t-mathbf-S-t-1-C-top-left-overleftarrow-mathbf-Q-t-overrightarrow-mathbf-K-t-top-odot-mathbf-M-right-left-mathbf-U-t"><span class="nav-text">\overleftarrow{\mathbf Q}{[t]}\mathbf S{[t-1]}^{C\top}+\left(\overleftarrow{\mathbf Q}{[t]}\overrightarrow{\mathbf K}{[t]}^{\top}\odot\mathbf M\right)\left(\mathbf U_{[t]}</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-5"><span class="nav-text">2.5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%8E-mathbf-u-t-%E7%9A%84%E9%80%92%E6%8E%A8%E5%BC%8F%E5%87%BA%E5%8F%91%EF%BC%8C%E5%8F%AF%E4%BB%A5%E5%BE%97%E5%88%B0%EF%BC%9A-mathbf-u-t-r"><span class="nav-text">从$$\mathbf u_{[t]}$$的递推式出发，可以得到：$$\mathbf u_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-r-left-mathbf-v-t-r"><span class="nav-text">\beta_{[t]}^{,r}\left(\mathbf v_{[t]}^{,r}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rightarrow-mathbf-U-t-2"><span class="nav-text">$$\Rightarrow\mathbf U_{[t]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#operatorname-Diag-beta-t-mathbf-V-t-1"><span class="nav-text">\operatorname{Diag}(\beta_{[t]})\mathbf V_{[t]}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rightarrow-mathbf-U-t-3"><span class="nav-text">$$\Rightarrow\mathbf U_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%8C%E7%90%86%EF%BC%8C%E4%B9%9F%E6%9C%89%EF%BC%9A-mathbf-W-t"><span class="nav-text">同理，也有：$$\mathbf W_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#left-mathbf-I-operatorname-Diag-beta-t-left-overleftarrow-mathbf-K-t-overrightarrow-mathbf-K-t-top-odot-M-1-right-right-1-operatorname-Diag-beta-t-mathbf-K-t-%E5%9B%A0%E6%AD%A4%EF%BC%8C%E8%A6%81%E8%AE%A1%E7%AE%97-U-%E5%92%8C-W%EF%BC%8C%E5%85%B3%E9%94%AE%E5%B0%B1%E5%9C%A8%E4%BA%8E%E4%B8%8B%E9%9D%A2%E4%B8%A4%E4%B8%AA%E9%87%8F%EF%BC%9A-mathbf-T-t"><span class="nav-text">\left(\mathbf I+\operatorname{Diag}(\beta_{[t]})\left(\overleftarrow{\mathbf K}{[t]}\overrightarrow{\mathbf K}{[t]}^{\top}\odot M_{-1}\right)\right)^{-1}\operatorname{Diag}(\beta_{[t]})\mathbf K_{[t]}$$因此，要计算 U 和 W，关键就在于下面两个量：$$\mathbf T_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#widetilde-mathbf-T-t"><span class="nav-text">$$\widetilde{\mathbf T}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%9C%80%E8%A6%81%E6%B3%A8%E6%84%8F%E7%9A%84%E6%98%AF%EF%BC%8C%E8%BF%99%E4%B8%AA%E8%A1%A8%E8%BE%BE%E5%BC%8F%E4%B8%8E%E5%8E%9F%E8%AE%BA%E6%96%87%E4%B8%AD%E7%9A%84%E5%86%99%E6%B3%95%E6%98%AF%E7%AD%89%E4%BB%B7%E7%9A%84%EF%BC%9A-widetilde-mathbf-T-t"><span class="nav-text">需要注意的是，这个表达式与原论文中的写法是等价的：$$\widetilde{\mathbf T}_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#left-mathbf-I-operatorname-Diag-beta-t-Bigl-mathbf-K-t-mathbf-K-t-top-odot-Gamma-t-odotM-1-Bigr-right-1-operatorname-Diag-beta-t-%E5%85%B6%E4%B8%AD-Gamma-t-ij"><span class="nav-text">\left(\mathbf I+\operatorname{Diag}(\beta_{[t]})\Bigl((\mathbf K_{[t]}\mathbf K_{[t]}^{\top}\odot\Gamma_{[t]})\odotM_{-1}\Bigr)\right)^{-1}\operatorname{Diag}(\beta_{[t]})$$其中$$(\Gamma_{[t]})_{ij}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-Kimi-Delta-Attention"><span class="nav-text">3 Kimi Delta Attention</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1"><span class="nav-text">3.1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8E%9F%E5%A7%8B%E5%85%AC%E5%BC%8F%EF%BC%9A-mathbf-S-t"><span class="nav-text">原始公式：$$\mathbf S_t</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#mathbf-S-t-1-operatorname-Diag-alpha-t-left-mathbf-I"><span class="nav-text">\mathbf S_{t-1}\operatorname{Diag}(\alpha_t)\left(\mathbf I</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-o-t"><span class="nav-text">$$\mathbf o_t</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8E%A5%E4%B8%8B%E6%9D%A5%EF%BC%8C%E9%81%B5%E5%BE%AA-DeltaNet-%E7%9A%84%E6%8E%A8%E5%AF%BC%EF%BC%8C%E5%AE%9A%E4%B9%89%E5%9D%97%E7%BA%A7%E7%AC%A6%E5%8F%B7%E5%92%8C%E4%BB%A5%E4%B8%8B%E8%BE%85%E5%8A%A9%E9%87%8F%EF%BC%9A-mathbf-P-t-r"><span class="nav-text">接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：$$\mathbf P_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#prod-i-tC-1-tC-r-operatorname-Diag-alpha-i-left-mathbf-I"><span class="nav-text">\prod_{i&#x3D;tC+1}^{tC+r}\operatorname{Diag}(\alpha_i)\left(\mathbf I</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-H-t-r-1"><span class="nav-text">$$\mathbf H_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#sum-i-tC-1-tC-r-beta-i-left-mathbf-v-i-mathbf-k-i-top-right-prod-j-i-1-tC-r-operatorname-Diag-alpha-j-left-mathbf-I"><span class="nav-text">\sum_{i&#x3D;tC+1}^{tC+r}\beta_i\left(\mathbf v_i \mathbf k_i^\top\right)\prod_{j&#x3D;i+1}^{tC+r}\operatorname{Diag}(\alpha_j)\left(\mathbf I</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%84%B6%E5%90%8E%EF%BC%8C%E5%9D%97%E7%BA%A7%E7%8A%B6%E6%80%81%E5%8F%AF%E4%BB%A5%E5%86%99%E4%B8%BA%EF%BC%9A-mathbf-S-t-r"><span class="nav-text">然后，块级状态可以写为：$$\mathbf S_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#mathbf-S-t-1-C-mathbf-P-t-r-mathbf-H-t-r-qquad-text-where-mathbf-S-1-C"><span class="nav-text">\mathbf S_{[t-1]}^{,C}\mathbf P_{[t]}^{,r}+\mathbf H_{[t]}^{,r},\qquad\text{where }\mathbf S_{[-1]}^{,C}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2"><span class="nav-text">3.2</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89-P-t-r"><span class="nav-text">定义$$P_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#operatorname-Diag-left-gamma-t-r-right"><span class="nav-text">\operatorname{Diag}!\left(\gamma_{[t]}^{,r}\right)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#H-t-r"><span class="nav-text">$$H_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B6%E4%B8%AD-w-t-r"><span class="nav-text">其中$$w_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-r-left-operatorname-Diag-gamma-t-r-k-t-r"><span class="nav-text">\beta_{[t]}^{,r}\left(\operatorname{Diag}(\gamma_{[t]}^{,r})k_{[t]}^{,r}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#u-t-r-1"><span class="nav-text">$$u_{[t]}^{,r}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#beta-t-r-left-v-t-r-1"><span class="nav-text">\beta_{[t]}^{,r}\left(v_{[t]}^{,r}</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-3"><span class="nav-text">3.3</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#UT-%E5%8F%98%E6%8D%A2-M-t"><span class="nav-text">UT 变换$$M_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#W-t"><span class="nav-text">$$W_{[t]}</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#M-t-left-Gamma-t-1-to-C-odotK-t-right-qquadU-t"><span class="nav-text">M_{[t]}\left(\Gamma_{[t]}^{1\to C}\odotK_{[t]}\right),\qquadU_{[t]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-4"><span class="nav-text">3.4</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%80%E7%BB%88%E7%9A%84-chunk-wise-%E8%A1%A8%E8%BE%BE%E5%BC%8F-S-t-1"><span class="nav-text">最终的 chunk-wise 表达式$$S_{[t+1]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#operatorname-Diag-left-gamma-t-C-right-S-t-left-Gamma-t-1-to-C-odotK-t-right-top-left-U-t"><span class="nav-text">\operatorname{Diag}!\left(\gamma_{[t]}^{C}\right)S_{[t]}+\left(\Gamma_{[t]}^{1\to C}\odotK_{[t]}\right)^{!\top}\left(U_{[t]}</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#O-t"><span class="nav-text">$$O_{[t]}</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#left-Gamma-t-1-to-C-odotQ-t-right-S-t-operatorname-Tril-left-left-Gamma-t-1-to-C-odotQ-t-right-left-frac-K-t-Gamma-t-1-to-C-right-top-right-left-U-t"><span class="nav-text">\left(\Gamma_{[t]}^{1\to C}\odotQ_{[t]}\right)S_{[t]}+\operatorname{Tril}\left(\left(\Gamma_{[t]}^{1\to C}\odotQ_{[t]}\right)\left(\frac{K_{[t]}}{\Gamma_{[t]}^{1\to C}}\right)^{!\top}\right)\left(U_{[t]}</span></a></li></ol></li></ol>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-Delta-Net"><span class="nav-text">1 Delta Net</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1"><span class="nav-text">1.1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2"><span class="nav-text">1.2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3"><span class="nav-text">1.3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-4"><span class="nav-text">1.4</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-5"><span class="nav-text">1.5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-Gated-Delta-Net"><span class="nav-text">2 Gated Delta Net</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1"><span class="nav-text">2.1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2"><span class="nav-text">2.2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3"><span class="nav-text">2.3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-4"><span class="nav-text">2.4</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-5"><span class="nav-text">2.5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-Kimi-Delta-Attention"><span class="nav-text">3 Kimi Delta Attention</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1"><span class="nav-text">3.1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2"><span class="nav-text">3.2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-3"><span class="nav-text">3.3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-4"><span class="nav-text">3.4</span></a></li></ol></li></ol>
 
 	</div>
 </div>
@@ -931,6 +1559,21 @@
 
 
 	
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 </body>
 
 </html>
