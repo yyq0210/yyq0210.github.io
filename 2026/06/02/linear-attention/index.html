@@ -421,61 +421,154 @@ window.MathJax = {
                 ></p>
 <h2 id="11"><a class="markdownIt-Anchor" href="#11"></a> 1.1</h2>
 <p>Delta Net的更新公式</p>
-$$S_t = S_{t-1}(\mathbf{I} - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top = \sum_{i=1}^t \beta_i(v_i k_i^\top) \left( \prod_{j=i+1}^t (\mathbf{I} - \beta_j k_j k_j^\top) \right).
-$$$$P_j^i = \prod_{t=i}^j (\mathbf{I} - \beta_t k_t k_t^\top) \in \mathbb{R}^{d \times d}, \quad \mathbf{H}_i^j = \sum_{t=i}^j \beta_t (v_t k_t^\top) P_{t+1}^j \in \mathbb{R}^{d \times d}
-$$<p><strong>开始推导</strong></p>
-$$S_{t}=S_{t-1}(I-\beta_{t}k_{t}k_{t}^T)+\beta_{t}v_{t}k_{t}^T =S_{t-1}+\beta_{t}(v_{t}-S_{t-1}k_{t})k_{t}^T
-$$<p>展开递推式</p>
-$$S_{1}=\beta_{1}v_{1}k_{1}^T
-$$$$S_{2}=S_{1}(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T =\beta_{1}v_{1}k_{1}^T(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T
-$$$$S_{t}=\sum_{i=1}^t[\beta_{i}(v_{i}k_{i}^T)\prod_{j=i+1}^t(I-\beta_{j}k_{j}k_{j}^T)]
-$$<h2 id="12"><a class="markdownIt-Anchor" href="#12"></a> 1.2</h2>
+
+$$
+S_t = S_{t-1}(\mathbf{I} - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top = \sum_{i=1}^t \beta_i(v_i k_i^\top) \left( \prod_{j=i+1}^t (\mathbf{I} - \beta_j k_j k_j^\top) \right).
+$$
+
+$$
+P_j^i = \prod_{t=i}^j (\mathbf{I} - \beta_t k_t k_t^\top) \in \mathbb{R}^{d \times d}, \quad \mathbf{H}_i^j = \sum_{t=i}^j \beta_t (v_t k_t^\top) P_{t+1}^j \in \mathbb{R}^{d \times d}
+$$
+<p><strong>开始推导</strong></p>
+
+$$
+S_{t}=S_{t-1}(I-\beta_{t}k_{t}k_{t}^T)+\beta_{t}v_{t}k_{t}^T =S_{t-1}+\beta_{t}(v_{t}-S_{t-1}k_{t})k_{t}^T
+$$
+<p>展开递推式</p>
+
+$$
+S_{1}=\beta_{1}v_{1}k_{1}^T
+$$
+
+$$
+S_{2}=S_{1}(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T =\beta_{1}v_{1}k_{1}^T(I-\beta_{2}k_{2}k_{2}^T)+\beta_{2}v_{2}k_{2}^T
+$$
+
+$$
+S_{t}=\sum_{i=1}^t[\beta_{i}(v_{i}k_{i}^T)\prod_{j=i+1}^t(I-\beta_{j}k_{j}k_{j}^T)]
+$$
+<h2 id="12"><a class="markdownIt-Anchor" href="#12"></a> 1.2</h2>
 <p>定义如下变量</p>
-$$P_{i}^j=\prod_{t=i}^j(I-\beta_{t}k_{t}k_{t}^T)\in\mathbb{R}^{d\times d}
-$$$$H_{i}^j=\sum_{t=i}^j\beta_{t}(v_{t}k_{t}^T)P_{t+1}^j\in\mathbb{R}^{d\times d}
-$$$$\mathbf{S}_{[t]}^r = \mathbf{S}_{[t]}^0 \mathbf{P}_{[t]}^r + \mathbf{H}_{[t]}^r
-$$<p><strong>开始推导</strong></p>
-$$S_{tC+r}=H_{1}^{tC+r}=\sum_{t=1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r} =\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}
-$$$$P_{a}^{c}=P_{a}^{b} P_{b}^c
-$$$$S_{tC+r}=[\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC}]P_{tC+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}=S_{tC}P_{tC+1}^{tC+r}+H_{tC+1}^{tC+r}
-$$$$S_{[t]}^{r}=S_{[t]}^{0}P_{[t]}^{r}+H_{[t]}^{r}
-$$<h2 id="13"><a class="markdownIt-Anchor" href="#13"></a> 1.3</h2>
+
+$$
+P_{i}^j=\prod_{t=i}^j(I-\beta_{t}k_{t}k_{t}^T)\in\mathbb{R}^{d\times d}
+$$
+
+$$
+H_{i}^j=\sum_{t=i}^j\beta_{t}(v_{t}k_{t}^T)P_{t+1}^j\in\mathbb{R}^{d\times d}
+$$
+
+$$
+\mathbf{S}_{[t]}^r = \mathbf{S}_{[t]}^0 \mathbf{P}_{[t]}^r + \mathbf{H}_{[t]}^r
+$$
+<p><strong>开始推导</strong></p>
+
+$$
+S_{tC+r}=H_{1}^{tC+r}=\sum_{t=1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r} =\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}
+$$
+
+$$
+P_{a}^{c}=P_{a}^{b} P_{b}^c
+$$
+
+$$
+S_{tC+r}=[\sum_{t=1}^{tC}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC}]P_{tC+1}^{tC+r}+\sum_{t=tC+1}^{tC+r}\beta_{t}(v_{t}k_{t}^T)P_{t+1}^{tC+r}=S_{tC}P_{tC+1}^{tC+r}+H_{tC+1}^{tC+r}
+$$
+
+$$
+S_{[t]}^{r}=S_{[t]}^{0}P_{[t]}^{r}+H_{[t]}^{r}
+$$
+<h2 id="13"><a class="markdownIt-Anchor" href="#13"></a> 1.3</h2>
 <p>引入变化</p>
-$$\begin{aligned} \mathbf{P}_{[t]}^r &= \mathbf{I} - \sum_{i=1}^r \mathbf{w}_{[t]}^i \mathbf{k}_{[t]}^{i^T}, \\ \mathbf{H}_{[t]}^r &= \sum_{i=1}^r \mathbf{u}_{[t]}^i \mathbf{k}_{[t]}^{i^T} & \in \mathbb{R}^{d \times d} \end{aligned}
-$$$$\begin{aligned} \mathbf{w}_{[t]}^r &= \beta_{[t]}^r \left( \mathbf{k}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{w}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) & \in \mathbb{R}^d \end{aligned}
-$$$$\begin{aligned} \mathbf{u}_{[t]}^r &= \beta_{[t]}^r \left( \mathbf{v}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{u}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) & \in \mathbb{R}^d \end{aligned}
-$$<p><strong>开始推导</strong></p>
+
+$$
+\begin{aligned} \mathbf{P}_{[t]}^r &= \mathbf{I} - \sum_{i=1}^r \mathbf{w}_{[t]}^i \mathbf{k}_{[t]}^{i^T}, \\ \mathbf{H}_{[t]}^r &= \sum_{i=1}^r \mathbf{u}_{[t]}^i \mathbf{k}_{[t]}^{i^T} & \in \mathbb{R}^{d \times d} \end{aligned}
+$$
+
+$$
+\begin{aligned} \mathbf{w}_{[t]}^r &= \beta_{[t]}^r \left( \mathbf{k}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{w}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) & \in \mathbb{R}^d \end{aligned}
+$$
+
+$$
+\begin{aligned} \mathbf{u}_{[t]}^r &= \beta_{[t]}^r \left( \mathbf{v}_{[t]}^r - \sum_{i=1}^{r-1} \left( \mathbf{u}_{[t]}^i (\mathbf{k}_{[t]}^{i^T} \mathbf{k}_{[t]}^r) \right) \right) & \in \mathbb{R}^d \end{aligned}
+$$
+<p><strong>开始推导</strong></p>
 <ul>
 <li>定义</li>
 </ul>
-$$\prod_{i=1}^{t} (\mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}_i^\top) = \mathbf{I} - \sum_{i=1}^{t} \mathbf{w}_i \mathbf{k}_i^\top
-$$<ul>
+
+$$
+\prod_{i=1}^{t} (\mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}_i^\top) = \mathbf{I} - \sum_{i=1}^{t} \mathbf{w}_i \mathbf{k}_i^\top
+$$
+<ul>
 <li>数学归纳法得</li>
 </ul>
-$$\begin{aligned} \mathbf{P}_n &= \mathbf{P}_{n-1} (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\ &= \left(\mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\ &= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \beta_n \mathbf{k}_n \mathbf{k}_n^\top + \left(\sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) \beta_n \mathbf{k}_n \mathbf{k}_n^\top \\ &= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \underbrace{\left(\beta_n \mathbf{k}_n - \beta_n \sum_{t=1}^{n-1} \left(\mathbf{w}_t (\mathbf{k}_t^\top \mathbf{k}_n)\right)\right)}_{\mathbf{w}_n} \mathbf{k}_n^\top \\ &= \mathbf{I} - \sum_{t=1}^{n} \mathbf{w}_t \mathbf{k}_t^\top \end{aligned}
-$$<p>同理，我们可以通过归纳法证明 ：</p>
-$$S_n = \sum_{i=1}^n u_i k_i^T
-$$$$\begin{aligned} S_n &= S_{n-1} (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T \\ &= \left( \sum_{t=1}^{n-1} u_t k_t^T \right) (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T \\ &= \sum_{t=1}^{n-1} u_t k_t^T - \left( \sum_{t=1}^{n-1} u_t k_t^T \right) \beta_n k_n k_n^T + \beta_n v_n k_n^T \\ &= \sum_{t=1}^{n-1} u_t k_t^T + \left( \beta_n v_n - \beta_n \sum_{t=1}^{n-1} u_t (k_t^T k_n) \right) k_n^T \\ &= \sum_{t=1}^n u_t k_t^T \end{aligned}
-$$<h2 id="14"><a class="markdownIt-Anchor" href="#14"></a> 1.4</h2>
+
+$$
+\begin{aligned} \mathbf{P}_n &= \mathbf{P}_{n-1} (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\ &= \left(\mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) (\mathbf{I} - \beta_n \mathbf{k}_n \mathbf{k}_n^\top) \\ &= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \beta_n \mathbf{k}_n \mathbf{k}_n^\top + \left(\sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top\right) \beta_n \mathbf{k}_n \mathbf{k}_n^\top \\ &= \mathbf{I} - \sum_{t=1}^{n-1} \mathbf{w}_t \mathbf{k}_t^\top - \underbrace{\left(\beta_n \mathbf{k}_n - \beta_n \sum_{t=1}^{n-1} \left(\mathbf{w}_t (\mathbf{k}_t^\top \mathbf{k}_n)\right)\right)}_{\mathbf{w}_n} \mathbf{k}_n^\top \\ &= \mathbf{I} - \sum_{t=1}^{n} \mathbf{w}_t \mathbf{k}_t^\top \end{aligned}
+$$
+<p>同理，我们可以通过归纳法证明 ：</p>
+
+$$
+S_n = \sum_{i=1}^n u_i k_i^T
+$$
+
+$$
+\begin{aligned} S_n &= S_{n-1} (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T \\ &= \left( \sum_{t=1}^{n-1} u_t k_t^T \right) (I - \beta_n k_n k_n^T) + \beta_n v_n k_n^T \\ &= \sum_{t=1}^{n-1} u_t k_t^T - \left( \sum_{t=1}^{n-1} u_t k_t^T \right) \beta_n k_n k_n^T + \beta_n v_n k_n^T \\ &= \sum_{t=1}^{n-1} u_t k_t^T + \left( \beta_n v_n - \beta_n \sum_{t=1}^{n-1} u_t (k_t^T k_n) \right) k_n^T \\ &= \sum_{t=1}^n u_t k_t^T \end{aligned}
+$$
+<h2 id="14"><a class="markdownIt-Anchor" href="#14"></a> 1.4</h2>
 <p>代入得到最终公式如下：</p>
-$$\mathbf{S}_{[t]}^r = \mathbf{S}_{[t]}^0 + \sum_{i=1}^r \left( \mathbf{u}_{[t]}^i - \mathbf{S}_{[t]}^0 \mathbf{w}_{[t]}^i \right) \mathbf{k}_{[t]}^{i\top},
-$$$$\mathbf{o}_{[t]}^r = \mathbf{S}_{[t]}^r \mathbf{q}_{[t]}^r = \mathbf{S}_{[t]}^0 \mathbf{q}_{[t]}^r + \sum_{i=1}^r \left( \mathbf{u}_{[t]}^i - \mathbf{S}_{[t]}^0 \mathbf{w}_{[t]}^i \right) \left( \mathbf{k}_{[t]}^{i\top} \mathbf{q}_{[t]}^r \right).
-$$<p>令</p>
-$$S_{[t]} = S_{[t]}^0
-$$<p>则</p>
-$$S_{[t+1]} = S_{[t]} + \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)^T K_{[t+1]}
-$$$$O_{[t+1]} = Q_{[t+1]} S_{[t]}^T + \left( Q_{[t+1]} K_{[t+1]}^T \odot M \right) \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)
-$$<h2 id="15"><a class="markdownIt-Anchor" href="#15"></a> 1.5</h2>
+
+$$
+\mathbf{S}_{[t]}^r = \mathbf{S}_{[t]}^0 + \sum_{i=1}^r \left( \mathbf{u}_{[t]}^i - \mathbf{S}_{[t]}^0 \mathbf{w}_{[t]}^i \right) \mathbf{k}_{[t]}^{i\top},
+$$
+
+$$
+\mathbf{o}_{[t]}^r = \mathbf{S}_{[t]}^r \mathbf{q}_{[t]}^r = \mathbf{S}_{[t]}^0 \mathbf{q}_{[t]}^r + \sum_{i=1}^r \left( \mathbf{u}_{[t]}^i - \mathbf{S}_{[t]}^0 \mathbf{w}_{[t]}^i \right) \left( \mathbf{k}_{[t]}^{i\top} \mathbf{q}_{[t]}^r \right).
+$$
+<p>令</p>
+
+$$
+S_{[t]} = S_{[t]}^0
+$$
+<p>则</p>
+
+$$
+S_{[t+1]} = S_{[t]} + \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)^T K_{[t+1]}
+$$
+
+$$
+O_{[t+1]} = Q_{[t+1]} S_{[t]}^T + \left( Q_{[t+1]} K_{[t+1]}^T \odot M \right) \left( U_{[t+1]} - W_{[t+1]} S_{[t]}^T \right)
+$$
+<h2 id="15"><a class="markdownIt-Anchor" href="#15"></a> 1.5</h2>
 <p>其中 u、w 的求解采用 <strong>UT 变换</strong>，其中 $M_{-1} = M - I$ 表示对角线元素为 0 的严格下三角掩码矩阵。</p>
-$$u_{[t]}^{r} = \beta_{[t]}^{r} \left( v_{[t]}^{r} - \sum_{i=1}^{r-1} u_{[t]}^{i} \, k_{[t]}^{i\top} \, k_{[t]}^{r} \right)
-$$$$\Rightarrow \mathbf{U}_{[t]} = \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]} - \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \mathbf{U}_{[t]}
-$$$$\Rightarrow \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right) \mathbf{U}_{[t]} = \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]}
-$$$$\Rightarrow \mathbf{U}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]}
-$$<p>同理：</p>
-$$\mathbf{W}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf{K}_{[t]}
-$$<p>因此，要求 $\mathbf{U}_{[t]}$、$\mathbf{W}_{[t]}$，核心在于计算：</p>
-$$\mathbf{T}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
-$$<h1 id="2-gated-delta-net"><a class="markdownIt-Anchor" href="#2-gated-delta-net"></a> 2 Gated Delta Net</h1>
+
+$$
+u_{[t]}^{r} = \beta_{[t]}^{r} \left( v_{[t]}^{r} - \sum_{i=1}^{r-1} u_{[t]}^{i} \, k_{[t]}^{i\top} \, k_{[t]}^{r} \right)
+$$
+
+$$
+\Rightarrow \mathbf{U}_{[t]} = \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]} - \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \mathbf{U}_{[t]}
+$$
+
+$$
+\Rightarrow \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right) \mathbf{U}_{[t]} = \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]}
+$$
+
+$$
+\Rightarrow \mathbf{U}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf{V}_{[t]}
+$$
+<p>同理：</p>
+
+$$
+\mathbf{W}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf{K}_{[t]}
+$$
+<p>因此，要求 $\mathbf{U}_{[t]}$、$\mathbf{W}_{[t]}$，核心在于计算：</p>
+
+$$
+\mathbf{T}_{[t]} = \left( I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf{K}_{[t]} \mathbf{K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
+$$
+<h1 id="2-gated-delta-net"><a class="markdownIt-Anchor" href="#2-gated-delta-net"></a> 2 Gated Delta Net</h1>
 <p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2412.06464" >arxiv.org/pdf/2412.06464<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
 <p><img  
                      lazyload
@@ -485,48 +578,108 @@ $$<h1 id="2-gated-delta-net"><a class="markdownIt-Anchor" href="#2-gated-delta-n
                 ></p>
 <h2 id="21"><a class="markdownIt-Anchor" href="#21"></a> 2.1</h2>
 <p>Gated DeltaNet 的更新公式：</p>
-$$\mathbf{S}_t = \mathbf{S}_{t-1} \alpha_t \left( \mathbf{I} - \beta_t \mathbf{k}_t \mathbf{k}_t^\top \right) + \beta_t \mathbf{v}_t \mathbf{k}_t^\top
-$$<p>仿照 DeltaNet 和 GLA 中的推导，定义</p>
-$$\mathbf{P}_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \left( \mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}_i^\top \right) \in \mathbb{R}^{d \times d}, \qquad \gamma_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \alpha_i
-$$$$\mathbf{H}_{[t]}^{\,r} = \sum_{i=tC+1}^{tC+r} \beta_i \left( \mathbf{v}_i \mathbf{k}_i^\top \right) \frac{\gamma_{[t]}^{\,r}}{\gamma_{[t]}^{\,i}} \left( \prod_{j=i+1}^{tC+r} \left( \mathbf{I} - \beta_j \mathbf{k}_j \mathbf{k}_j^\top \right) \right) \in \mathbb{R}^{d \times d}
-$$<p>于是，分块后的状态可以写成：</p>
-$$\mathbf{S}_{[t]}^{\,r} = \mathbf{S}_{[t-1]}^{\,C} \, \gamma_{[t]}^{\,r} \mathbf{P}_{[t]}^{\,r} + \mathbf{H}_{[t]}^{\,r}, \qquad \text{where } \mathbf{S}_{[-1]}^{\,C} = 0
-$$<h2 id="22"><a class="markdownIt-Anchor" href="#22"></a> 2.2</h2>
+
+$$
+\mathbf{S}_t = \mathbf{S}_{t-1} \alpha_t \left( \mathbf{I} - \beta_t \mathbf{k}_t \mathbf{k}_t^\top \right) + \beta_t \mathbf{v}_t \mathbf{k}_t^\top
+$$
+<p>仿照 DeltaNet 和 GLA 中的推导，定义</p>
+
+$$
+\mathbf{P}_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \left( \mathbf{I} - \beta_i \mathbf{k}_i \mathbf{k}_i^\top \right) \in \mathbb{R}^{d \times d}, \qquad \gamma_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \alpha_i
+$$
+
+$$
+\mathbf{H}_{[t]}^{\,r} = \sum_{i=tC+1}^{tC+r} \beta_i \left( \mathbf{v}_i \mathbf{k}_i^\top \right) \frac{\gamma_{[t]}^{\,r}}{\gamma_{[t]}^{\,i}} \left( \prod_{j=i+1}^{tC+r} \left( \mathbf{I} - \beta_j \mathbf{k}_j \mathbf{k}_j^\top \right) \right) \in \mathbb{R}^{d \times d}
+$$
+<p>于是，分块后的状态可以写成：</p>
+
+$$
+\mathbf{S}_{[t]}^{\,r} = \mathbf{S}_{[t-1]}^{\,C} \, \gamma_{[t]}^{\,r} \mathbf{P}_{[t]}^{\,r} + \mathbf{H}_{[t]}^{\,r}, \qquad \text{where } \mathbf{S}_{[-1]}^{\,C} = 0
+$$
+<h2 id="22"><a class="markdownIt-Anchor" href="#22"></a> 2.2</h2>
 <p>这跟1.3是一样的，假设</p>
-$$\mathbf H_t = \eta_t \sum_{i=1}^{t} \mathbf u_i^{0} \mathbf k_i^\top
-$$<p>那么由数学归纳法可得：</p>
-$$\mathbf H_t = \alpha_t \mathbf H_{t-1} + \beta_t \left( \mathbf v_t - \alpha_t \mathbf H_{t-1}\mathbf k_t \right) \mathbf k_t^\top = \alpha_t \eta_{t-1} \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top + \beta_t \left( \mathbf v_t - \alpha_t \eta_{t-1} \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top \mathbf k_t \right) \mathbf k_t^\top = \eta_t \sum_{i=1}^{t} \mathbf u_i^0 \mathbf k_i^\top
-$$<p>其中：</p>
-$$\eta_t = \alpha_t \eta_{t-1} = \gamma_t, \qquad \mathbf u_t^0 = \frac{\beta_t}{\eta_t}\mathbf v_t - \beta_t \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top \mathbf k_t
-$$<p>等价地，也可以写成：</p>
-$$\mathbf H_t = \sum_{i=1}^{t} \frac{\gamma_t}{\gamma_i} \mathbf u_i \mathbf k_i^\top, \qquad \mathbf u_t = \beta_t \left( \mathbf v_t - \sum_{i=1}^{t-1} \frac{\gamma_t}{\gamma_i} \mathbf u_i \mathbf k_i^\top \mathbf k_t \right)
-$$<p>P同理</p>
-$$\mathbf P_{[t]}^{\,r} = \mathbf I - \sum_{i=1}^{r} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top}, \qquad \mathbf w_{[t]}^{\,r} = \beta_{[t]}^{\,r}\mathbf k_{[t]}^{\,r} - \beta_{[t]}^{\,r} \sum_{i=1}^{r-1} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \mathbf k_{[t]}^{\,r}
-$$<h2 id="23"><a class="markdownIt-Anchor" href="#23"></a> 2.3</h2>
+
+$$
+\mathbf H_t = \eta_t \sum_{i=1}^{t} \mathbf u_i^{0} \mathbf k_i^\top
+$$
+<p>那么由数学归纳法可得：</p>
+
+$$
+\mathbf H_t = \alpha_t \mathbf H_{t-1} + \beta_t \left( \mathbf v_t - \alpha_t \mathbf H_{t-1}\mathbf k_t \right) \mathbf k_t^\top = \alpha_t \eta_{t-1} \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top + \beta_t \left( \mathbf v_t - \alpha_t \eta_{t-1} \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top \mathbf k_t \right) \mathbf k_t^\top = \eta_t \sum_{i=1}^{t} \mathbf u_i^0 \mathbf k_i^\top
+$$
+<p>其中：</p>
+
+$$
+\eta_t = \alpha_t \eta_{t-1} = \gamma_t, \qquad \mathbf u_t^0 = \frac{\beta_t}{\eta_t}\mathbf v_t - \beta_t \sum_{i=1}^{t-1} \mathbf u_i^0 \mathbf k_i^\top \mathbf k_t
+$$
+<p>等价地，也可以写成：</p>
+
+$$
+\mathbf H_t = \sum_{i=1}^{t} \frac{\gamma_t}{\gamma_i} \mathbf u_i \mathbf k_i^\top, \qquad \mathbf u_t = \beta_t \left( \mathbf v_t - \sum_{i=1}^{t-1} \frac{\gamma_t}{\gamma_i} \mathbf u_i \mathbf k_i^\top \mathbf k_t \right)
+$$
+<p>P同理</p>
+
+$$
+\mathbf P_{[t]}^{\,r} = \mathbf I - \sum_{i=1}^{r} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top}, \qquad \mathbf w_{[t]}^{\,r} = \beta_{[t]}^{\,r}\mathbf k_{[t]}^{\,r} - \beta_{[t]}^{\,r} \sum_{i=1}^{r-1} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \mathbf k_{[t]}^{\,r}
+$$
+<h2 id="23"><a class="markdownIt-Anchor" href="#23"></a> 2.3</h2>
 <p>代回到 chunkwise 递推式中，就有</p>
-$$\begin{aligned} \mathbf S_{[t]}^{\,r} &= \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,r} \left( \mathbf I - \sum_{i=1}^{r} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \right) + \sum_{i=1}^{r} \frac{\gamma_{[t]}^{\,r}}{\gamma_{[t]}^{\,i}} \mathbf u_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \\ &= \gamma_{[t]}^{\,r} \mathbf S_{[t-1]}^{\,C} + \gamma_{[t]}^{\,r} \sum_{i=1}^{r} \left( \mathbf u_{[t]}^{\,i} - \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,i} \mathbf w_{[t]}^{\,i} \right) \frac{\mathbf k_{[t]}^{\,i\top}}{\gamma_{[t]}^{\,i}} \end{aligned}
-$$$$\begin{aligned} \mathbf o_{[t]}^{\,r} &= \mathbf S_{[t]}^{\,r} \mathbf q_{[t]}^{\,r} \\ &= \mathbf S_{[t-1]}^{\,C} \mathbf q_{[t]}^{\,r} \gamma_{[t]}^{\,r} + \sum_{i=1}^{r} \left( \mathbf u_{[t]}^{\,i} - \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,i} \mathbf w_{[t]}^{\,i} \right) \frac{\mathbf k_{[t]}^{\,i\top}}{\gamma_{[t]}^{\,i}} \mathbf q_{[t]}^{\,r} \gamma_{[t]}^{\,r} \end{aligned}
-$$<h2 id="24"><a class="markdownIt-Anchor" href="#24"></a> 2.4</h2>
+
+$$
+\begin{aligned} \mathbf S_{[t]}^{\,r} &= \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,r} \left( \mathbf I - \sum_{i=1}^{r} \mathbf w_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \right) + \sum_{i=1}^{r} \frac{\gamma_{[t]}^{\,r}}{\gamma_{[t]}^{\,i}} \mathbf u_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \\ &= \gamma_{[t]}^{\,r} \mathbf S_{[t-1]}^{\,C} + \gamma_{[t]}^{\,r} \sum_{i=1}^{r} \left( \mathbf u_{[t]}^{\,i} - \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,i} \mathbf w_{[t]}^{\,i} \right) \frac{\mathbf k_{[t]}^{\,i\top}}{\gamma_{[t]}^{\,i}} \end{aligned}
+$$
+
+$$
+\begin{aligned} \mathbf o_{[t]}^{\,r} &= \mathbf S_{[t]}^{\,r} \mathbf q_{[t]}^{\,r} \\ &= \mathbf S_{[t-1]}^{\,C} \mathbf q_{[t]}^{\,r} \gamma_{[t]}^{\,r} + \sum_{i=1}^{r} \left( \mathbf u_{[t]}^{\,i} - \mathbf S_{[t-1]}^{\,C} \gamma_{[t]}^{\,i} \mathbf w_{[t]}^{\,i} \right) \frac{\mathbf k_{[t]}^{\,i\top}}{\gamma_{[t]}^{\,i}} \mathbf q_{[t]}^{\,r} \gamma_{[t]}^{\,r} \end{aligned}
+$$
+<h2 id="24"><a class="markdownIt-Anchor" href="#24"></a> 2.4</h2>
 <p>现在再定义：</p>
-$$\overleftarrow{\mathbf X}_{[t]} = \operatorname{Diag}(\gamma_{[t]}) \mathbf X_{[t]}, \qquad \overrightarrow{\mathbf X}_{[t]} = \operatorname{Diag}(\gamma_{[t]})^{-1} \mathbf X_{[t]}, \qquad \text{for } \mathbf X \in \{\mathbf Q,\mathbf K,\mathbf W\}
-$$<p>于是，整体计算可以进一步写成矩阵形式：</p>
-$$\mathbf S_{[t]}^{C} = \gamma_{[t]}^{C} \mathbf S_{[t-1]}^{C} + \gamma_{[t]}^{C} \left( \mathbf U_{[t]}^{\top} - \mathbf S_{[t-1]}^{C} \overleftarrow{\mathbf W}_{[t]}^{\top} \right) \overrightarrow{\mathbf K}_{[t]} \mathbf O_{[t]} = \overleftarrow{\mathbf Q}_{[t]} \mathbf S_{[t-1]}^{C\top} + \left( \overleftarrow{\mathbf Q}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot \mathbf M \right) \left( \mathbf U_{[t]} - \overleftarrow{\mathbf W}_{[t]} \mathbf S_{[t-1]}^{C\top} \right)
-$$<h2 id="25"><a class="markdownIt-Anchor" href="#25"></a> 2.5</h2>
+
+$$
+\overleftarrow{\mathbf X}_{[t]} = \operatorname{Diag}(\gamma_{[t]}) \mathbf X_{[t]}, \qquad \overrightarrow{\mathbf X}_{[t]} = \operatorname{Diag}(\gamma_{[t]})^{-1} \mathbf X_{[t]}, \qquad \text{for } \mathbf X \in \{\mathbf Q,\mathbf K,\mathbf W\}
+$$
+<p>于是，整体计算可以进一步写成矩阵形式：</p>
+
+$$
+\mathbf S_{[t]}^{C} = \gamma_{[t]}^{C} \mathbf S_{[t-1]}^{C} + \gamma_{[t]}^{C} \left( \mathbf U_{[t]}^{\top} - \mathbf S_{[t-1]}^{C} \overleftarrow{\mathbf W}_{[t]}^{\top} \right) \overrightarrow{\mathbf K}_{[t]} \mathbf O_{[t]} = \overleftarrow{\mathbf Q}_{[t]} \mathbf S_{[t-1]}^{C\top} + \left( \overleftarrow{\mathbf Q}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot \mathbf M \right) \left( \mathbf U_{[t]} - \overleftarrow{\mathbf W}_{[t]} \mathbf S_{[t-1]}^{C\top} \right)
+$$
+<h2 id="25"><a class="markdownIt-Anchor" href="#25"></a> 2.5</h2>
 <p>接下来处理 U、W，采用 <strong>UT 变换</strong>求解 $\mathbf{u}_{[t]}$ 和 $\mathbf{w}_{[t]}$。</p>
 <p>其中 $M_{-1}=M-I$ 表示主对角线为零的严格下三角掩码。</p>
 <p>从 $\mathbf{u}_{[t]}$ 的递推式出发，可以得到：</p>
-$$\mathbf u_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( \mathbf v_{[t]}^{\,r} - \sum_{i=1}^{r-1} \frac{\gamma_{[t]}^{\,r}} {\gamma_{[t]}^{\,i}} \mathbf u_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \mathbf k_{[t]}^{\,r} \right)
-$$$$\begin{aligned} \Rightarrow \mathbf U_{[t]} &= \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} - \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \mathbf U_{[t]} \\ \Rightarrow \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right) \mathbf U_{[t]} &= \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} \\ \Rightarrow \mathbf U_{[t]} &= \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} \end{aligned}
-$$<p>同理，也有：</p>
-$$\mathbf W_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf K_{[t]}
-$$<p>因此，要计算 U 和 W，关键就在于下面两个量：</p>
-$$\mathbf T_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf K_{[t]} \mathbf K_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
-$$$$\widetilde{\mathbf T}_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
-$$<p>需要注意的是，这个表达式与原论文中的写法是等价的：</p>
-$$\widetilde{\mathbf T}_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \Bigl( ( \mathbf K_{[t]} \mathbf K_{[t]}^{\top} \odot \Gamma_{[t]} ) \odot M_{-1} \Bigr) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
-$$<p>其中</p>
-$$(\Gamma_{[t]})_{ij} = \frac{\gamma_i}{\gamma_j}.
-$$<h1 id="3-kimi-delta-attention"><a class="markdownIt-Anchor" href="#3-kimi-delta-attention"></a> 3 Kimi Delta Attention</h1>
+
+$$
+\mathbf u_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( \mathbf v_{[t]}^{\,r} - \sum_{i=1}^{r-1} \frac{\gamma_{[t]}^{\,r}} {\gamma_{[t]}^{\,i}} \mathbf u_{[t]}^{\,i} \mathbf k_{[t]}^{\,i\top} \mathbf k_{[t]}^{\,r} \right)
+$$
+
+$$
+\begin{aligned} \Rightarrow \mathbf U_{[t]} &= \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} - \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \mathbf U_{[t]} \\ \Rightarrow \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right) \mathbf U_{[t]} &= \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} \\ \Rightarrow \mathbf U_{[t]} &= \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf V_{[t]} \end{aligned}
+$$
+<p>同理，也有：</p>
+
+$$
+\mathbf W_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]}) \mathbf K_{[t]}
+$$
+<p>因此，要计算 U 和 W，关键就在于下面两个量：</p>
+
+$$
+\mathbf T_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \mathbf K_{[t]} \mathbf K_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
+$$
+
+$$
+\widetilde{\mathbf T}_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \left( \overleftarrow{\mathbf K}_{[t]} \overrightarrow{\mathbf K}_{[t]}^{\top} \odot M_{-1} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
+$$
+<p>需要注意的是，这个表达式与原论文中的写法是等价的：</p>
+
+$$
+\widetilde{\mathbf T}_{[t]} = \left( \mathbf I + \operatorname{Diag}(\beta_{[t]}) \Bigl( ( \mathbf K_{[t]} \mathbf K_{[t]}^{\top} \odot \Gamma_{[t]} ) \odot M_{-1} \Bigr) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
+$$
+<p>其中</p>
+
+$$
+(\Gamma_{[t]})_{ij} = \frac{\gamma_i}{\gamma_j}.
+$$
+<h1 id="3-kimi-delta-attention"><a class="markdownIt-Anchor" href="#3-kimi-delta-attention"></a> 3 Kimi Delta Attention</h1>
 <p>论文链接：<a class="link"   target="_blank" rel="noopener" href="https://arxiv.org/pdf/2510.26692" >arxiv.org/pdf/2510.26692<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
 <p><img  
                      lazyload
@@ -536,26 +689,56 @@ $$<h1 id="3-kimi-delta-attention"><a class="markdownIt-Anchor" href="#3-kimi-del
                 ></p>
 <h2 id="31"><a class="markdownIt-Anchor" href="#31"></a> 3.1</h2>
 <p>原始公式：</p>
-$$\mathbf S_t = \mathbf S_{t-1} \operatorname{Diag}(\alpha_t) \left( \mathbf I - \beta_t \mathbf k_t \mathbf k_t^\top \right) + \beta_t \mathbf v_t \mathbf k_t^\top \in \mathbb R^{d_v\times d_k} \mathbf o_t = \mathbf S_t \mathbf q_t
-$$<p>接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：</p>
-$$\mathbf P_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \operatorname{Diag}(\alpha_i) \left( \mathbf I - \beta_i \mathbf k_i \mathbf k_i^\top \right) \in \mathbb R^{d_k\times d_k}
-$$$$\mathbf H_{[t]}^{\,r} = \sum_{i=tC+1}^{tC+r} \beta_i \left( \mathbf v_i \mathbf k_i^\top \right) \prod_{j=i+1}^{tC+r} \operatorname{Diag}(\alpha_j) \left( \mathbf I - \beta_j \mathbf k_j \mathbf k_j^\top \right) \in \mathbb R^{d_v\times d_k}
-$$<p>然后，块级状态可以写为：</p>
-$$\mathbf S_{[t]}^{\,r} = \mathbf S_{[t-1]}^{\,C} \mathbf P_{[t]}^{\,r} + \mathbf H_{[t]}^{\,r}, \qquad \text{where } \mathbf S_{[-1]}^{\,C} = 0
-$$<h2 id="32"><a class="markdownIt-Anchor" href="#32"></a> 3.2</h2>
-<p>定义</p>
-$$P_{[t]}^{\,r} = \operatorname{Diag} \!\left( \gamma_{[t]}^{\,r} \right) - \sum_{i=1}^{r} \operatorname{Diag} \!\left( \gamma_{[t]}^{\,i\to r} \right) k_{[t]}^{\,i} w_{[t]}^{\,i\top} H_{[t]}^{\,r} = \sum_{i=1}^{r} \operatorname{Diag} \!\left( \gamma_{[t]}^{\,i\to r} \right) k_{[t]}^{\,i} u_{[t]}^{\,i\top}
-$$<p>其中</p>
-$$w_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( \operatorname{Diag}(\gamma_{[t]}^{\,r}) k_{[t]}^{\,r} - \sum_{i=1}^{r-1} w_{[t]}^{\,i} \left( k_{[t]}^{\,i\top} \operatorname{Diag}(\gamma_{[t]}^{\,i\to r}) k_{[t]}^{\,r} \right) \right) u_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( v_{[t]}^{\,r} - \sum_{i=1}^{r-1} u_{[t]}^{\,i} \left( k_{[t]}^{\,i\top} \operatorname{Diag}(\gamma_{[t]}^{\,i\to r}) k_{[t]}^{\,r} \right) \right)
-$$<h2 id="33"><a class="markdownIt-Anchor" href="#33"></a> 3.3</h2>
-<p>UT 变换</p>
-$$M_{[t]} = \left( I + \operatorname{StrictTril} \left( \operatorname{Diag}(\beta_{[t]}) \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right) \left( \frac{K_{[t]}} {\Gamma_{[t]}^{1\to C}} \right)^{\!\top} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
-$$$$W_{[t]} = M_{[t]} \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right), \qquad U_{[t]} = M_{[t]}V_{[t]}
-$$<h2 id="34"><a class="markdownIt-Anchor" href="#34"></a> 3.4</h2>
-<p>最终的 chunk-wise 表达式</p>
-$$S_{[t+1]} = \operatorname{Diag} \!\left( \gamma_{[t]}^{C} \right) S_{[t]} + \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right)^{\!\top} \left( U_{[t]} - W_{[t]}S_{[t]} \right) \in \mathbb{R}^{d_k\times d_v}
-$$$$O_{[t]} = \left( \Gamma_{[t]}^{1\to C} \odot Q_{[t]} \right) S_{[t]} + \operatorname{Tril} \left( \left( \Gamma_{[t]}^{1\to C} \odot Q_{[t]} \right) \left( \frac{K_{[t]}} {\Gamma_{[t]}^{1\to C}} \right)^{\!\top} \right) \left( U_{[t]} - W_{[t]}S_{[t]} \right) \in \mathbb{R}^{C\times d_v}
+
 $$
+\mathbf S_t = \mathbf S_{t-1} \operatorname{Diag}(\alpha_t) \left( \mathbf I - \beta_t \mathbf k_t \mathbf k_t^\top \right) + \beta_t \mathbf v_t \mathbf k_t^\top \in \mathbb R^{d_v\times d_k} \mathbf o_t = \mathbf S_t \mathbf q_t
+$$
+<p>接下来，遵循 DeltaNet 的推导，定义块级符号和以下辅助量：</p>
+
+$$
+\mathbf P_{[t]}^{\,r} = \prod_{i=tC+1}^{tC+r} \operatorname{Diag}(\alpha_i) \left( \mathbf I - \beta_i \mathbf k_i \mathbf k_i^\top \right) \in \mathbb R^{d_k\times d_k}
+$$
+
+$$
+\mathbf H_{[t]}^{\,r} = \sum_{i=tC+1}^{tC+r} \beta_i \left( \mathbf v_i \mathbf k_i^\top \right) \prod_{j=i+1}^{tC+r} \operatorname{Diag}(\alpha_j) \left( \mathbf I - \beta_j \mathbf k_j \mathbf k_j^\top \right) \in \mathbb R^{d_v\times d_k}
+$$
+<p>然后，块级状态可以写为：</p>
+
+$$
+\mathbf S_{[t]}^{\,r} = \mathbf S_{[t-1]}^{\,C} \mathbf P_{[t]}^{\,r} + \mathbf H_{[t]}^{\,r}, \qquad \text{where } \mathbf S_{[-1]}^{\,C} = 0
+$$
+<h2 id="32"><a class="markdownIt-Anchor" href="#32"></a> 3.2</h2>
+<p>定义</p>
+
+$$
+P_{[t]}^{\,r} = \operatorname{Diag} \!\left( \gamma_{[t]}^{\,r} \right) - \sum_{i=1}^{r} \operatorname{Diag} \!\left( \gamma_{[t]}^{\,i\to r} \right) k_{[t]}^{\,i} w_{[t]}^{\,i\top} H_{[t]}^{\,r} = \sum_{i=1}^{r} \operatorname{Diag} \!\left( \gamma_{[t]}^{\,i\to r} \right) k_{[t]}^{\,i} u_{[t]}^{\,i\top}
+$$
+<p>其中</p>
+
+$$
+w_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( \operatorname{Diag}(\gamma_{[t]}^{\,r}) k_{[t]}^{\,r} - \sum_{i=1}^{r-1} w_{[t]}^{\,i} \left( k_{[t]}^{\,i\top} \operatorname{Diag}(\gamma_{[t]}^{\,i\to r}) k_{[t]}^{\,r} \right) \right) u_{[t]}^{\,r} = \beta_{[t]}^{\,r} \left( v_{[t]}^{\,r} - \sum_{i=1}^{r-1} u_{[t]}^{\,i} \left( k_{[t]}^{\,i\top} \operatorname{Diag}(\gamma_{[t]}^{\,i\to r}) k_{[t]}^{\,r} \right) \right)
+$$
+<h2 id="33"><a class="markdownIt-Anchor" href="#33"></a> 3.3</h2>
+<p>UT 变换</p>
+
+$$
+M_{[t]} = \left( I + \operatorname{StrictTril} \left( \operatorname{Diag}(\beta_{[t]}) \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right) \left( \frac{K_{[t]}} {\Gamma_{[t]}^{1\to C}} \right)^{\!\top} \right) \right)^{-1} \operatorname{Diag}(\beta_{[t]})
+$$
+
+$$
+W_{[t]} = M_{[t]} \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right), \qquad U_{[t]} = M_{[t]}V_{[t]}
+$$
+<h2 id="34"><a class="markdownIt-Anchor" href="#34"></a> 3.4</h2>
+<p>最终的 chunk-wise 表达式</p>
+
+$$
+S_{[t+1]} = \operatorname{Diag} \!\left( \gamma_{[t]}^{C} \right) S_{[t]} + \left( \Gamma_{[t]}^{1\to C} \odot K_{[t]} \right)^{\!\top} \left( U_{[t]} - W_{[t]}S_{[t]} \right) \in \mathbb{R}^{d_k\times d_v}
+$$
+
+$$
+O_{[t]} = \left( \Gamma_{[t]}^{1\to C} \odot Q_{[t]} \right) S_{[t]} + \operatorname{Tril} \left( \left( \Gamma_{[t]}^{1\to C} \odot Q_{[t]} \right) \left( \frac{K_{[t]}} {\Gamma_{[t]}^{1\to C}} \right)^{\!\top} \right) \left( U_{[t]} - W_{[t]}S_{[t]} \right) \in \mathbb{R}^{C\times d_v}
+$$
+
 		</div>
 
 		
