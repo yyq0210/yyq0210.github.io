@@ -1,19 +1,36 @@
 (function () {
   'use strict';
 
-  function needsMathFallback() {
-    var root = document.querySelector('.article-content.markdown-body')
+  function getRoot() {
+    return document.querySelector('.article-content.markdown-body')
       || document.querySelector('.article-content');
+  }
+
+  function hasRenderedMath(root) {
+    return !!(
+      root.querySelector('.mathjax-svg')
+      || root.querySelector('mjx-container')
+      || root.querySelector('.katex')
+    );
+  }
+
+  function hasRawMath(text) {
+    return text.indexOf('$$') !== -1
+      || text.indexOf('\\begin{') !== -1
+      || text.indexOf('\\mathbf{') !== -1;
+  }
+
+  function needsMathFallback() {
+    var root = getRoot();
     if (!root) {
       return false;
     }
 
-    if (root.querySelector('mjx-container')) {
+    if (hasRenderedMath(root)) {
       return false;
     }
 
-    var text = root.textContent || '';
-    return text.indexOf('$$') !== -1 || text.indexOf('\\begin{') !== -1;
+    return hasRawMath(root.textContent || '');
   }
 
   function bindSwupFallback() {
