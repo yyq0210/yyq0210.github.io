@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/03/手撕kda（上）/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="手撕KDA（上）">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/03/%E6%89%8B%E6%92%95KDA%EF%BC%88%E4%B8%8A%EF%BC%89/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-03T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-04T13:10:48.787Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="KDA">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            手撕KDA（上） | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 0 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  opacity: 0.92;
+  text-align: center;
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">2</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">手撕KDA（上）</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/redefine-avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv1</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-03 23:50</span>
+        <span class="mobile">2026-06-03 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-04 21:10:48</span>
+            <span class="mobile">2026-06-04 21:10:48</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/KDA/">KDA</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>KDA chunk 的 CUDA 参考实现（fp32），逐 stage 对应 CPU 参考实现，每个 stage 单独 launch 一个 kernel。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br><span class="line">510</span><br><span class="line">511</span><br><span class="line">512</span><br><span class="line">513</span><br><span class="line">514</span><br><span class="line">515</span><br><span class="line">516</span><br><span class="line">517</span><br><span class="line">518</span><br><span class="line">519</span><br><span class="line">520</span><br><span class="line">521</span><br><span class="line">522</span><br><span class="line">523</span><br><span class="line">524</span><br><span class="line">525</span><br><span class="line">526</span><br><span class="line">527</span><br><span class="line">528</span><br><span class="line">529</span><br><span class="line">530</span><br><span class="line">531</span><br><span class="line">532</span><br><span class="line">533</span><br><span class="line">534</span><br><span class="line">535</span><br><span class="line">536</span><br><span class="line">537</span><br><span class="line">538</span><br><span class="line">539</span><br><span class="line">540</span><br><span class="line">541</span><br><span class="line">542</span><br><span class="line">543</span><br><span class="line">544</span><br><span class="line">545</span><br><span class="line">546</span><br><span class="line">547</span><br><span class="line">548</span><br><span class="line">549</span><br><span class="line">550</span><br><span class="line">551</span><br><span class="line">552</span><br><span class="line">553</span><br><span class="line">554</span><br><span class="line">555</span><br><span class="line">556</span><br><span class="line">557</span><br><span class="line">558</span><br><span class="line">559</span><br><span class="line">560</span><br><span class="line">561</span><br><span class="line">562</span><br><span class="line">563</span><br><span class="line">564</span><br><span class="line">565</span><br><span class="line">566</span><br><span class="line">567</span><br><span class="line">568</span><br><span class="line">569</span><br><span class="line">570</span><br><span class="line">571</span><br><span class="line">572</span><br><span class="line">573</span><br><span class="line">574</span><br><span class="line">575</span><br><span class="line">576</span><br><span class="line">577</span><br><span class="line">578</span><br><span class="line">579</span><br><span class="line">580</span><br><span class="line">581</span><br><span class="line">582</span><br><span class="line">583</span><br><span class="line">584</span><br><span class="line">585</span><br><span class="line">586</span><br><span class="line">587</span><br><span class="line">588</span><br><span class="line">589</span><br><span class="line">590</span><br><span class="line">591</span><br><span class="line">592</span><br><span class="line">593</span><br><span class="line">594</span><br><span class="line">595</span><br><span class="line">596</span><br><span class="line">597</span><br><span class="line">598</span><br><span class="line">599</span><br><span class="line">600</span><br><span class="line">601</span><br><span class="line">602</span><br><span class="line">603</span><br><span class="line">604</span><br><span class="line">605</span><br><span class="line">606</span><br><span class="line">607</span><br><span class="line">608</span><br><span class="line">609</span><br><span class="line">610</span><br><span class="line">611</span><br><span class="line">612</span><br><span class="line">613</span><br><span class="line">614</span><br><span class="line">615</span><br><span class="line">616</span><br><span class="line">617</span><br><span class="line">618</span><br><span class="line">619</span><br><span class="line">620</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// KDA chunk reference implementation (CUDA, fp32).</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Stage-by-stage port mirroring the CPU reference (kda_chunk_cpu.cpp). Each</span></span><br><span class="line"><span class="comment">// stage is a separate kernel launched in sequence; every kernel uses one thread</span></span><br><span class="line"><span class="comment">// per (batch, head) so the body is a direct transcription of the CPU loops.</span></span><br><span class="line"><span class="comment">// Per-head intermediates live in global scratch buffers (allocated by the host</span></span><br><span class="line"><span class="comment">// dispatcher) to avoid large per-thread local memory.</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Assumes HV == H, fixed sequence length, fp32 throughout.</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cuda_runtime.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;torch/extension.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;vector&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> {</span><br><span class="line"></span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">float</span> L2_EPS = <span class="number">1e-6f</span>;</span><br><span class="line"></span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">float</span> <span class="title">softplusf</span><span class="params">(<span class="type">float</span> x)</span> </span>{</span><br><span class="line">  <span class="keyword">if</span> (x &gt; <span class="number">20.0f</span>) <span class="keyword">return</span> x;</span><br><span class="line">  <span class="keyword">if</span> (x &lt; <span class="number">-20.0f</span>) <span class="keyword">return</span> <span class="built_in">expf</span>(x);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">log1pf</span>(<span class="built_in">expf</span>(x));</span><br><span class="line">}</span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">float</span> <span class="title">sigmoidf</span><span class="params">(<span class="type">float</span> x)</span> </span>{ <span class="keyword">return</span> <span class="number">1.0f</span> / (<span class="number">1.0f</span> + <span class="built_in">expf</span>(-x)); }</span><br><span class="line"></span><br><span class="line"><span class="comment">// inputs: q/k/g [B,T,H,K], v/o/do/dv [B,T,H,V], beta [B,T,H],</span></span><br><span class="line"><span class="comment">//         h0/fs/dht/dh0 [B,H,K,V] == [BH,K,V], A_log [H], dt_bias [H*K]</span></span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">int</span> <span class="title">iTK</span><span class="params">(<span class="type">int</span> bh, <span class="type">int</span> t, <span class="type">int</span> d, <span class="type">int</span> T, <span class="type">int</span> K)</span> </span>{ <span class="keyword">return</span> bh * T * K + t * K + d; }</span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">int</span> <span class="title">iTV</span><span class="params">(<span class="type">int</span> bh, <span class="type">int</span> t, <span class="type">int</span> vd, <span class="type">int</span> T, <span class="type">int</span> V)</span> </span>{ <span class="keyword">return</span> bh * T * V + t * V + vd; }</span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">int</span> <span class="title">inTK</span><span class="params">(<span class="type">int</span> b, <span class="type">int</span> t, <span class="type">int</span> h, <span class="type">int</span> d, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K)</span> </span>{</span><br><span class="line">  <span class="keyword">return</span> ((b * T + t) * H + h) * K + d;</span><br><span class="line">}</span><br><span class="line"><span class="function">__device__ <span class="keyword">inline</span> <span class="type">int</span> <span class="title">inTV</span><span class="params">(<span class="type">int</span> b, <span class="type">int</span> t, <span class="type">int</span> h, <span class="type">int</span> vd, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> V)</span> </span>{</span><br><span class="line">  <span class="keyword">return</span> ((b * T + t) * H + h) * V + vd;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// ================= FORWARD =================</span></span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">k_pre</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* q_raw, <span class="type">const</span> <span class="type">float</span>* k_raw, <span class="type">const</span> <span class="type">float</span>* g_raw,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* beta_raw, <span class="type">const</span> <span class="type">float</span>* A_log, <span class="type">const</span> <span class="type">float</span>* dt_bias,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* qn, <span class="type">float</span>* kn, <span class="type">float</span>* qs, <span class="type">float</span>* rq, <span class="type">float</span>* rk, <span class="type">float</span>* beta_s,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* ga, <span class="type">float</span>* gc, <span class="type">float</span> scale, <span class="type">int</span> B, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K, <span class="type">int</span> BT)</span> </span>{</span><br><span class="line">  <span class="type">int</span> bh = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="keyword">if</span> (bh &gt;= B * H) <span class="keyword">return</span>;</span><br><span class="line">  <span class="type">int</span> b = bh / H, h = bh % H, NT = T / BT;</span><br><span class="line">  <span class="type">float</span> aexp = <span class="built_in">expf</span>(A_log[h]);</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; ++t) {</span><br><span class="line">    <span class="type">float</span> sq = <span class="number">0.f</span>, sk = <span class="number">0.f</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> a = q_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)]; sq += a * a;</span><br><span class="line">      <span class="type">float</span> c = k_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)]; sk += c * c;</span><br><span class="line">    }</span><br><span class="line">    <span class="type">float</span> r_q = <span class="built_in">rsqrtf</span>(sq + L2_EPS), r_k = <span class="built_in">rsqrtf</span>(sk + L2_EPS);</span><br><span class="line">    rq[bh * T + t] = r_q; rk[bh * T + t] = r_k;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> qv = q_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] * r_q;</span><br><span class="line">      <span class="type">float</span> kv = k_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] * r_k;</span><br><span class="line">      qn[<span class="built_in">iTK</span>(bh, t, d, T, K)] = qv;</span><br><span class="line">      kn[<span class="built_in">iTK</span>(bh, t, d, T, K)] = kv;</span><br><span class="line">      qs[<span class="built_in">iTK</span>(bh, t, d, T, K)] = qv * scale;</span><br><span class="line">      <span class="type">float</span> x = g_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] + dt_bias[h * K + d];</span><br><span class="line">      ga[<span class="built_in">iTK</span>(bh, t, d, T, K)] = -aexp * <span class="built_in">softplusf</span>(x);</span><br><span class="line">    }</span><br><span class="line">    beta_s[bh * T + t] = <span class="built_in">sigmoidf</span>(beta_raw[(b * T + t) * H + h]);</span><br><span class="line">  }</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; NT; ++n)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">        <span class="type">int</span> t = n * BT + c;</span><br><span class="line">        acc += ga[<span class="built_in">iTK</span>(bh, t, d, T, K)];</span><br><span class="line">        gc[<span class="built_in">iTK</span>(bh, t, d, T, K)] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">k_wy</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* v_in, <span class="type">const</span> <span class="type">float</span>* kn, <span class="type">const</span> <span class="type">float</span>* gc, <span class="type">const</span> <span class="type">float</span>* beta_s,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* X, <span class="type">float</span>* Afull, <span class="type">float</span>* w, <span class="type">float</span>* u,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> B, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K, <span class="type">int</span> V, <span class="type">int</span> BT)</span> </span>{</span><br><span class="line">  <span class="type">int</span> bh = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="keyword">if</span> (bh &gt;= B * H) <span class="keyword">return</span>;</span><br><span class="line">  <span class="type">int</span> b = bh / H, h = bh % H, NT = T / BT;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; NT; ++n) {</span><br><span class="line">    <span class="type">float</span>* Xn = X + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="type">float</span>* Af = Afull + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="type">int</span> base = n * BT;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT * BT; ++c) Xn[c] = <span class="number">0.f</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; c; ++i) {</span><br><span class="line">        <span class="type">int</span> ti = base + i;</span><br><span class="line">        <span class="type">float</span> inner = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          <span class="type">float</span> f = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]);</span><br><span class="line">          inner += kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">        }</span><br><span class="line">        Xn[c * BT + i] = -beta_s[bh * T + tc] * inner;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">1</span>; c &lt; BT; ++c)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; c; ++j) {</span><br><span class="line">        <span class="type">float</span> acc = Xn[c * BT + j];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> m = j + <span class="number">1</span>; m &lt; c; ++m) acc += Xn[c * BT + m] * Xn[m * BT + j];</span><br><span class="line">        Xn[c * BT + j] = acc;</span><br><span class="line">      }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">        <span class="type">float</span> xci = Xn[c * BT + i] + (c == i ? <span class="number">1.0f</span> : <span class="number">0.0f</span>);</span><br><span class="line">        Af[c * BT + i] = xci * beta_s[bh * T + base + i];</span><br><span class="line">      }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">          <span class="type">int</span> ti = base + i;</span><br><span class="line">          <span class="type">float</span> kg = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]) * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">          acc += Af[c * BT + i] * kg;</span><br><span class="line">        }</span><br><span class="line">        w[<span class="built_in">iTK</span>(bh, tc, d, T, K)] = acc;</span><br><span class="line">      }</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i)</span><br><span class="line">          acc += Af[c * BT + i] * v_in[<span class="built_in">inTV</span>(b, base + i, h, vd, T, H, V)];</span><br><span class="line">        u[<span class="built_in">iTV</span>(bh, tc, vd, T, V)] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">k_recur</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* qs, <span class="type">const</span> <span class="type">float</span>* kn, <span class="type">const</span> <span class="type">float</span>* gc, <span class="type">const</span> <span class="type">float</span>* w,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* u, <span class="type">const</span> <span class="type">float</span>* h0,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* Aqk, <span class="type">float</span>* vcorr, <span class="type">float</span>* Sentry, <span class="type">float</span>* o_out, <span class="type">float</span>* fs_out,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> B, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K, <span class="type">int</span> V, <span class="type">int</span> BT)</span> </span>{</span><br><span class="line">  <span class="type">int</span> bh = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="keyword">if</span> (bh &gt;= B * H) <span class="keyword">return</span>;</span><br><span class="line">  <span class="type">int</span> b = bh / H, h = bh % H, NT = T / BT;</span><br><span class="line">  <span class="type">float</span>* Se = Sentry + bh * (NT + <span class="number">1</span>) * K * V;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) Se[i] = h0[bh * K * V + i];</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; NT; ++n) {</span><br><span class="line">    <span class="type">int</span> base = n * BT;</span><br><span class="line">    <span class="type">float</span>* S = Se + n * K * V;</span><br><span class="line">    <span class="type">float</span>* Snew = Se + (n + <span class="number">1</span>) * K * V;</span><br><span class="line">    <span class="type">float</span>* Aq = Aqk + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt;= c; ++j) {</span><br><span class="line">        <span class="type">int</span> tj = base + j;</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          <span class="type">float</span> f = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, tj, d, T, K)]);</span><br><span class="line">          acc += qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f * kn[<span class="built_in">iTK</span>(bh, tj, d, T, K)];</span><br><span class="line">        }</span><br><span class="line">        Aq[c * BT + j] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> acc = u[<span class="built_in">iTV</span>(bh, tc, vd, T, V)];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) acc -= w[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * S[d * V + vd];</span><br><span class="line">        vcorr[<span class="built_in">iTV</span>(bh, tc, vd, T, V)] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d)</span><br><span class="line">          acc += qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]) * S[d * V + vd];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt;= c; ++j)</span><br><span class="line">          acc += Aq[c * BT + j] * vcorr[<span class="built_in">iTV</span>(bh, base + j, vd, T, V)];</span><br><span class="line">        o_out[<span class="built_in">inTV</span>(b, tc, h, vd, T, H, V)] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="type">int</span> tlast = base + BT - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> glast = gc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)], EL = <span class="built_in">expf</span>(glast);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> acc = S[d * V + vd] * EL;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">          <span class="type">int</span> tc = base + c;</span><br><span class="line">          <span class="type">float</span> P = <span class="built_in">expf</span>(glast - gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]) * kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)];</span><br><span class="line">          acc += P * vcorr[<span class="built_in">iTV</span>(bh, tc, vd, T, V)];</span><br><span class="line">        }</span><br><span class="line">        Snew[d * V + vd] = acc;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) fs_out[bh * K * V + i] = Se[NT * K * V + i];</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// ================= BACKWARD =================</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">BwdScratch</span> {</span><br><span class="line">  <span class="type">float</span> *dgc, *dqs, *dkn, *dbeta_s;</span><br><span class="line">  <span class="type">float</span> *dS, *dS_entry, *dEL;</span><br><span class="line">  <span class="type">float</span> *dvcorr, *du;</span><br><span class="line">  <span class="type">float</span> *dAqk, *dAfull, *dX, *Xf, *tmp, *dAraw;</span><br><span class="line">  <span class="type">float</span> *dQE, *dP, *dw, *dkg;</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">k_bwd_recur</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* qs, <span class="type">const</span> <span class="type">float</span>* kn, <span class="type">const</span> <span class="type">float</span>* gc, <span class="type">const</span> <span class="type">float</span>* v_in,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* w, <span class="type">const</span> <span class="type">float</span>* Afull, <span class="type">const</span> <span class="type">float</span>* X, <span class="type">const</span> <span class="type">float</span>* Aqk,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* vcorr, <span class="type">const</span> <span class="type">float</span>* Sentry, <span class="type">const</span> <span class="type">float</span>* beta_s,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* do_in, <span class="type">const</span> <span class="type">float</span>* dht,</span></span></span><br><span class="line"><span class="params"><span class="function">    BwdScratch sc, <span class="type">float</span>* dv_out, <span class="type">float</span>* dh0_out,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> B, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K, <span class="type">int</span> V, <span class="type">int</span> BT)</span> </span>{</span><br><span class="line">  <span class="type">int</span> bh = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="keyword">if</span> (bh &gt;= B * H) <span class="keyword">return</span>;</span><br><span class="line">  <span class="type">int</span> b = bh / H, h = bh % H, NT = T / BT;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// dgc/dqs/dkn use the global base + iTK(bh,...) convention (matching</span></span><br><span class="line">  <span class="comment">// k_bwd_pre); do NOT pre-offset by bh*T*K or the iTK index double-counts it.</span></span><br><span class="line">  <span class="type">float</span>* dgc = sc.dgc;</span><br><span class="line">  <span class="type">float</span>* dqs = sc.dqs;</span><br><span class="line">  <span class="type">float</span>* dkn = sc.dkn;</span><br><span class="line">  <span class="type">float</span>* dbeta_s = sc.dbeta_s + bh * T;</span><br><span class="line">  <span class="type">float</span>* dS = sc.dS + bh * K * V;</span><br><span class="line">  <span class="type">float</span>* dS_entry = sc.dS_entry + bh * K * V;</span><br><span class="line">  <span class="type">float</span>* dEL = sc.dEL + bh * K;</span><br><span class="line">  <span class="type">float</span>* dvcorr = sc.dvcorr + bh * BT * V;</span><br><span class="line">  <span class="type">float</span>* du = sc.du + bh * BT * V;</span><br><span class="line">  <span class="type">float</span>* dAqk = sc.dAqk + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* dAfull = sc.dAfull + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* dX = sc.dX + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* Xf = sc.Xf + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* tmpm = sc.tmp + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* dAraw = sc.dAraw + bh * BT * BT;</span><br><span class="line">  <span class="type">float</span>* dQE = sc.dQE + bh * BT * K;</span><br><span class="line">  <span class="type">float</span>* dP = sc.dP + bh * BT * K;</span><br><span class="line">  <span class="type">float</span>* dw = sc.dw + bh * BT * K;</span><br><span class="line">  <span class="type">float</span>* dkg = sc.dkg + bh * BT * K;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; T * K; ++i) {</span><br><span class="line">    <span class="type">int</span> idx = bh * T * K + i;</span><br><span class="line">    dgc[idx] = <span class="number">0.f</span>; dqs[idx] = <span class="number">0.f</span>; dkn[idx] = <span class="number">0.f</span>;</span><br><span class="line">  }</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; T; ++i) dbeta_s[i] = <span class="number">0.f</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; ++t)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) dv_out[<span class="built_in">inTV</span>(b, t, h, vd, T, H, V)] = <span class="number">0.f</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) dS[i] = dht[bh * K * V + i];</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="type">float</span>* Sentry_bh = Sentry + bh * (NT + <span class="number">1</span>) * K * V;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> n = NT - <span class="number">1</span>; n &gt;= <span class="number">0</span>; --n) {</span><br><span class="line">    <span class="type">int</span> base = n * BT, tlast = base + BT - <span class="number">1</span>;</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* Aq = Aqk + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* Af = Afull + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* Xn = X + (bh * NT + n) * BT * BT;</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* S = Sentry_bh + n * K * V;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT * V; ++i) { dvcorr[i] = <span class="number">0.f</span>; du[i] = <span class="number">0.f</span>; }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT * BT; ++i) { dAqk[i] = <span class="number">0.f</span>; dAfull[i] = <span class="number">0.f</span>; dX[i] = <span class="number">0.f</span>; }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT * K; ++i) { dQE[i] = <span class="number">0.f</span>; dP[i] = <span class="number">0.f</span>; dw[i] = <span class="number">0.f</span>; dkg[i] = <span class="number">0.f</span>; }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K; ++i) dEL[i] = <span class="number">0.f</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) dS_entry[i] = <span class="number">0.f</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// R3</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> EL = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)]);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> g = dS[d * V + vd];</span><br><span class="line">        dS_entry[d * V + vd] += g * EL;</span><br><span class="line">        dEL[d] += g * S[d * V + vd];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">          <span class="type">int</span> tc = base + c;</span><br><span class="line">          <span class="type">float</span> P = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]) * kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)];</span><br><span class="line">          dvcorr[c * V + vd] += P * g;</span><br><span class="line">          dP[c * K + d] += g * vcorr[<span class="built_in">iTV</span>(bh, tc, vd, T, V)];</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// R2</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> god = do_in[<span class="built_in">inTV</span>(b, tc, h, vd, T, H, V)];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          dQE[c * K + d] += god * S[d * V + vd];</span><br><span class="line">          dS_entry[d * V + vd] += qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]) * god;</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt;= c; ++j) {</span><br><span class="line">          dAqk[c * BT + j] += god * vcorr[<span class="built_in">iTV</span>(bh, base + j, vd, T, V)];</span><br><span class="line">          dvcorr[j * V + vd] += Aq[c * BT + j] * god;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// R1</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> g = dvcorr[c * V + vd];</span><br><span class="line">        du[c * V + vd] += g;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          dw[c * K + d] += -g * S[d * V + vd];</span><br><span class="line">          dS_entry[d * V + vd] += -w[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * g;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint P</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">        <span class="type">float</span> factor = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]);</span><br><span class="line">        <span class="type">float</span> P = factor * kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)];</span><br><span class="line">        <span class="type">float</span> g = dP[c * K + d];</span><br><span class="line">        dkn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += g * factor;</span><br><span class="line">        dgc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)] += g * P;</span><br><span class="line">        dgc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += -g * P;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint EL</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d)</span><br><span class="line">      dgc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)] += dEL[d] * <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tlast, d, T, K)]);</span><br><span class="line">    <span class="comment">// adjoint Aqk</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt;= c; ++j) {</span><br><span class="line">        <span class="type">int</span> tj = base + j;</span><br><span class="line">        <span class="type">float</span> g = dAqk[c * BT + j];</span><br><span class="line">        <span class="keyword">if</span> (g == <span class="number">0.f</span>) <span class="keyword">continue</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          <span class="type">float</span> f = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, tj, d, T, K)]);</span><br><span class="line">          <span class="type">float</span> term = qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f * kn[<span class="built_in">iTK</span>(bh, tj, d, T, K)];</span><br><span class="line">          dqs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += g * f * kn[<span class="built_in">iTK</span>(bh, tj, d, T, K)];</span><br><span class="line">          dkn[<span class="built_in">iTK</span>(bh, tj, d, T, K)] += g * qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f;</span><br><span class="line">          dgc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += g * term;</span><br><span class="line">          dgc[<span class="built_in">iTK</span>(bh, tj, d, T, K)] += -g * term;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint dQE</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">        <span class="type">float</span> E = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)]);</span><br><span class="line">        <span class="type">float</span> g = dQE[c * K + d];</span><br><span class="line">        dqs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += g * E;</span><br><span class="line">        dgc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += g * qs[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * E;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint w=Af@kg, u=Af@v</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">        <span class="type">float</span> gwd = dw[c * K + d];</span><br><span class="line">        <span class="keyword">if</span> (gwd != <span class="number">0.f</span>)</span><br><span class="line">          <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">            <span class="type">int</span> ti = base + i;</span><br><span class="line">            <span class="type">float</span> kg = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]) * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">            dAfull[c * BT + i] += gwd * kg;</span><br><span class="line">            dkg[i * K + d] += gwd * Af[c * BT + i];</span><br><span class="line">          }</span><br><span class="line">      }</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> vd = <span class="number">0</span>; vd &lt; V; ++vd) {</span><br><span class="line">        <span class="type">float</span> gud = du[c * V + vd];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">          dAfull[c * BT + i] += gud * v_in[<span class="built_in">inTV</span>(b, base + i, h, vd, T, H, V)];</span><br><span class="line">          dv_out[<span class="built_in">inTV</span>(b, base + i, h, vd, T, H, V)] += gud * Af[c * BT + i];</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint kg_decay</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">      <span class="type">int</span> ti = base + i;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">        <span class="type">float</span> E = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]);</span><br><span class="line">        <span class="type">float</span> g = dkg[i * K + d];</span><br><span class="line">        dkn[<span class="built_in">iTK</span>(bh, ti, d, T, K)] += g * E;</span><br><span class="line">        dgc[<span class="built_in">iTK</span>(bh, ti, d, T, K)] += g * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)] * E;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// adjoint Afull = X*beta (+diag)</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i) {</span><br><span class="line">        <span class="type">float</span> xci = Xn[c * BT + i] + (c == i ? <span class="number">1.0f</span> : <span class="number">0.0f</span>);</span><br><span class="line">        <span class="type">float</span> g = dAfull[c * BT + i];</span><br><span class="line">        dbeta_s[base + i] += g * xci;</span><br><span class="line">        dX[c * BT + i] = g * beta_s[bh * T + base + i];</span><br><span class="line">      }</span><br><span class="line">    <span class="comment">// matrix-inverse VJP: dAraw = Xf^T @ dX @ Xf^T</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; BT; ++i)</span><br><span class="line">        Xf[c * BT + i] = Xn[c * BT + i] + (c == i ? <span class="number">1.0f</span> : <span class="number">0.0f</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> a = <span class="number">0</span>; a &lt; BT; ++a)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> bb = <span class="number">0</span>; bb &lt; BT; ++bb) {</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> m = <span class="number">0</span>; m &lt; BT; ++m) acc += Xf[m * BT + a] * dX[m * BT + bb];</span><br><span class="line">        tmpm[a * BT + bb] = acc;</span><br><span class="line">      }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> a = <span class="number">0</span>; a &lt; BT; ++a)</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> bb = <span class="number">0</span>; bb &lt; BT; ++bb) {</span><br><span class="line">        <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> m = <span class="number">0</span>; m &lt; BT; ++m) acc += tmpm[a * BT + m] * Xf[bb * BT + m];</span><br><span class="line">        dAraw[a * BT + bb] = acc;</span><br><span class="line">      }</span><br><span class="line">    <span class="comment">// adjoint Araw[c,i] = -beta_s[c]*inner (c&gt;i)</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> c = <span class="number">0</span>; c &lt; BT; ++c) {</span><br><span class="line">      <span class="type">int</span> tc = base + c;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; c; ++i) {</span><br><span class="line">        <span class="type">int</span> ti = base + i;</span><br><span class="line">        <span class="type">float</span> g = dAraw[c * BT + i];</span><br><span class="line">        <span class="type">float</span> inner = <span class="number">0.f</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          <span class="type">float</span> f = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]);</span><br><span class="line">          inner += kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">        }</span><br><span class="line">        dbeta_s[tc] += g * (-inner);</span><br><span class="line">        <span class="type">float</span> dinner = g * (-beta_s[bh * T + tc]);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">          <span class="type">float</span> f = <span class="built_in">expf</span>(gc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] - gc[<span class="built_in">iTK</span>(bh, ti, d, T, K)]);</span><br><span class="line">          <span class="type">float</span> term = kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">          dkn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += dinner * f * kn[<span class="built_in">iTK</span>(bh, ti, d, T, K)];</span><br><span class="line">          dkn[<span class="built_in">iTK</span>(bh, ti, d, T, K)] += dinner * kn[<span class="built_in">iTK</span>(bh, tc, d, T, K)] * f;</span><br><span class="line">          dgc[<span class="built_in">iTK</span>(bh, tc, d, T, K)] += dinner * term;</span><br><span class="line">          dgc[<span class="built_in">iTK</span>(bh, ti, d, T, K)] += -dinner * term;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) dS[i] = dS_entry[i];</span><br><span class="line">  }</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; K * V; ++i) dh0_out[bh * K * V + i] = dS[i];</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">k_bwd_pre</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* q_raw, <span class="type">const</span> <span class="type">float</span>* k_raw, <span class="type">const</span> <span class="type">float</span>* qn, <span class="type">const</span> <span class="type">float</span>* kn,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* rq, <span class="type">const</span> <span class="type">float</span>* rk, <span class="type">const</span> <span class="type">float</span>* beta_s, <span class="type">const</span> <span class="type">float</span>* ga,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* A_log,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span>* dgc, <span class="type">const</span> <span class="type">float</span>* dqs, <span class="type">const</span> <span class="type">float</span>* dkn, <span class="type">const</span> <span class="type">float</span>* dbeta_s,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* dq_raw, <span class="type">float</span>* dk_raw, <span class="type">float</span>* dg_raw, <span class="type">float</span>* dbeta_raw,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* dA_log, <span class="type">float</span>* ddt_bias, <span class="type">float</span> scale,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> B, <span class="type">int</span> T, <span class="type">int</span> H, <span class="type">int</span> K, <span class="type">int</span> BT)</span> </span>{</span><br><span class="line">  <span class="type">int</span> bh = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="keyword">if</span> (bh &gt;= B * H) <span class="keyword">return</span>;</span><br><span class="line">  <span class="type">int</span> b = bh / H, h = bh % H, NT = T / BT;</span><br><span class="line">  <span class="type">float</span> aexp = <span class="built_in">expf</span>(A_log[h]);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// reverse cumsum of dgc -&gt; dga, then gate bwd</span></span><br><span class="line">  <span class="type">float</span> dA_acc = <span class="number">0.f</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; NT; ++n)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> acc = <span class="number">0.f</span>;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> c = BT - <span class="number">1</span>; c &gt;= <span class="number">0</span>; --c) {</span><br><span class="line">        <span class="type">int</span> t = n * BT + c;</span><br><span class="line">        acc += dgc[<span class="built_in">iTK</span>(bh, t, d, T, K)];</span><br><span class="line">        <span class="comment">// dga = acc ; gate bwd</span></span><br><span class="line">        <span class="type">float</span> gav = ga[<span class="built_in">iTK</span>(bh, t, d, T, K)];</span><br><span class="line">        <span class="type">float</span> sp = -gav / aexp;</span><br><span class="line">        <span class="type">float</span> sig = <span class="number">1.0f</span> - <span class="built_in">expf</span>(-sp);</span><br><span class="line">        <span class="type">float</span> dxin = acc * (-aexp) * sig;</span><br><span class="line">        dg_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] = dxin;</span><br><span class="line">        <span class="built_in">atomicAdd</span>(&amp;ddt_bias[h * K + d], dxin);</span><br><span class="line">        dA_acc += acc * gav;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  <span class="built_in">atomicAdd</span>(&amp;dA_log[h], dA_acc);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// beta bwd</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; ++t) {</span><br><span class="line">    <span class="type">float</span> be = beta_s[bh * T + t];</span><br><span class="line">    dbeta_raw[(b * T + t) * H + h] = dbeta_s[bh * T + t] * be * (<span class="number">1.0f</span> - be);</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// l2norm bwd for q (dqn = dqs*scale) and k (dkn from recur)</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; ++t) {</span><br><span class="line">    <span class="type">float</span> r_q = rq[bh * T + t], r_k = rk[bh * T + t];</span><br><span class="line">    <span class="type">float</span> sdq = <span class="number">0.f</span>, sdk = <span class="number">0.f</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> dqn = dqs[<span class="built_in">iTK</span>(bh, t, d, T, K)] * scale;</span><br><span class="line">      sdq += dqn * qn[<span class="built_in">iTK</span>(bh, t, d, T, K)];</span><br><span class="line">      sdk += dkn[<span class="built_in">iTK</span>(bh, t, d, T, K)] * kn[<span class="built_in">iTK</span>(bh, t, d, T, K)];</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> d = <span class="number">0</span>; d &lt; K; ++d) {</span><br><span class="line">      <span class="type">float</span> dqn = dqs[<span class="built_in">iTK</span>(bh, t, d, T, K)] * scale;</span><br><span class="line">      dq_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] = dqn * r_q - sdq * qn[<span class="built_in">iTK</span>(bh, t, d, T, K)] * r_q;</span><br><span class="line">      dk_raw[<span class="built_in">inTK</span>(b, t, h, d, T, H, K)] =</span><br><span class="line">          dkn[<span class="built_in">iTK</span>(bh, t, d, T, K)] * r_k - sdk * kn[<span class="built_in">iTK</span>(bh, t, d, T, K)] * r_k;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// ---------------- host launchers ----------------</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">float</span>* <span class="title">fp</span><span class="params">(torch::Tensor&amp; t)</span> </span>{ <span class="keyword">return</span> t.<span class="built_in">data_ptr</span>&lt;<span class="type">float</span>&gt;(); }</span><br><span class="line"></span><br><span class="line">}  <span class="comment">// namespace</span></span><br><span class="line"></span><br><span class="line"><span class="function">std::vector&lt;torch::Tensor&gt; <span class="title">kda_cuda_fwd</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    torch::Tensor q, torch::Tensor k, torch::Tensor v, torch::Tensor g,</span></span></span><br><span class="line"><span class="params"><span class="function">    torch::Tensor beta, torch::Tensor A_log, torch::Tensor dt_bias,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">double</span> scale, torch::Tensor initial_state, <span class="type">int64_t</span> chunk_size)</span> </span>{</span><br><span class="line">  <span class="keyword">auto</span> opt = torch::<span class="built_in">TensorOptions</span>().<span class="built_in">dtype</span>(torch::kFloat32).<span class="built_in">device</span>(q.<span class="built_in">device</span>());</span><br><span class="line">  q = q.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  k = k.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  v = v.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  g = g.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  beta = beta.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  A_log = A_log.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  dt_bias = dt_bias.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  initial_state = initial_state.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> B = q.<span class="built_in">size</span>(<span class="number">0</span>), T = q.<span class="built_in">size</span>(<span class="number">1</span>), H = q.<span class="built_in">size</span>(<span class="number">2</span>), K = q.<span class="built_in">size</span>(<span class="number">3</span>), V = v.<span class="built_in">size</span>(<span class="number">3</span>);</span><br><span class="line">  <span class="type">int</span> BT = chunk_size, NT = T / BT, BH = B * H;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> o = torch::<span class="built_in">zeros</span>({B, T, H, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> fs = torch::<span class="built_in">zeros</span>({B, H, K, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> qn = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), kn = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> qs = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), ga = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> gc = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> rq = torch::<span class="built_in">zeros</span>({BH, T}, opt), rk = torch::<span class="built_in">zeros</span>({BH, T}, opt);</span><br><span class="line">  <span class="keyword">auto</span> beta_s = torch::<span class="built_in">zeros</span>({BH, T}, opt);</span><br><span class="line">  <span class="keyword">auto</span> X = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Afull = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Aqk = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> w = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), u = torch::<span class="built_in">zeros</span>({BH, T, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> vcorr = torch::<span class="built_in">zeros</span>({BH, T, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Sentry = torch::<span class="built_in">zeros</span>({BH, NT + <span class="number">1</span>, K, V}, opt);</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> threads = <span class="number">64</span>, blocks = (BH + threads - <span class="number">1</span>) / threads;</span><br><span class="line">  k_pre&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(q), <span class="built_in">fp</span>(k), <span class="built_in">fp</span>(g), <span class="built_in">fp</span>(beta), <span class="built_in">fp</span>(A_log),</span><br><span class="line">      <span class="built_in">fp</span>(dt_bias), <span class="built_in">fp</span>(qn), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(qs), <span class="built_in">fp</span>(rq), <span class="built_in">fp</span>(rk), <span class="built_in">fp</span>(beta_s),</span><br><span class="line">      <span class="built_in">fp</span>(ga), <span class="built_in">fp</span>(gc), (<span class="type">float</span>)scale, B, T, H, K, BT);</span><br><span class="line">  k_wy&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(v), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(gc), <span class="built_in">fp</span>(beta_s), <span class="built_in">fp</span>(X),</span><br><span class="line">      <span class="built_in">fp</span>(Afull), <span class="built_in">fp</span>(w), <span class="built_in">fp</span>(u), B, T, H, K, V, BT);</span><br><span class="line">  k_recur&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(qs), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(gc), <span class="built_in">fp</span>(w), <span class="built_in">fp</span>(u),</span><br><span class="line">      <span class="built_in">fp</span>(initial_state), <span class="built_in">fp</span>(Aqk), <span class="built_in">fp</span>(vcorr), <span class="built_in">fp</span>(Sentry), <span class="built_in">fp</span>(o), <span class="built_in">fp</span>(fs),</span><br><span class="line">      B, T, H, K, V, BT);</span><br><span class="line">  <span class="built_in">cudaDeviceSynchronize</span>();</span><br><span class="line">  <span class="keyword">return</span> {o, fs};</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function">std::vector&lt;torch::Tensor&gt; <span class="title">kda_cuda_bwd</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    torch::Tensor q, torch::Tensor k, torch::Tensor v, torch::Tensor g,</span></span></span><br><span class="line"><span class="params"><span class="function">    torch::Tensor beta, torch::Tensor A_log, torch::Tensor dt_bias,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">double</span> scale, torch::Tensor initial_state, <span class="type">int64_t</span> chunk_size,</span></span></span><br><span class="line"><span class="params"><span class="function">    torch::Tensor do_, torch::Tensor dht)</span> </span>{</span><br><span class="line">  <span class="keyword">auto</span> opt = torch::<span class="built_in">TensorOptions</span>().<span class="built_in">dtype</span>(torch::kFloat32).<span class="built_in">device</span>(q.<span class="built_in">device</span>());</span><br><span class="line">  q = q.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  k = k.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  v = v.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  g = g.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  beta = beta.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  A_log = A_log.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  dt_bias = dt_bias.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  initial_state = initial_state.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  do_ = do_.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line">  dht = dht.<span class="built_in">contiguous</span>().<span class="built_in">to</span>(torch::kFloat32);</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> B = q.<span class="built_in">size</span>(<span class="number">0</span>), T = q.<span class="built_in">size</span>(<span class="number">1</span>), H = q.<span class="built_in">size</span>(<span class="number">2</span>), K = q.<span class="built_in">size</span>(<span class="number">3</span>), V = v.<span class="built_in">size</span>(<span class="number">3</span>);</span><br><span class="line">  <span class="type">int</span> BT = chunk_size, NT = T / BT, BH = B * H;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// forward scratch (recompute)</span></span><br><span class="line">  <span class="keyword">auto</span> qn = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), kn = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> qs = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), ga = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> gc = torch::<span class="built_in">zeros</span>({BH, T, K}, opt);</span><br><span class="line">  <span class="keyword">auto</span> rq = torch::<span class="built_in">zeros</span>({BH, T}, opt), rk = torch::<span class="built_in">zeros</span>({BH, T}, opt);</span><br><span class="line">  <span class="keyword">auto</span> beta_s = torch::<span class="built_in">zeros</span>({BH, T}, opt);</span><br><span class="line">  <span class="keyword">auto</span> X = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Afull = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Aqk = torch::<span class="built_in">zeros</span>({BH, NT, BT, BT}, opt);</span><br><span class="line">  <span class="keyword">auto</span> w = torch::<span class="built_in">zeros</span>({BH, T, K}, opt), u = torch::<span class="built_in">zeros</span>({BH, T, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> vcorr = torch::<span class="built_in">zeros</span>({BH, T, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> Sentry = torch::<span class="built_in">zeros</span>({BH, NT + <span class="number">1</span>, K, V}, opt);</span><br><span class="line">  <span class="keyword">auto</span> o = torch::<span class="built_in">zeros</span>({B, T, H, V}, opt), fs = torch::<span class="built_in">zeros</span>({B, H, K, V}, opt);</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> threads = <span class="number">64</span>, blocks = (BH + threads - <span class="number">1</span>) / threads;</span><br><span class="line">  k_pre&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(q), <span class="built_in">fp</span>(k), <span class="built_in">fp</span>(g), <span class="built_in">fp</span>(beta), <span class="built_in">fp</span>(A_log),</span><br><span class="line">      <span class="built_in">fp</span>(dt_bias), <span class="built_in">fp</span>(qn), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(qs), <span class="built_in">fp</span>(rq), <span class="built_in">fp</span>(rk), <span class="built_in">fp</span>(beta_s),</span><br><span class="line">      <span class="built_in">fp</span>(ga), <span class="built_in">fp</span>(gc), (<span class="type">float</span>)scale, B, T, H, K, BT);</span><br><span class="line">  k_wy&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(v), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(gc), <span class="built_in">fp</span>(beta_s), <span class="built_in">fp</span>(X),</span><br><span class="line">      <span class="built_in">fp</span>(Afull), <span class="built_in">fp</span>(w), <span class="built_in">fp</span>(u), B, T, H, K, V, BT);</span><br><span class="line">  k_recur&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(qs), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(gc), <span class="built_in">fp</span>(w), <span class="built_in">fp</span>(u),</span><br><span class="line">      <span class="built_in">fp</span>(initial_state), <span class="built_in">fp</span>(Aqk), <span class="built_in">fp</span>(vcorr), <span class="built_in">fp</span>(Sentry), <span class="built_in">fp</span>(o), <span class="built_in">fp</span>(fs),</span><br><span class="line">      B, T, H, K, V, BT);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// outputs</span></span><br><span class="line">  <span class="keyword">auto</span> dq = torch::<span class="built_in">zeros_like</span>(q), dk = torch::<span class="built_in">zeros_like</span>(k);</span><br><span class="line">  <span class="keyword">auto</span> dv = torch::<span class="built_in">zeros_like</span>(v), dgr = torch::<span class="built_in">zeros_like</span>(g);</span><br><span class="line">  <span class="keyword">auto</span> dbeta = torch::<span class="built_in">zeros_like</span>(beta);</span><br><span class="line">  <span class="keyword">auto</span> dA_log = torch::<span class="built_in">zeros_like</span>(A_log), ddt_bias = torch::<span class="built_in">zeros_like</span>(dt_bias);</span><br><span class="line">  <span class="keyword">auto</span> dh0 = torch::<span class="built_in">zeros_like</span>(initial_state);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// backward scratch</span></span><br><span class="line">  BwdScratch sc;</span><br><span class="line">  <span class="keyword">auto</span> s_dgc = torch::<span class="built_in">zeros</span>({BH, T, K}, opt); sc.dgc = <span class="built_in">fp</span>(s_dgc);</span><br><span class="line">  <span class="keyword">auto</span> s_dqs = torch::<span class="built_in">zeros</span>({BH, T, K}, opt); sc.dqs = <span class="built_in">fp</span>(s_dqs);</span><br><span class="line">  <span class="keyword">auto</span> s_dkn = torch::<span class="built_in">zeros</span>({BH, T, K}, opt); sc.dkn = <span class="built_in">fp</span>(s_dkn);</span><br><span class="line">  <span class="keyword">auto</span> s_dbeta_s = torch::<span class="built_in">zeros</span>({BH, T}, opt); sc.dbeta_s = <span class="built_in">fp</span>(s_dbeta_s);</span><br><span class="line">  <span class="keyword">auto</span> s_dS = torch::<span class="built_in">zeros</span>({BH, K, V}, opt); sc.dS = <span class="built_in">fp</span>(s_dS);</span><br><span class="line">  <span class="keyword">auto</span> s_dS_entry = torch::<span class="built_in">zeros</span>({BH, K, V}, opt); sc.dS_entry = <span class="built_in">fp</span>(s_dS_entry);</span><br><span class="line">  <span class="keyword">auto</span> s_dEL = torch::<span class="built_in">zeros</span>({BH, K}, opt); sc.dEL = <span class="built_in">fp</span>(s_dEL);</span><br><span class="line">  <span class="keyword">auto</span> s_dvcorr = torch::<span class="built_in">zeros</span>({BH, BT, V}, opt); sc.dvcorr = <span class="built_in">fp</span>(s_dvcorr);</span><br><span class="line">  <span class="keyword">auto</span> s_du = torch::<span class="built_in">zeros</span>({BH, BT, V}, opt); sc.du = <span class="built_in">fp</span>(s_du);</span><br><span class="line">  <span class="keyword">auto</span> s_dAqk = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.dAqk = <span class="built_in">fp</span>(s_dAqk);</span><br><span class="line">  <span class="keyword">auto</span> s_dAfull = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.dAfull = <span class="built_in">fp</span>(s_dAfull);</span><br><span class="line">  <span class="keyword">auto</span> s_dX = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.dX = <span class="built_in">fp</span>(s_dX);</span><br><span class="line">  <span class="keyword">auto</span> s_Xf = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.Xf = <span class="built_in">fp</span>(s_Xf);</span><br><span class="line">  <span class="keyword">auto</span> s_tmp = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.tmp = <span class="built_in">fp</span>(s_tmp);</span><br><span class="line">  <span class="keyword">auto</span> s_dAraw = torch::<span class="built_in">zeros</span>({BH, BT, BT}, opt); sc.dAraw = <span class="built_in">fp</span>(s_dAraw);</span><br><span class="line">  <span class="keyword">auto</span> s_dQE = torch::<span class="built_in">zeros</span>({BH, BT, K}, opt); sc.dQE = <span class="built_in">fp</span>(s_dQE);</span><br><span class="line">  <span class="keyword">auto</span> s_dP = torch::<span class="built_in">zeros</span>({BH, BT, K}, opt); sc.dP = <span class="built_in">fp</span>(s_dP);</span><br><span class="line">  <span class="keyword">auto</span> s_dw = torch::<span class="built_in">zeros</span>({BH, BT, K}, opt); sc.dw = <span class="built_in">fp</span>(s_dw);</span><br><span class="line">  <span class="keyword">auto</span> s_dkg = torch::<span class="built_in">zeros</span>({BH, BT, K}, opt); sc.dkg = <span class="built_in">fp</span>(s_dkg);</span><br><span class="line"></span><br><span class="line">  k_bwd_recur&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(qs), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(gc), <span class="built_in">fp</span>(v), <span class="built_in">fp</span>(w),</span><br><span class="line">      <span class="built_in">fp</span>(Afull), <span class="built_in">fp</span>(X), <span class="built_in">fp</span>(Aqk), <span class="built_in">fp</span>(vcorr), <span class="built_in">fp</span>(Sentry), <span class="built_in">fp</span>(beta_s),</span><br><span class="line">      <span class="built_in">fp</span>(do_), <span class="built_in">fp</span>(dht), sc, <span class="built_in">fp</span>(dv), <span class="built_in">fp</span>(dh0), B, T, H, K, V, BT);</span><br><span class="line">  k_bwd_pre&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(<span class="built_in">fp</span>(q), <span class="built_in">fp</span>(k), <span class="built_in">fp</span>(qn), <span class="built_in">fp</span>(kn), <span class="built_in">fp</span>(rq), <span class="built_in">fp</span>(rk),</span><br><span class="line">      <span class="built_in">fp</span>(beta_s), <span class="built_in">fp</span>(ga), <span class="built_in">fp</span>(A_log), sc.dgc, sc.dqs, sc.dkn, sc.dbeta_s,</span><br><span class="line">      <span class="built_in">fp</span>(dq), <span class="built_in">fp</span>(dk), <span class="built_in">fp</span>(dgr), <span class="built_in">fp</span>(dbeta), <span class="built_in">fp</span>(dA_log), <span class="built_in">fp</span>(ddt_bias),</span><br><span class="line">      (<span class="type">float</span>)scale, B, T, H, K, BT);</span><br><span class="line">  <span class="built_in">cudaDeviceSynchronize</span>();</span><br><span class="line">  <span class="keyword">return</span> {dq, dk, dv, dgr, dbeta, dA_log, ddt_bias, dh0};</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 手撕KDA（上）</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-03 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-04 21:10:48
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/03/手撕KDA（上）/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/KDA/">#KDA</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/02/linear-attention/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">linear attention</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">手撕KDA（上）</div>
+		
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 3 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
