@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/03/02/hgemm_mma_m16n8k16_naive_kernel/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hgemm_mma_m16n8k16_naive_kernel">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/03/02/hgemm_mma_m16n8k16_naive_kernel/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-03-02T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:02:25.693Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="CUDA">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            hgemm_mma_m16n8k16_naive_kernel | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">hgemm_mma_m16n8k16_naive_kernel</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-03-02 23:50</span>
+        <span class="mobile">2026-03-02 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:02:25</span>
+            <span class="mobile">2026-06-05 23:02:25</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/CUDA/">CUDA</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/CUDA/">CUDA</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>hgemm_mma_m16n8k16_naive_kernel详解</p>
+<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/tree/eee72be829545bd6bd115a4b252b5068c9f61597">xlite-dev/HGEMM at eee72be829545bd6bd115a4b252b5068c9f61597<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>代码链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/blob/eee72be829545bd6bd115a4b252b5068c9f61597/kernels/hgemm/mma/hgemm_mma.cu#L44">HGEMM/kernels/hgemm/mma/hgemm_mma.cu at eee72be829545bd6bd115a4b252b5068c9f61597 · xlite-dev/HGEMM<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<div class="code-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> WARP_SIZE 32</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEVICE_INLINE __device__ inline</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HOST_DEVICE_INLINE __device__ __host__ inline</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> INT4(value) (reinterpret_cast<span class="string">&lt;int4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> FLOAT4(value) (reinterpret_cast<span class="string">&lt;float4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HALF2(value) (reinterpret_cast<span class="string">&lt;half2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BFLOAT2(value) (reinterpret_cast<span class="string">&lt;__nv_bfloat162*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST32BITS(value) (reinterpret_cast<span class="string">&lt;half2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST64BITS(value) (reinterpret_cast<span class="string">&lt;float2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST128BITS(value) (reinterpret_cast<span class="string">&lt;float4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_COMMIT_GROUP() asm volatile(<span class="string">"cp.async.commit_group;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_WAIT_ALL() asm volatile(<span class="string">"cp.async.wait_all;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_WAIT_GROUP(n) asm volatile(<span class="string">"cp.async.wait_group %0;\n"</span> ::<span class="string">"n"</span>(n))</span></span><br><span class="line"><span class="comment">// ca(cache all, L1 + L2): support 4, 8, 16 bytes, cg(cache global, L2): only support 16 bytes.</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_CA(dst, src, bytes) asm volatile(<span class="string">"cp.async.ca.shared.global.L2::128B [%0], [%1], %2;\n"</span> ::<span class="string">"r"</span>(dst), <span class="string">"l"</span>(src), <span class="string">"n"</span>(bytes))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_CG(dst, src, bytes) asm volatile(<span class="string">"cp.async.cg.shared.global.L2::128B [%0], [%1], %2;\n"</span> ::<span class="string">"r"</span>(dst), <span class="string">"l"</span>(src), <span class="string">"n"</span>(bytes))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X1(R, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x1.m8n8.shared.b16 {%0}, [%1];\n"</span> : <span class="string">"=r"</span>(R) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X2(R0, R1, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x2.m8n8.shared.b16 {%0, %1}, [%2];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X4(R0, R1, R2, R3, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x4.m8n8.shared.b16 {%0, %1, %2, %3}, [%4];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1), <span class="string">"=r"</span>(R2), <span class="string">"=r"</span>(R3) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X1_T(R, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x1.trans.m8n8.shared.b16 {%0}, [%1];\n"</span> : <span class="string">"=r"</span>(R) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X2_T(R0, R1, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x2.trans.m8n8.shared.b16 {%0, %1}, [%2];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X4_T(R0, R1, R2, R3, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x4.trans.m8n8.shared.b16 {%0, %1, %2, %3}, [%4];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1), <span class="string">"=r"</span>(R2), <span class="string">"=r"</span>(R3) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HMMA16816(RD0, RD1, RA0, RA1, RA2, RA3, RB0, RB1, RC0, RC1) asm volatile(<span class="string">"mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 {%0, %1}, {%2, %3, %4, %5}, {%6, %7}, {%8, %9};\n"</span> : <span class="string">"=r"</span>(RD0), <span class="string">"=r"</span>(RD1) : <span class="string">"r"</span>(RA0), <span class="string">"r"</span>(RA1), <span class="string">"r"</span>(RA2), <span class="string">"r"</span>(RA3), <span class="string">"r"</span>(RB0), <span class="string">"r"</span>(RB1), <span class="string">"r"</span>(RC0), <span class="string">"r"</span>(RC1))</span></span><br><span class="line"></span><br><span class="line"><span class="function">HOST_DEVICE_INLINE </span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">div_ceil</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> </span>{ <span class="keyword">return</span> (a % b != <span class="number">0</span>) ? (a / b + <span class="number">1</span>) : (a / b); }</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// only 1 warp per block(32 threads), m16n8k16. A, B, C: all row_major.</span></span><br><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="type">const</span> <span class="type">int</span> MMA_M</span>=<span class="number">16</span>, <span class="type">const</span> <span class="type">int</span> MMA_N=<span class="number">8</span>, <span class="type">const</span> <span class="type">int</span> MMA_K=<span class="number">16</span>&gt;</span><br><span class="line">__global__ <span class="type">void</span> <span class="built_in">hgemm_mma_m16n8k16_naive_kernel</span>(half* A, half* B, half* C, </span><br><span class="line">                                                <span class="type">int</span> M, <span class="type">int</span> N, <span class="type">int</span> K) {</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> bx = blockIdx.x;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> by = blockIdx.y;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> NUM_K_TILES = <span class="built_in">div_ceil</span>(K, MMA_K);</span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BM = MMA_M; <span class="comment">// 16</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BN = MMA_N; <span class="comment">// 8</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BK = MMA_K; <span class="comment">// 16</span></span><br><span class="line"></span><br><span class="line">  __shared__ half s_a[MMA_M][MMA_K]; <span class="comment">// 16x16</span></span><br><span class="line">  __shared__ half s_b[MMA_K][MMA_N]; <span class="comment">// 16x8</span></span><br><span class="line">  __shared__ half s_c[MMA_M][MMA_N]; <span class="comment">// 16x8</span></span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> tid = threadIdx.y * blockDim.x + threadIdx.x; <span class="comment">// within block</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> lane_id = tid % WARP_SIZE; <span class="comment">// 0~31</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// s_a[16][16], 每行16，每线程load 8，需要2线程，共16行，需2x16=32线程</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_smem_a_m = tid / <span class="number">2</span>; <span class="comment">// row 0~15</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_smem_a_k = (tid % <span class="number">2</span>) * <span class="number">8</span>; <span class="comment">// col 0,8</span></span><br><span class="line">  <span class="comment">// s_b[16][8], 每行8，每线程load 8，需要1线程，共16行，需16线程，只需一半线程加载</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_smem_b_k = tid; <span class="comment">// row 0~31, but only use 0~15</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_smem_b_n = <span class="number">0</span>; <span class="comment">// col 0</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_gmem_a_m = by * BM + load_smem_a_m; <span class="comment">// global m</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> load_gmem_b_n = bx * BN + load_smem_b_n; <span class="comment">// global n</span></span><br><span class="line">  <span class="keyword">if</span> (load_gmem_a_m &gt;= M &amp;&amp; load_gmem_b_n &gt;= N) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="type">uint32_t</span> RC[<span class="number">2</span>] = {<span class="number">0</span>, <span class="number">0</span>};</span><br><span class="line"></span><br><span class="line">  <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; NUM_K_TILES; ++k) {</span><br><span class="line">    <span class="comment">// gmem_a -&gt; smem_a</span></span><br><span class="line">    <span class="type">int</span> load_gmem_a_k = k * BK + load_smem_a_k; <span class="comment">// global col of a</span></span><br><span class="line">    <span class="type">int</span> load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    <span class="built_in">LDST128BITS</span>(s_a[load_smem_a_m][load_smem_a_k]) = (</span><br><span class="line">      <span class="built_in">LDST128BITS</span>(A[load_gmem_a_addr]));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// gmem_b -&gt; smem_b</span></span><br><span class="line">    <span class="keyword">if</span> (lane_id &lt; MMA_K) {</span><br><span class="line">      <span class="type">int</span> load_gmem_b_k = k * MMA_K + load_smem_b_k; <span class="comment">// global row of b</span></span><br><span class="line">      <span class="type">int</span> load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n; </span><br><span class="line">      <span class="built_in">LDST128BITS</span>(s_b[load_smem_b_k][load_smem_b_n]) = (</span><br><span class="line">        <span class="built_in">LDST128BITS</span>(B[load_gmem_b_addr]));</span><br><span class="line">    }</span><br><span class="line">    __syncthreads(); </span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> RA[<span class="number">4</span>];</span><br><span class="line">    <span class="type">uint32_t</span> RB[<span class="number">2</span>];</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// ldmatrix for s_a, ldmatrix.trans for s_b.</span></span><br><span class="line">    <span class="comment">// s_a: (0,1)*8 -&gt; 0,8 -&gt; [(0~15),(0,8)]</span></span><br><span class="line">    <span class="type">uint32_t</span> load_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">      &amp;s_a[lane_id % <span class="number">16</span>][(lane_id / <span class="number">16</span>) * <span class="number">8</span>]); </span><br><span class="line">    <span class="built_in">LDMATRIX_X4</span>(RA[<span class="number">0</span>], RA[<span class="number">1</span>], RA[<span class="number">2</span>], RA[<span class="number">3</span>], load_smem_a_ptr);</span><br><span class="line">    <span class="type">uint32_t</span> load_smem_b_ptr = __cvta_generic_to_shared(</span><br><span class="line">      &amp;s_b[lane_id % <span class="number">16</span>][<span class="number">0</span>]);</span><br><span class="line">    <span class="built_in">LDMATRIX_X2_T</span>(RB[<span class="number">0</span>], RB[<span class="number">1</span>], load_smem_b_ptr);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">HMMA16816</span>(RC[<span class="number">0</span>], RC[<span class="number">1</span>], RA[<span class="number">0</span>], RA[<span class="number">1</span>], RA[<span class="number">2</span>], RA[<span class="number">3</span>], RB[<span class="number">0</span>], RB[<span class="number">1</span>], RC[<span class="number">0</span>], RC[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">    __syncthreads();</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// s_c[16][8], https://docs.nvidia.com/cuda/parallel-thread-execution/index.html</span></span><br><span class="line">  <span class="comment">// #matrix-fragments-for-mma-m16n8k16-with-floating-point-type</span></span><br><span class="line">  <span class="comment">// [0~7][0~3 u32 -&gt; 0~7 f16], [8~15][0~3 u32 -&gt; 0~7 f16]</span></span><br><span class="line">  <span class="built_in">LDST32BITS</span>(s_c[lane_id / <span class="number">4</span>    ][(lane_id % <span class="number">4</span>) * <span class="number">2</span>]) = <span class="built_in">LDST32BITS</span>(RC[<span class="number">0</span>]); </span><br><span class="line">  <span class="built_in">LDST32BITS</span>(s_c[lane_id / <span class="number">4</span> + <span class="number">8</span>][(lane_id % <span class="number">4</span>) * <span class="number">2</span>]) = <span class="built_in">LDST32BITS</span>(RC[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">  __syncthreads();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// store s_c[16][8]</span></span><br><span class="line">  <span class="keyword">if</span> (lane_id &lt; MMA_M) {</span><br><span class="line">    <span class="comment">// store 128 bits per memory issue.</span></span><br><span class="line">    <span class="type">int</span> store_gmem_c_m = by * BM + lane_id;</span><br><span class="line">    <span class="type">int</span> store_gmem_c_n = bx * BN;</span><br><span class="line">    <span class="type">int</span> store_gmem_c_addr = store_gmem_c_m * N + store_gmem_c_n;</span><br><span class="line">    <span class="built_in">LDST128BITS</span>(C[store_gmem_c_addr]) = (<span class="built_in">LDST128BITS</span>(s_c[lane_id][<span class="number">0</span>]));</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h2 id="1-什么是-mma-指令"><a class="markdownIt-Anchor" href="#1-什么是-mma-指令"></a> 1. 什么是 MMA 指令？</h2>
+<p><strong>MMA (Matrix Multiply-Accumulate)</strong> 是 NVIDIA Tensor Core 提供的矩阵乘累加指令，可以在一条指令中完成小规模矩阵乘法。</p>
+<h3 id="11-m16n8k16-指令规格"><a class="markdownIt-Anchor" href="#11-m16n8k16-指令规格"></a> 1.1 m16n8k16 指令规格</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16</span><br><span class="line">     │            │         │   │   │   │   │   └─ D 类型 (f16)</span><br><span class="line">     │            │         │   │   │   │   └─ C 类型 (f16)  </span><br><span class="line">     │            │         │   │   │   └─ B 类型 (f16)</span><br><span class="line">     │            │         │   │   └─ A 类型 (f16)</span><br><span class="line">     │            │         │   └─ B 布局 (col-major)</span><br><span class="line">     │            │         └─ A 布局 (row-major)</span><br><span class="line">     │            └─ 矩阵维度: M=16, N=8, K=16</span><br><span class="line">     └─ 同步执行</span><br></pre></td></tr></table></figure></div>
+<p><strong>计算</strong>: D[16×8] = A[16×16] × B[16×8] + C[16×8]</p>
+<h3 id="12-性能对比"><a class="markdownIt-Anchor" href="#12-性能对比"></a> 1.2 性能对比</h3>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>一条指令计算量</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CUDA Core (HFMA)</td>
+<td>1×1×1 = 2 FLOPs</td>
+<td>单个 FMA</td>
+</tr>
+<tr>
+<td>Tensor Core (m16n8k16)</td>
+<td>16×8×16×2 = 4096 FLOPs</td>
+<td>一个 warp 协作</td>
+</tr>
+</tbody>
+</table>
+<p><strong>加速比</strong>: 4096 / (32 × 2) = <strong>64倍</strong> (理论上)</p>
+<hr>
+<h2 id="2-kernel-概述"><a class="markdownIt-Anchor" href="#2-kernel-概述"></a> 2. Kernel 概述</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="type">const</span> <span class="type">int</span> MMA_M</span>=<span class="number">16</span>, <span class="type">const</span> <span class="type">int</span> MMA_N=<span class="number">8</span>, <span class="type">const</span> <span class="type">int</span> MMA_K=<span class="number">16</span>&gt;</span><br><span class="line">__global__ <span class="type">void</span> <span class="built_in">hgemm_mma_m16n8k16_naive_kernel</span>(half* A, half* B, half* C, </span><br><span class="line">                                                <span class="type">int</span> M, <span class="type">int</span> N, <span class="type">int</span> K)</span><br></pre></td></tr></table></figure></div>
+<h3 id="21-launch-配置"><a class="markdownIt-Anchor" href="#21-launch-配置"></a> 2.1 Launch 配置</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">dim3 <span class="title">block</span><span class="params">(WARP_SIZE)</span></span>;  <span class="comment">// 32 threads = 1 warp</span></span><br><span class="line"><span class="function">dim3 <span class="title">grid</span><span class="params">(N/<span class="number">8</span>, M/<span class="number">16</span>)</span></span>;   <span class="comment">// 每个 block 计算 16×8 的输出</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>关键</strong>: MMA 指令需要整个 warp (32 threads) 协作执行！</p>
+<h3 id="22-shared-memory-布局"><a class="markdownIt-Anchor" href="#22-shared-memory-布局"></a> 2.2 Shared Memory 布局</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">__shared__ half s_a[MMA_M][MMA_K]; <span class="comment">// 16×16 = 512 bytes</span></span><br><span class="line">__shared__ half s_b[MMA_K][MMA_N]; <span class="comment">// 16×8 = 256 bytes</span></span><br><span class="line">__shared__ half s_c[MMA_M][MMA_N]; <span class="comment">// 16×8 = 256 bytes</span></span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="3-数据加载-global-shared"><a class="markdownIt-Anchor" href="#3-数据加载-global-shared"></a> 3. 数据加载 (Global → Shared)</h2>
+<h3 id="31-加载-a-矩阵"><a class="markdownIt-Anchor" href="#31-加载-a-矩阵"></a> 3.1 加载 A 矩阵</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// s_a[16][16]: 每行 16 个 half，每线程加载 8 个，需要 2 线程/行</span></span><br><span class="line"><span class="comment">// 共 16 行，需要 16×2 = 32 线程 (刚好 1 warp)</span></span><br><span class="line"><span class="type">const</span> <span class="type">int</span> load_smem_a_m = tid / <span class="number">2</span>;           <span class="comment">// 行号: 0~15</span></span><br><span class="line"><span class="type">const</span> <span class="type">int</span> load_smem_a_k = (tid % <span class="number">2</span>) * <span class="number">8</span>;     <span class="comment">// 列号: 0 或 8</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 加载 128 bits (8 × half)</span></span><br><span class="line"><span class="built_in">LDST128BITS</span>(s_a[load_smem_a_m][load_smem_a_k]) = <span class="built_in">LDST128BITS</span>(A[addr]);</span><br></pre></td></tr></table></figure></div>
+<p><strong>图示</strong>:</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Thread 0,1   → s_a[0][0:7], s_a[0][8:15]   (第 0 行)</span><br><span class="line">Thread 2,3   → s_a[1][0:7], s_a[1][8:15]   (第 1 行)</span><br><span class="line">...</span><br><span class="line">Thread 30,31 → s_a[15][0:7], s_a[15][8:15] (第 15 行)</span><br></pre></td></tr></table></figure></div>
+<h3 id="32-加载-b-矩阵"><a class="markdownIt-Anchor" href="#32-加载-b-矩阵"></a> 3.2 加载 B 矩阵</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// s_b[16][8]: 每行 8 个 half，每线程加载 8 个，只需 1 线程/行</span></span><br><span class="line"><span class="comment">// 共 16 行，需要 16 线程 (只用一半 warp)</span></span><br><span class="line"><span class="keyword">if</span> (lane_id &lt; MMA_K) {  <span class="comment">// lane_id &lt; 16</span></span><br><span class="line">    <span class="built_in">LDST128BITS</span>(s_b[load_smem_b_k][<span class="number">0</span>]) = <span class="built_in">LDST128BITS</span>(B[addr]);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="4-ldmatrix-指令详解"><a class="markdownIt-Anchor" href="#4-ldmatrix-指令详解"></a> 4. ldmatrix 指令详解 ⭐</h2>
+<p><code>ldmatrix</code> 是专为 MMA 设计的数据加载指令，从 Shared Memory 加载数据到寄存器，并自动重排数据布局以匹配 MMA 指令的要求。</p>
+<h3 id="41-ldmatrixx4-加载-a"><a class="markdownIt-Anchor" href="#41-ldmatrixx4-加载-a"></a> 4.1 ldmatrix.x4 加载 A</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 每个线程提供一个地址，协作加载 4 个 8×8 矩阵</span></span><br><span class="line"><span class="type">uint32_t</span> load_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">    &amp;s_a[lane_id % <span class="number">16</span>][(lane_id / <span class="number">16</span>) * <span class="number">8</span>]);</span><br><span class="line"><span class="built_in">LDMATRIX_X4</span>(RA[<span class="number">0</span>], RA[<span class="number">1</span>], RA[<span class="number">2</span>], RA[<span class="number">3</span>], load_smem_a_ptr);</span><br></pre></td></tr></table></figure></div>
+<p><strong>地址映射</strong> (32 个线程的地址):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">lane_id  |  row (lane_id % 16)  |  col ((lane_id/16)*8)  |  地址</span><br><span class="line">---------|---------------------|----------------------|--------</span><br><span class="line">0        |  0                  |  0                   |  s_a[0][0]</span><br><span class="line">1        |  1                  |  0                   |  s_a[1][0]</span><br><span class="line">...</span><br><span class="line">15       |  15                 |  0                   |  s_a[15][0]</span><br><span class="line">16       |  0                  |  8                   |  s_a[0][8]</span><br><span class="line">17       |  1                  |  8                   |  s_a[1][8]</span><br><span class="line">...</span><br><span class="line">31       |  15                 |  8                   |  s_a[15][8]</span><br></pre></td></tr></table></figure></div>
+<p><strong>结果</strong>: 每个线程获得 4 个 32-bit 寄存器 (RA[0]~RA[3])，包含 8 个 half 值。</p>
+<div class="code-container" data-rel="Markdown"><figure class="iseeu highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">s<span class="emphasis">_a[<span class="string">16</span>][<span class="symbol">16</span>] 在 Shared Memory 中：</span></span><br><span class="line"><span class="emphasis"></span></span><br><span class="line"><span class="emphasis">         col 0    col 8</span></span><br><span class="line"><span class="emphasis">         ↓        ↓</span></span><br><span class="line"><span class="emphasis">row 0  → [<span class="string">████████|████████</span>] ← T0 指向 [<span class="string">0</span>][<span class="symbol">0</span>], T16 指向 [<span class="string">0</span>][<span class="symbol">8</span>]</span></span><br><span class="line"><span class="emphasis">row 1  → [<span class="string">████████|████████</span>] ← T1 指向 [<span class="string">1</span>][<span class="symbol">0</span>], T17 指向 [<span class="string">1</span>][<span class="symbol">8</span>]</span></span><br><span class="line"><span class="emphasis">row 2  → [<span class="string">████████|████████</span>] ← T2 指向 [<span class="string">2</span>][<span class="symbol">0</span>], T18 指向 [<span class="string">2</span>][<span class="symbol">8</span>]</span></span><br><span class="line"><span class="emphasis">...</span></span><br><span class="line"><span class="emphasis">row 15 → [<span class="string">████████|████████</span>] ← T15 指向 [<span class="string">15</span>][<span class="symbol">0</span>], T31 指向 [<span class="string">15</span>][<span class="symbol">8</span>]</span></span><br><span class="line"><span class="emphasis">         └──8 half──┘</span></span><br><span class="line"><span class="emphasis">s_</span>a[<span class="string">16</span>][<span class="symbol">16</span>]:</span><br><span class="line"><span class="code">        col 0~7          col 8~15</span></span><br><span class="line"><span class="code">      ┌─────────┬─────────┐</span></span><br><span class="line"><span class="code">row 0 │ T0 ──►  │ T16 ──► │  每个线程提供一行的起始地址</span></span><br><span class="line"><span class="code">row 1 │ T1 ──►  │ T17 ──► │  ldmatrix 会从该地址读取 8 个 half (128 bits)</span></span><br><span class="line"><span class="code">...   │ ...     │ ...     │</span></span><br><span class="line"><span class="code">row 15│ T15 ──► │ T31 ──► │</span></span><br><span class="line"><span class="code">      └─────────┴─────────┘</span></span><br></pre></td></tr></table></figure></div>
+<p>LDMATRIX_X4 做了什么？</p>
+<ul>
+<li>加载 4 个 8×8 子矩阵（共 16×16）</li>
+<li>硬件自动重新分发数据到各线程的寄存器</li>
+<li>输出：每线程得到 RA[0…3]，共 4 个 u32（8 个 half）</li>
+</ul>
+<h3 id="42-ldmatrixx2trans-加载-b-带转置"><a class="markdownIt-Anchor" href="#42-ldmatrixx2trans-加载-b-带转置"></a> 4.2 ldmatrix.x2.trans 加载 B (带转置)</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> load_smem_b_ptr = __cvta_generic_to_shared(&amp;s_b[lane_id % <span class="number">16</span>][<span class="number">0</span>]);</span><br><span class="line"><span class="built_in">LDMATRIX_X2_T</span>(RB[<span class="number">0</span>], RB[<span class="number">1</span>], load_smem_b_ptr);</span><br></pre></td></tr></table></figure></div>
+<p>地址计算： <code>s_b[16][8]</code> 是 B 矩阵的 shared memory</p>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>lane_id % 16 (行)</th>
+<th>地址</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0~15</td>
+<td>0~15</td>
+<td>s_b[0~15][0]</td>
+</tr>
+<tr>
+<td>16~31</td>
+<td>0~15</td>
+<td>s_b[0~15][0] (重复)</td>
+</tr>
+</tbody>
+</table>
+<p>图示：</p>
+<div class="code-container" data-rel="Markdown"><figure class="iseeu highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">s<span class="emphasis">_b[<span class="string">16</span>][<span class="symbol">8</span>]:  (存储是行主序)</span></span><br><span class="line"><span class="emphasis">        col 0~7</span></span><br><span class="line"><span class="emphasis">      ┌─────────┐</span></span><br><span class="line"><span class="emphasis">row 0 │ T0 ──►  │</span></span><br><span class="line"><span class="emphasis">row 1 │ T1 ──►  │</span></span><br><span class="line"><span class="emphasis">...   │ ...     │</span></span><br><span class="line"><span class="emphasis">row 15│ T15 ──► │</span></span><br><span class="line"><span class="emphasis">      └─────────┘</span></span><br><span class="line"><span class="emphasis">      </span></span><br><span class="line"><span class="emphasis">LDMATRIX_</span>X2<span class="emphasis">_T 加载 2 个 8×8 矩阵，并转置！</span></span><br><span class="line"><span class="emphasis">转置后 B 变成列主序，满足 MMA 指令要求</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>为什么需要转置？</strong></p>
+<ul>
+<li>B 矩阵在 shared memory 中是行主序 <code>s_b[K][N]</code></li>
+<li>MMA 指令要求 B 是列主序</li>
+<li><code>ldmatrix.trans</code> 在加载时自动完成转置</li>
+</ul>
+<h3 id="43-ldmatrix-数据布局图解硬件重新分发"><a class="markdownIt-Anchor" href="#43-ldmatrix-数据布局图解硬件重新分发"></a> 4.3 ldmatrix 数据布局图解（硬件重新分发）</h3>
+<p>输入地址 和 输出寄存器 的对应关系不是直接的：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">❌ 错误理解：T0 提供的地址 → T0 的寄存器</span><br><span class="line">✅ 正确理解：32个线程提供32个地址 → 硬件收集所有数据 → 按MMA要求重新分配到各线程</span><br></pre></td></tr></table></figure></div>
+<p>具体过程</p>
+<p><strong>Step 1: 每个线程提供一个地址</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&amp;s_a[lane_id % 16][(lane_id / 16) * 8]</span><br><span class="line">T0  → s_a[0][0]   (读取 s_a[0][0:7], 8个half)</span><br><span class="line">T1  → s_a[1][0]   (读取 s_a[1][0:7], 8个half)</span><br><span class="line">...</span><br><span class="line">T15 → s_a[15][0]  (读取 s_a[15][0:7], 8个half)</span><br><span class="line">T16 → s_a[0][8]   (读取 s_a[0][8:15], 8个half)</span><br><span class="line">...</span><br><span class="line">T31 → s_a[15][8]  (读取 s_a[15][8:15], 8个half)</span><br></pre></td></tr></table></figure></div>
+<p>合计： 32 × 8 = 256 个 half = 整个 16×16 矩阵</p>
+<p><strong>Step 2: 硬件收集所有数据</strong></p>
+<p>ldmatrix 指令让硬件一次性从 shared memory 读取全部 256 个 half：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────┐</span><br><span class="line">│         Shared Memory s_a[16][16]       │</span><br><span class="line">│  ┌───┬───┬───┬───┬───┬───┬───┬───┬...┐  │</span><br><span class="line">│  │a00│a01│a02│a03│a04│a05│a06│a07│...│  │  ← T0 提供的地址读这行</span><br><span class="line">│  │a10│a11│a12│a13│a14│a15│a16│a17│...│  │  ← T1 提供的地址读这行</span><br><span class="line">│  │...                                │  │</span><br><span class="line">│  └───────────────────────────────────┘  │</span><br><span class="line">└─────────────────────────────────────────┘</span><br><span class="line">              │</span><br><span class="line">              ▼ 硬件收集全部 256 个 half</span><br><span class="line">         ┌──────────┐</span><br><span class="line">         │ ldmatrix │</span><br><span class="line">         │ 硬件逻辑  │</span><br><span class="line">         └──────────┘</span><br></pre></td></tr></table></figure></div>
+<p><strong>Step 3: 按 MMA 要求重新分发</strong></p>
+<p><strong>关键：MMA 指令对输入数据的排布有特定要求！</strong></p>
+<p><strong>关键公式（来自官方文档）</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">groupID           = %laneid &gt;&gt; 2      // lane_id / 4</span><br><span class="line">threadID_in_group = %laneid % 4       // lane_id % 4</span><br></pre></td></tr></table></figure></div>
+<p><strong>A 矩阵 Fragment（RA[0…3]，4 个 u32 = 8 个 half）</strong></p>
+<p>官方公式</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">row = groupID            for ai where  0 &lt;= i &lt; 2 || 4 &lt;= i &lt; 6</span><br><span class="line">      groupID + 8        Otherwise</span><br><span class="line"></span><br><span class="line">col = (threadID_in_group * 2) + (i &amp; 0x1)          for ai where i &lt;  4</span><br><span class="line">      (threadID_in_group * 2) + (i &amp; 0x1) + 8      for ai where i &gt;= 4</span><br></pre></td></tr></table></figure></div>
+<p>硬件按照 NVIDIA 定义的 <strong>fragment 布局</strong> 将数据分发到各线程：</p>
+<p>每线程持有的 A 矩阵元素：</p>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>groupID</th>
+<th>threadID</th>
+<th>a0,a1 位置</th>
+<th>a2,a3 位置</th>
+<th>a4,a5 位置</th>
+<th>a6,a7 位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>A[0][0:1]</td>
+<td>A[8][0:1]</td>
+<td>A[0][8:9]</td>
+<td>A[8][8:9]</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>A[0][2:3]</td>
+<td>A[8][2:3]</td>
+<td>A[0][10:11]</td>
+<td>A[8][10:11]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>2</td>
+<td>A[0][4:5]</td>
+<td>A[8][4:5]</td>
+<td>A[0][12:13]</td>
+<td>A[8][12:13]</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>3</td>
+<td>A[0][6:7]</td>
+<td>A[8][6:7]</td>
+<td>A[0][14:15]</td>
+<td>A[8][14:15]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+<td>A[1][0:1]</td>
+<td>A[9][0:1]</td>
+<td>A[1][8:9]</td>
+<td>A[9][8:9]</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>31</td>
+<td>7</td>
+<td>3</td>
+<td>A[7][6:7]</td>
+<td>A[15][6:7]</td>
+<td>A[7][14:15]</td>
+<td>A[15][14:15]</td>
+</tr>
+</tbody>
+</table>
+<p>图示：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">A[16][16] 矩阵的分布:</span><br><span class="line"></span><br><span class="line">         col 0-1  2-3  4-5  6-7  8-9  10-11 12-13 14-15</span><br><span class="line">        ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐</span><br><span class="line">row 0   │ T0  │ T1  │ T2  │ T3  │ T0  │ T1  │ T2  │ T3  │  ← a0,a1 / a4,a5</span><br><span class="line">row 1   │ T4  │ T5  │ T6  │ T7  │ T4  │ T5  │ T6  │ T7  │</span><br><span class="line">...     │     │     │     │     │     │     │     │     │</span><br><span class="line">row 7   │ T28 │ T29 │ T30 │ T31 │ T28 │ T29 │ T30 │ T31 │</span><br><span class="line">row 8   │ T0  │ T1  │ T2  │ T3  │ T0  │ T1  │ T2  │ T3  │  ← a2,a3 / a6,a7</span><br><span class="line">row 9   │ T4  │ T5  │ T6  │ T7  │ T4  │ T5  │ T6  │ T7  │</span><br><span class="line">...     │     │     │     │     │     │     │     │     │</span><br><span class="line">row 15  │ T28 │ T29 │ T30 │ T31 │ T28 │ T29 │ T30 │ T31 │</span><br><span class="line">        └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘</span><br><span class="line">              k &lt; 8                    k &gt;= 8</span><br></pre></td></tr></table></figure></div>
+<p>官方图示：</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="1.png" alt="img"></p>
+<hr>
+<p><strong>B 矩阵 Fragment（RB[0…1]，2 个 u32 = 4 个 half）</strong></p>
+<p>官方公式：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">row = (threadID_in_group * 2) + (i &amp; 0x1)           for bi where i &lt;  2</span><br><span class="line">      (threadID_in_group * 2) + (i &amp; 0x1) + 8       for bi where i &gt;= 2</span><br><span class="line"></span><br><span class="line">col = groupID</span><br></pre></td></tr></table></figure></div>
+<p>每线程持有的 B 矩阵元素：</p>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>groupID</th>
+<th>threadID</th>
+<th>b0,b1 位置</th>
+<th>b2,b3 位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>B[0:1][0]</td>
+<td>B[8:9][0]</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>B[2:3][0]</td>
+<td>B[10:11][0]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>2</td>
+<td>B[4:5][0]</td>
+<td>B[12:13][0]</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>3</td>
+<td>B[6:7][0]</td>
+<td>B[14:15][0]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+<td>B[0:1][1]</td>
+<td>B[8:9][1]</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody>
+</table>
+<p>官方图示：</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="2.png" alt="img"></p>
+<hr>
+<p><strong>C/D 矩阵 Fragment（RC[0…1]，2 个 u32 = 4 个 half）</strong></p>
+<p>官方公式：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">row = groupID                 for ci where i &lt;  2</span><br><span class="line">      groupID + 8             for ci where i &gt;= 2</span><br><span class="line"></span><br><span class="line">col = (threadID_in_group * 2) + (i &amp; 0x1)    for ci where i = {0,..,3}</span><br></pre></td></tr></table></figure></div>
+<p><strong>每线程持有的 C/D 矩阵元素：</strong></p>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>groupID</th>
+<th>threadID</th>
+<th>c0,c1 (RC[0])</th>
+<th>c2,c3 (RC[1])</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>C[0][0:1]</td>
+<td>C[8][0:1]</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>C[0][2:3]</td>
+<td>C[8][2:3]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>2</td>
+<td>C[0][4:5]</td>
+<td>C[8][4:5]</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>3</td>
+<td>C[0][6:7]</td>
+<td>C[8][6:7]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+<td>C[1][0:1]</td>
+<td>C[9][0:1]</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>31</td>
+<td>7</td>
+<td>3</td>
+<td>C[7][6:7]</td>
+<td>C[15][6:7]</td>
+</tr>
+</tbody>
+</table>
+<p><strong>图示：</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">C[16][8] 矩阵的分布:</span><br><span class="line"></span><br><span class="line">         col 0-1  2-3  4-5  6-7</span><br><span class="line">        ┌─────┬─────┬─────┬─────┐</span><br><span class="line">row 0   │ T0  │ T1  │ T2  │ T3  │  ← RC[0]: c0,c1</span><br><span class="line">row 1   │ T4  │ T5  │ T6  │ T7  │</span><br><span class="line">row 2   │ T8  │ T9  │ T10 │ T11 │</span><br><span class="line">...     │     │     │     │     │</span><br><span class="line">row 7   │ T28 │ T29 │ T30 │ T31 │</span><br><span class="line">row 8   │ T0  │ T1  │ T2  │ T3  │  ← RC[1]: c2,c3</span><br><span class="line">row 9   │ T4  │ T5  │ T6  │ T7  │</span><br><span class="line">...     │     │     │     │     │</span><br><span class="line">row 15  │ T28 │ T29 │ T30 │ T31 │</span><br><span class="line">        └─────┴─────┴─────┴─────┘</span><br></pre></td></tr></table></figure></div>
+<p>官方图示：</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="3.png" alt="img"></p>
+<hr>
+<h2 id="5-mma-指令执行"><a class="markdownIt-Anchor" href="#5-mma-指令执行"></a> 5. MMA 指令执行</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> HMMA16816(RD0, RD1, RA0, RA1, RA2, RA3, RB0, RB1, RC0, RC1) \</span></span><br><span class="line"><span class="meta">    asm volatile(<span class="string">"mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 \</span></span></span><br><span class="line"><span class="string"><span class="meta">        {%0, %1}, {%2, %3, %4, %5}, {%6, %7}, {%8, %9};\n"</span> \</span></span><br><span class="line"><span class="meta">        : <span class="string">"=r"</span>(RD0), <span class="string">"=r"</span>(RD1) \</span></span><br><span class="line"><span class="meta">        : <span class="string">"r"</span>(RA0), <span class="string">"r"</span>(RA1), <span class="string">"r"</span>(RA2), <span class="string">"r"</span>(RA3), \</span></span><br><span class="line"><span class="meta">          <span class="string">"r"</span>(RB0), <span class="string">"r"</span>(RB1), <span class="string">"r"</span>(RC0), <span class="string">"r"</span>(RC1))</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 调用</span></span><br><span class="line"><span class="built_in">HMMA16816</span>(RC[<span class="number">0</span>], RC[<span class="number">1</span>], </span><br><span class="line">          RA[<span class="number">0</span>], RA[<span class="number">1</span>], RA[<span class="number">2</span>], RA[<span class="number">3</span>],  <span class="comment">// A: 4 个 32-bit 寄存器</span></span><br><span class="line">          RB[<span class="number">0</span>], RB[<span class="number">1</span>],                 <span class="comment">// B: 2 个 32-bit 寄存器</span></span><br><span class="line">          RC[<span class="number">0</span>], RC[<span class="number">1</span>]);                <span class="comment">// C/D: 2 个 32-bit 寄存器</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="51-寄存器用量"><a class="markdownIt-Anchor" href="#51-寄存器用量"></a> 5.1 寄存器用量</h3>
+<table>
+<thead>
+<tr>
+<th>矩阵</th>
+<th>维度</th>
+<th>每线程元素数</th>
+<th>寄存器数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>16×16</td>
+<td>8 half</td>
+<td>4 × 32-bit</td>
+</tr>
+<tr>
+<td>B</td>
+<td>16×8</td>
+<td>4 half</td>
+<td>2 × 32-bit</td>
+</tr>
+<tr>
+<td>C/D</td>
+<td>16×8</td>
+<td>4 half</td>
+<td>2 × 32-bit</td>
+</tr>
+</tbody>
+</table>
+<p><strong>整个 Warp</strong>:</p>
+<ul>
+<li>A: 32 threads × 8 = 256 half = 16×16 ✓</li>
+<li>B: 32 threads × 4 = 128 half = 16×8 ✓</li>
+<li>C: 32 threads × 4 = 128 half = 16×8 ✓</li>
+</ul>
+<p>寄存器分布（每线程持有的数据）</p>
+<div class="code-container" data-rel="Markdown"><figure class="iseeu highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">A矩阵 (RA[0~3], 每个 u32 = 2 个 half):</span><br><span class="line">┌─────────────────────────────────┐</span><br><span class="line">│ 每线程持有 A 的某些行的部分元素    │</span><br><span class="line">│ 具体位置由硬件 MMA 布局决定       │</span><br><span class="line">└─────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">C/D矩阵 (RC[0], RC[1]):</span><br><span class="line">┌───────────────────┐</span><br><span class="line">│ RC[0]: 行 0~7     │  lane<span class="emphasis">_id / 4 决定行</span></span><br><span class="line"><span class="emphasis">│ RC[1]: 行 8~15    │  lane_</span>id % 4 决定列组</span><br><span class="line">└───────────────────┘</span><br><span class="line"></span><br><span class="line">输出映射 (RC → C[<span class="string">16</span>][<span class="symbol">8</span>]):</span><br><span class="line">lane<span class="emphasis">_id  │ RC[0] 位置        │ RC[1] 位置</span></span><br><span class="line"><span class="emphasis">─────────┼───────────────────┼───────────────────</span></span><br><span class="line"><span class="emphasis">0        │ C[<span class="string">0</span>][<span class="symbol">0:1</span>]         │ C[<span class="string">8</span>][<span class="symbol">0:1</span>]</span></span><br><span class="line"><span class="emphasis">1        │ C[<span class="string">0</span>][<span class="symbol">2:3</span>]         │ C[<span class="string">8</span>][<span class="symbol">2:3</span>]</span></span><br><span class="line"><span class="emphasis">2        │ C[<span class="string">0</span>][<span class="symbol">4:5</span>]         │ C[<span class="string">8</span>][<span class="symbol">4:5</span>]</span></span><br><span class="line"><span class="emphasis">3        │ C[<span class="string">0</span>][<span class="symbol">6:7</span>]         │ C[<span class="string">8</span>][<span class="symbol">6:7</span>]</span></span><br><span class="line"><span class="emphasis">4        │ C[<span class="string">1</span>][<span class="symbol">0:1</span>]         │ C[<span class="string">9</span>][<span class="symbol">0:1</span>]</span></span><br><span class="line"><span class="emphasis">...      │ ...               │ ...</span></span><br><span class="line"><span class="emphasis">31       │ C[<span class="string">7</span>][<span class="symbol">6:7</span>]         │ C[<span class="string">15</span>][<span class="symbol">6:7</span>]</span></span><br></pre></td></tr></table></figure></div>
+<p>数据流</p>
+<div class="code-container" data-rel="Markdown"><figure class="iseeu highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────┐</span><br><span class="line">│ Global Memory                                            │</span><br><span class="line">│   A[M×K]          B[K×N]                                 │</span><br><span class="line">└─────┬────────────────┬───────────────────────────────────┘</span><br><span class="line"><span class="code">      │ LDST128BITS    │ LDST128BITS</span></span><br><span class="line"><span class="code">      ▼                ▼</span></span><br><span class="line"><span class="code">┌──────────────────────────────────────────────────────────┐</span></span><br><span class="line"><span class="code">│ Shared Memory                                            │</span></span><br><span class="line"><span class="code">│   s_a[16][16]     s_b[16][8]                            │</span></span><br><span class="line"><span class="code">└─────┬────────────────┬───────────────────────────────────┘</span></span><br><span class="line"><span class="code">      │ LDMATRIX_X4    │ LDMATRIX_X2_T (带转置)</span></span><br><span class="line"><span class="code">      ▼                ▼</span></span><br><span class="line"><span class="code">┌──────────────────────────────────────────────────────────┐</span></span><br><span class="line"><span class="code">│ Registers (每线程)                                        │</span></span><br><span class="line"><span class="code">│   RA[0..3]        RB[0..1]         RC[0..1]             │</span></span><br><span class="line"><span class="code">│   (4×u32)         (2×u32)          (2×u32)              │</span></span><br><span class="line"><span class="code">└─────┬────────────────┬────────────────┬─────────────────┘</span></span><br><span class="line"><span class="code">      └────────┬───────┘                │</span></span><br><span class="line"><span class="code">               ▼                        │</span></span><br><span class="line"><span class="code">         ┌──────────┐                   │</span></span><br><span class="line"><span class="code">         │ HMMA16816│ ◄─────────────────┘</span></span><br><span class="line"><span class="code">         │ Tensor   │</span></span><br><span class="line"><span class="code">         │ Core     │</span></span><br><span class="line"><span class="code">         └────┬─────┘</span></span><br><span class="line"><span class="code">              │</span></span><br><span class="line"><span class="code">              ▼</span></span><br><span class="line"><span class="code">         RC[0], RC[1] (累加结果)</span></span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="6-输出矩阵-c-的数据布局"><a class="markdownIt-Anchor" href="#6-输出矩阵-c-的数据布局"></a> 6. 输出矩阵 C 的数据布局 ⭐</h2>
+<p>MMA 指令的输出分布在 32 个线程的寄存器中，布局如下:</p>
+<h3 id="61-官方文档布局"><a class="markdownIt-Anchor" href="#61-官方文档布局"></a> 6.1 官方文档布局</h3>
+<p>根据 <a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#matrix-fragments-for-mma-m16n8k16-with-floating-point-type">PTX ISA<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>:</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">C/D Matrix [16][8] 在各线程寄存器中的分布:</span><br><span class="line"></span><br><span class="line">        col 0,1    col 2,3    col 4,5    col 6,7</span><br><span class="line">       ─────────────────────────────────────────</span><br><span class="line">row 0  │ T0:RC[0] │ T1:RC[0] │ T2:RC[0] │ T3:RC[0] │</span><br><span class="line">row 1  │ T4:RC[0] │ T5:RC[0] │ T6:RC[0] │ T7:RC[0] │</span><br><span class="line">...</span><br><span class="line">row 7  │T28:RC[0] │T29:RC[0] │T30:RC[0] │T31:RC[0] │</span><br><span class="line">       ─────────────────────────────────────────</span><br><span class="line">row 8  │ T0:RC[1] │ T1:RC[1] │ T2:RC[1] │ T3:RC[1] │</span><br><span class="line">row 9  │ T4:RC[1] │ T5:RC[1] │ T6:RC[1] │ T7:RC[1] │</span><br><span class="line">...</span><br><span class="line">row 15 │T28:RC[1] │T29:RC[1] │T30:RC[1] │T31:RC[1] │</span><br><span class="line">       ─────────────────────────────────────────</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="4.png" alt="img"></p>
+<h3 id="62-索引公式"><a class="markdownIt-Anchor" href="#62-索引公式"></a> 6.2 索引公式</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 每个线程的 RC[0] 对应的位置</span></span><br><span class="line">row = lane_id / <span class="number">4</span>         <span class="comment">// 0~7</span></span><br><span class="line">col = (lane_id % <span class="number">4</span>) * <span class="number">2</span>   <span class="comment">// 0,2,4,6</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 每个线程的 RC[1] 对应的位置</span></span><br><span class="line">row = lane_id / <span class="number">4</span> + <span class="number">8</span>     <span class="comment">// 8~15</span></span><br><span class="line">col = (lane_id % <span class="number">4</span>) * <span class="number">2</span>   <span class="comment">// 0,2,4,6</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="63-存储到-shared-memory"><a class="markdownIt-Anchor" href="#63-存储到-shared-memory"></a> 6.3 存储到 Shared Memory</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// RC[0] → s_c 的上半部分 (row 0~7)</span></span><br><span class="line"><span class="built_in">LDST32BITS</span>(s_c[lane_id / <span class="number">4</span>    ][(lane_id % <span class="number">4</span>) * <span class="number">2</span>]) = <span class="built_in">LDST32BITS</span>(RC[<span class="number">0</span>]);</span><br><span class="line"></span><br><span class="line"><span class="comment">// RC[1] → s_c 的下半部分 (row 8~15)</span></span><br><span class="line"><span class="built_in">LDST32BITS</span>(s_c[lane_id / <span class="number">4</span> + <span class="number">8</span>][(lane_id % <span class="number">4</span>) * <span class="number">2</span>]) = <span class="built_in">LDST32BITS</span>(RC[<span class="number">1</span>]);</span><br></pre></td></tr></table></figure></div>
+<h4 id="线程分布表"><a class="markdownIt-Anchor" href="#线程分布表"></a> 线程分布表</h4>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>lane_id/4</th>
+<th>lane_id%4</th>
+<th>RC[0] 写入位置</th>
+<th>RC[1] 写入位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>s_c[0][0:1]</td>
+<td>s_c[8][0:1]</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>s_c[0][2:3]</td>
+<td>s_c[8][2:3]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>2</td>
+<td>s_c[0][4:5]</td>
+<td>s_c[8][4:5]</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>3</td>
+<td>s_c[0][6:7]</td>
+<td>s_c[8][6:7]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+<td>s_c[1][0:1]</td>
+<td>s_c[9][0:1]</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1</td>
+<td>1</td>
+<td>s_c[1][2:3]</td>
+<td>s_c[9][2:3]</td>
+</tr>
+<tr>
+<td>6</td>
+<td>1</td>
+<td>2</td>
+<td>s_c[1][4:5]</td>
+<td>s_c[9][4:5]</td>
+</tr>
+<tr>
+<td>7</td>
+<td>1</td>
+<td>3</td>
+<td>s_c[1][6:7]</td>
+<td>s_c[9][6:7]</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>28</td>
+<td>7</td>
+<td>0</td>
+<td>s_c[7][0:1]</td>
+<td>s_c[15][0:1]</td>
+</tr>
+<tr>
+<td>29</td>
+<td>7</td>
+<td>1</td>
+<td>s_c[7][2:3]</td>
+<td>s_c[15][2:3]</td>
+</tr>
+<tr>
+<td>30</td>
+<td>7</td>
+<td>2</td>
+<td>s_c[7][4:5]</td>
+<td>s_c[15][4:5]</td>
+</tr>
+<tr>
+<td>31</td>
+<td>7</td>
+<td>3</td>
+<td>s_c[7][6:7]</td>
+<td>s_c[15][6:7]</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>图示：s_c[16][8] 的填充</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">s_c[16][8] 矩阵：</span><br><span class="line"></span><br><span class="line">          col 0-1    col 2-3    col 4-5    col 6-7</span><br><span class="line">         ┌─────────┬─────────┬─────────┬─────────┐</span><br><span class="line">row 0    │ T0 RC[0]│ T1 RC[0]│ T2 RC[0]│ T3 RC[0]│  ← lane 0~3 写 RC[0]</span><br><span class="line">row 1    │ T4 RC[0]│ T5 RC[0]│ T6 RC[0]│ T7 RC[0]│  ← lane 4~7 写 RC[0]</span><br><span class="line">row 2    │ T8 RC[0]│ T9 RC[0]│T10 RC[0]│T11 RC[0]│</span><br><span class="line">row 3    │T12 RC[0]│T13 RC[0]│T14 RC[0]│T15 RC[0]│</span><br><span class="line">row 4    │T16 RC[0]│T17 RC[0]│T18 RC[0]│T19 RC[0]│</span><br><span class="line">row 5    │T20 RC[0]│T21 RC[0]│T22 RC[0]│T23 RC[0]│</span><br><span class="line">row 6    │T24 RC[0]│T25 RC[0]│T26 RC[0]│T27 RC[0]│</span><br><span class="line">row 7    │T28 RC[0]│T29 RC[0]│T30 RC[0]│T31 RC[0]│  ← lane 28~31 写 RC[0]</span><br><span class="line">         ├─────────┼─────────┼─────────┼─────────┤</span><br><span class="line">row 8    │ T0 RC[1]│ T1 RC[1]│ T2 RC[1]│ T3 RC[1]│  ← lane 0~3 写 RC[1]</span><br><span class="line">row 9    │ T4 RC[1]│ T5 RC[1]│ T6 RC[1]│ T7 RC[1]│  ← lane 4~7 写 RC[1]</span><br><span class="line">row 10   │ T8 RC[1]│ T9 RC[1]│T10 RC[1]│T11 RC[1]│</span><br><span class="line">row 11   │T12 RC[1]│T13 RC[1]│T14 RC[1]│T15 RC[1]│</span><br><span class="line">row 12   │T16 RC[1]│T17 RC[1]│T18 RC[1]│T19 RC[1]│</span><br><span class="line">row 13   │T20 RC[1]│T21 RC[1]│T22 RC[1]│T23 RC[1]│</span><br><span class="line">row 14   │T24 RC[1]│T25 RC[1]│T26 RC[1]│T27 RC[1]│</span><br><span class="line">row 15   │T28 RC[1]│T29 RC[1]│T30 RC[1]│T31 RC[1]│  ← lane 28~31 写 RC[1]</span><br><span class="line">         └─────────┴─────────┴─────────┴─────────┘</span><br></pre></td></tr></table></figure></div>
+<p>关键理解</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">32 个线程，每线程写 2 次（RC[0] 和 RC[1]）</span><br><span class="line">每次写 2 个 half（32 bits）</span><br><span class="line"></span><br><span class="line">RC[0] 填充 row 0~7  (上半部分)</span><br><span class="line">RC[1] 填充 row 8~15 (下半部分)</span><br><span class="line"></span><br><span class="line">同一行的 4 个线程（同一 group）横向排列：</span><br><span class="line">  T0 写 col 0-1</span><br><span class="line">  T1 写 col 2-3  </span><br><span class="line">  T2 写 col 4-5</span><br><span class="line">  T3 写 col 6-7</span><br><span class="line">  → 刚好填满一行 8 列</span><br></pre></td></tr></table></figure></div>
+<p><strong>与 MMA 输出 Fragment 的对应</strong></p>
+<p>这个存储模式<strong>完全匹配</strong> MMA m16n8k16 的 C/D fragment 布局：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">官方公式：</span><br><span class="line">  row = groupID                for ci where i &lt; 2   → RC[0]</span><br><span class="line">        groupID + 8            for ci where i &gt;= 2  → RC[1]</span><br><span class="line">  col = (threadID_in_group * 2) + (i &amp; 0x1)</span><br><span class="line"></span><br><span class="line">代码：</span><br><span class="line">  row = lane_id / 4            → groupID</span><br><span class="line">        lane_id / 4 + 8        → groupID + 8</span><br><span class="line">  col = (lane_id % 4) * 2      → threadID_in_group * 2</span><br></pre></td></tr></table></figure></div>
+<p>两者完全一致！ 代码正确地将 MMA 计算结果从寄存器写回 shared memory。</p>
+<h3 id="64-s_c-global-memory-c-的存储解释"><a class="markdownIt-Anchor" href="#64-s_c-global-memory-c-的存储解释"></a> 6.4 s_c → Global Memory C 的存储解释</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if (lane_id &lt; MMA_M) {  // MMA_M = 16</span><br><span class="line">    int store_gmem_c_m = by * BM + lane_id;        // 全局行号</span><br><span class="line">    int store_gmem_c_n = bx * BN;                  // 全局列号起点</span><br><span class="line">    int store_gmem_c_addr = store_gmem_c_m * N + store_gmem_c_n;</span><br><span class="line">    LDST128BITS(C[store_gmem_c_addr]) = (LDST128BITS(s_c[lane_id][0]));</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>代码含义</p>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lane_id &lt; 16</code></td>
+<td>只用前 16 个线程（32 个线程中有 16 个空闲）</td>
+</tr>
+<tr>
+<td><code>LDST128BITS</code></td>
+<td>一次写 128 bits = 8 个 half</td>
+</tr>
+<tr>
+<td><code>s_c[lane_id][0]</code></td>
+<td>第 <code>lane_id</code> 行，从列 0 开始读 8 个元素</td>
+</tr>
+</tbody>
+</table>
+<p>图示</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">s_c[16][8] → C[M][N] 的全局位置</span><br><span class="line"></span><br><span class="line">s_c 在 shared memory:</span><br><span class="line">        col 0  1  2  3  4  5  6  7</span><br><span class="line">       ┌──────────────────────────┐</span><br><span class="line">row 0  │  ████████████████████████│ ← T0 写整行 (8 half = 128 bits)</span><br><span class="line">row 1  │  ████████████████████████│ ← T1 写整行</span><br><span class="line">row 2  │  ████████████████████████│ ← T2 写整行</span><br><span class="line">...    │  ...                     │</span><br><span class="line">row 15 │  ████████████████████████│ ← T15 写整行</span><br><span class="line">       └──────────────────────────┘</span><br><span class="line"></span><br><span class="line">写到 C 的全局位置:</span><br><span class="line">       </span><br><span class="line">       C[M][N]:</span><br><span class="line">       ┌─────────────────────────────────────────┐</span><br><span class="line">       │                                         │</span><br><span class="line">       │     bx*BN                               │</span><br><span class="line">       │       ↓                                 │</span><br><span class="line">by*BM →├───────┬────────┬────────────────────────┤</span><br><span class="line">       │       │ 8 cols │                        │</span><br><span class="line">T0  →  │       │████████│  ← C[by*BM+0][bx*BN:+8]│</span><br><span class="line">T1  →  │       │████████│  ← C[by*BM+1][bx*BN:+8]│</span><br><span class="line">...    │       │  ...   │                        │</span><br><span class="line">T15 →  │       │████████│  ← C[by*BM+15][bx*BN:+8]│</span><br><span class="line">       ├───────┴────────┴────────────────────────┤</span><br><span class="line">       │                                         │</span><br><span class="line">       └─────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<p>线程分工</p>
+<table>
+<thead>
+<tr>
+<th>lane_id</th>
+<th>负责</th>
+<th>写入全局地址</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>s_c[0][0:7] → C[by<em>BM+0][bx</em>BN : bx*BN+8]</td>
+<td>一整行</td>
+</tr>
+<tr>
+<td>1</td>
+<td>s_c[1][0:7] → C[by<em>BM+1][bx</em>BN : bx*BN+8]</td>
+<td>一整行</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>15</td>
+<td>s_c[15][0:7] → C[by<em>BM+15][bx</em>BN : bx*BN+8]</td>
+<td>一整行</td>
+</tr>
+<tr>
+<td>16~31</td>
+<td><strong>空闲</strong></td>
+<td>不参与</td>
+</tr>
+</tbody>
+</table>
+<p>为什么只用 16 个线程？</p>
+<ul>
+<li><code>s_c</code> 是 16×8 矩阵，共 16 行</li>
+<li>每线程写一整行（8 个 half = 128 bits）</li>
+<li>16 线程刚好覆盖 16 行</li>
+<li>剩余 16 个线程（lane_id 16~31）被 <code>if</code> 过滤掉</li>
+</ul>
+<p>效率说明</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">优点：每次访存 128 bits，合并访问效率高</span><br><span class="line">缺点：一半线程空闲（利用率 50%）</span><br><span class="line"></span><br><span class="line">这是 naive kernel 的简单实现，</span><br><span class="line">后面的优化版本（mma2x4_warp4x4）会直接从寄存器写 gmem，</span><br><span class="line">避免经过 shared memory 中转</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="7-完整执行流程"><a class="markdownIt-Anchor" href="#7-完整执行流程"></a> 7. 完整执行流程</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────┐</span><br><span class="line">│  Step 1: Global Memory → Shared Memory                          │</span><br><span class="line">│  ───────────────────────────────────────                        │</span><br><span class="line">│  A[M][K] → s_a[16][16]  (32 threads, 128-bit load)             │</span><br><span class="line">│  B[K][N] → s_b[16][8]   (16 threads, 128-bit load)             │</span><br><span class="line">│  __syncthreads()                                                │</span><br><span class="line">└─────────────────────────────────────────────────────────────────┘</span><br><span class="line">                              │</span><br><span class="line">                              ▼</span><br><span class="line">┌─────────────────────────────────────────────────────────────────┐</span><br><span class="line">│  Step 2: Shared Memory → Registers (ldmatrix)                   │</span><br><span class="line">│  ─────────────────────────────────────────────                  │</span><br><span class="line">│  s_a[16][16] → RA[4]   (LDMATRIX_X4)                           │</span><br><span class="line">│  s_b[16][8]  → RB[2]   (LDMATRIX_X2_T, 带转置)                 │</span><br><span class="line">└─────────────────────────────────────────────────────────────────┘</span><br><span class="line">                              │</span><br><span class="line">                              ▼</span><br><span class="line">┌─────────────────────────────────────────────────────────────────┐</span><br><span class="line">│  Step 3: MMA Compute                                            │</span><br><span class="line">│  ───────────────────                                            │</span><br><span class="line">│  HMMA16816: RC = RA × RB + RC                                   │</span><br><span class="line">│  (整个 warp 协作执行)                                            │</span><br><span class="line">└─────────────────────────────────────────────────────────────────┘</span><br><span class="line">                              │</span><br><span class="line">                              ▼</span><br><span class="line">┌─────────────────────────────────────────────────────────────────┐</span><br><span class="line">│  Step 4: Registers → Shared Memory → Global Memory              │</span><br><span class="line">│  ─────────────────────────────────────────────────              │</span><br><span class="line">│  RC[2] → s_c[16][8] → C[M][N]                                  │</span><br><span class="line">└─────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="8-k-维度循环"><a class="markdownIt-Anchor" href="#8-k-维度循环"></a> 8. K 维度循环</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; NUM_K_TILES; ++k) {</span><br><span class="line">    <span class="comment">// 1. 加载当前 K tile 的数据</span></span><br><span class="line">    load A[by*<span class="number">16</span>:(by<span class="number">+1</span>)*<span class="number">16</span>, k*<span class="number">16</span>:(k<span class="number">+1</span>)*<span class="number">16</span>] → s_a</span><br><span class="line">    load B[k*<span class="number">16</span>:(k<span class="number">+1</span>)*<span class="number">16</span>, bx*<span class="number">8</span>:(bx<span class="number">+1</span>)*<span class="number">8</span>]  → s_b</span><br><span class="line">    __syncthreads();</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 2. ldmatrix 加载到寄存器</span></span><br><span class="line">    <span class="built_in">LDMATRIX_X4</span>(RA[<span class="number">0</span>], RA[<span class="number">1</span>], RA[<span class="number">2</span>], RA[<span class="number">3</span>], s_a_ptr);</span><br><span class="line">    <span class="built_in">LDMATRIX_X2_T</span>(RB[<span class="number">0</span>], RB[<span class="number">1</span>], s_b_ptr);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 3. MMA 累加</span></span><br><span class="line">    <span class="built_in">HMMA16816</span>(RC[<span class="number">0</span>], RC[<span class="number">1</span>], RA[], RB[], RC[<span class="number">0</span>], RC[<span class="number">1</span>]);</span><br><span class="line">    </span><br><span class="line">    __syncthreads();</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>计算量</strong>:</p>
+<ul>
+<li>每次迭代: 16 × 8 × 16 × 2 = 4096 FLOPs</li>
+<li>K/16 次迭代</li>
+<li>总计: 16 × 8 × K × 2 FLOPs</li>
+</ul>
+<hr>
+<h2 id="9-性能分析"><a class="markdownIt-Anchor" href="#9-性能分析"></a> 9. 性能分析</h2>
+<h3 id="91-理论计算量"><a class="markdownIt-Anchor" href="#91-理论计算量"></a> 9.1 理论计算量</h3>
+<p>对于 M×K × K×N 的矩阵乘法:</p>
+<ul>
+<li>Grid: (N/8) × (M/16) blocks</li>
+<li>每 block: K/16 次 MMA</li>
+<li>总 MMA 数: (N/8) × (M/16) × (K/16) = M×N×K / 2048</li>
+</ul>
+<h3 id="92-限制因素"><a class="markdownIt-Anchor" href="#92-限制因素"></a> 9.2 限制因素</h3>
+<table>
+<thead>
+<tr>
+<th>因素</th>
+<th>影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只有 1 warp/block</td>
+<td>严重限制 SM 利用率</td>
+</tr>
+<tr>
+<td>无 double buffering</td>
+<td>无法隐藏内存延迟</td>
+</tr>
+<tr>
+<td>小 block size</td>
+<td>Grid 巨大，调度开销大</td>
+</tr>
+</tbody>
+</table>
+<p><strong>这就是为什么需要 Level 2 (多 warp) 和 Level 3 (多阶段) 的优化！</strong></p>
+<hr>
+<h2 id="10-总结"><a class="markdownIt-Anchor" href="#10-总结"></a> 10. 总结</h2>
+<h3 id="101-关键概念"><a class="markdownIt-Anchor" href="#101-关键概念"></a> 10.1 关键概念</h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MMA 指令</strong></td>
+<td>一条指令完成 16×8×16 矩阵乘累加</td>
+</tr>
+<tr>
+<td><strong>Warp 协作</strong></td>
+<td>32 个线程共同执行一条 MMA</td>
+</tr>
+<tr>
+<td><strong>ldmatrix</strong></td>
+<td>专用加载指令，自动重排数据</td>
+</tr>
+<tr>
+<td><strong>ldmatrix.trans</strong></td>
+<td>加载时转置，适配列主序 B</td>
+</tr>
+<tr>
+<td><strong>C 布局</strong></td>
+<td>输出分散在 32 个线程的寄存器中</td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-数据分布"><a class="markdownIt-Anchor" href="#102-数据分布"></a> 10.2 数据分布</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">             ┌──────────────────┐</span><br><span class="line">             │   32 Threads     │</span><br><span class="line">             │   (1 Warp)       │</span><br><span class="line">             └────────┬─────────┘</span><br><span class="line">                      │</span><br><span class="line">     ┌────────────────┼────────────────┐</span><br><span class="line">     │                │                │</span><br><span class="line">     ▼                ▼                ▼</span><br><span class="line">┌─────────┐     ┌─────────┐     ┌─────────┐</span><br><span class="line">│ A[16×16]│     │ B[16×8] │     │ C[16×8] │</span><br><span class="line">│ 8 half  │     │ 4 half  │     │ 4 half  │</span><br><span class="line">│ per thd │     │ per thd │     │ per thd │</span><br><span class="line">│ RA[4]   │     │ RB[2]   │     │ RC[2]   │</span><br><span class="line">└─────────┘     └─────────┘     └─────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="103-下一步"><a class="markdownIt-Anchor" href="#103-下一步"></a> 10.3 下一步</h3>
+<p>学完 naive kernel 后，继续学习 <strong>Level 2</strong>: <code>hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel</code>，了解如何组织多个 MMA 操作和多个 Warp 协作。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> hgemm_mma_m16n8k16_naive_kernel</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-03-02 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:02:25
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/03/02/hgemm_mma_m16n8k16_naive_kernel/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/CUDA/">#CUDA</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/03/03/hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/02/03/TVM%E4%B9%8BfusePass/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">TVM Pass解读之fuse pass</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">hgemm_mma_m16n8k16_naive_kernel</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E4%BB%80%E4%B9%88%E6%98%AF-mma-%E6%8C%87%E4%BB%A4"><span class="nav-text"> 1. 什么是 MMA 指令？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-m16n8k16-%E6%8C%87%E4%BB%A4%E8%A7%84%E6%A0%BC"><span class="nav-text"> 1.1 m16n8k16 指令规格</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-text"> 1.2 性能对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-kernel-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 2. Kernel 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-launch-%E9%85%8D%E7%BD%AE"><span class="nav-text"> 2.1 Launch 配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-shared-memory-%E5%B8%83%E5%B1%80"><span class="nav-text"> 2.2 Shared Memory 布局</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%95%B0%E6%8D%AE%E5%8A%A0%E8%BD%BD-global-shared"><span class="nav-text"> 3. 数据加载 (Global → Shared)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E5%8A%A0%E8%BD%BD-a-%E7%9F%A9%E9%98%B5"><span class="nav-text"> 3.1 加载 A 矩阵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-%E5%8A%A0%E8%BD%BD-b-%E7%9F%A9%E9%98%B5"><span class="nav-text"> 3.2 加载 B 矩阵</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-ldmatrix-%E6%8C%87%E4%BB%A4%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 4. ldmatrix 指令详解 ⭐</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-ldmatrixx4-%E5%8A%A0%E8%BD%BD-a"><span class="nav-text"> 4.1 ldmatrix.x4 加载 A</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-ldmatrixx2trans-%E5%8A%A0%E8%BD%BD-b-%E5%B8%A6%E8%BD%AC%E7%BD%AE"><span class="nav-text"> 4.2 ldmatrix.x2.trans 加载 B (带转置)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-ldmatrix-%E6%95%B0%E6%8D%AE%E5%B8%83%E5%B1%80%E5%9B%BE%E8%A7%A3%E7%A1%AC%E4%BB%B6%E9%87%8D%E6%96%B0%E5%88%86%E5%8F%91"><span class="nav-text"> 4.3 ldmatrix 数据布局图解（硬件重新分发）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-mma-%E6%8C%87%E4%BB%A4%E6%89%A7%E8%A1%8C"><span class="nav-text"> 5. MMA 指令执行</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E5%AF%84%E5%AD%98%E5%99%A8%E7%94%A8%E9%87%8F"><span class="nav-text"> 5.1 寄存器用量</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E8%BE%93%E5%87%BA%E7%9F%A9%E9%98%B5-c-%E7%9A%84%E6%95%B0%E6%8D%AE%E5%B8%83%E5%B1%80"><span class="nav-text"> 6. 输出矩阵 C 的数据布局 ⭐</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-%E5%AE%98%E6%96%B9%E6%96%87%E6%A1%A3%E5%B8%83%E5%B1%80"><span class="nav-text"> 6.1 官方文档布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-%E7%B4%A2%E5%BC%95%E5%85%AC%E5%BC%8F"><span class="nav-text"> 6.2 索引公式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-%E5%AD%98%E5%82%A8%E5%88%B0-shared-memory"><span class="nav-text"> 6.3 存储到 Shared Memory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-s_c-global-memory-c-%E7%9A%84%E5%AD%98%E5%82%A8%E8%A7%A3%E9%87%8A"><span class="nav-text"> 6.4 s_c → Global Memory C 的存储解释</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E5%AE%8C%E6%95%B4%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B"><span class="nav-text"> 7. 完整执行流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-k-%E7%BB%B4%E5%BA%A6%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 8. K 维度循环</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90"><span class="nav-text"> 9. 性能分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#91-%E7%90%86%E8%AE%BA%E8%AE%A1%E7%AE%97%E9%87%8F"><span class="nav-text"> 9.1 理论计算量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#92-%E9%99%90%E5%88%B6%E5%9B%A0%E7%B4%A0"><span class="nav-text"> 9.2 限制因素</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-%E6%80%BB%E7%BB%93"><span class="nav-text"> 10. 总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#101-%E5%85%B3%E9%94%AE%E6%A6%82%E5%BF%B5"><span class="nav-text"> 10.1 关键概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#102-%E6%95%B0%E6%8D%AE%E5%88%86%E5%B8%83"><span class="nav-text"> 10.2 数据分布</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#103-%E4%B8%8B%E4%B8%80%E6%AD%A5"><span class="nav-text"> 10.3 下一步</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

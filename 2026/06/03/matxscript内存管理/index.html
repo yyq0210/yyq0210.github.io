@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/03/matxscript内存管理/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="matxscript运行时系统之内存系统">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/03/matxscript%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-03T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:21:37.634Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="AI Compiler">
+<meta property="article:tag" content="TVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            matxscript运行时系统之内存系统 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">matxscript运行时系统之内存系统</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-03 23:50</span>
+        <span class="mobile">2026-06-03 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:21:37</span>
+            <span class="mobile">2026-06-05 23:21:37</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/AI-Compiler/">AI Compiler</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/AI-Compiler/">AI Compiler</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/TVM/">TVM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/bytedance/matxscript">bytedance/matxscript: A high-performance, extensible Python AOT compiler.<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h1 id="概述"><a class="markdownIt-Anchor" href="#概述"></a> 概述</h1>
+<p>matxscript运行时系统的内存管理机制负责高效地分配和回收运行时环境中所有对象的内存。该系统基于MemoryPoolAllocator分配器实现，结合对象模型中的引用计数机制，实现了自动垃圾回收。系统支持在不同设备上进行内存分配，并通过DeviceAPI与底层硬件交互。</p>
+<p>内存管理系统的核心目标是在保证内存安全的前提下，最大化内存分配和回收的效率，为高性能计算提供基础支撑。</p>
+<h1 id="核心组件架构"><a class="markdownIt-Anchor" href="#核心组件架构"></a> 核心组件架构</h1>
+<p>内存管理系统主要由以下几个核心组件构成：</p>
+<ol>
+<li><strong>MemoryPoolAllocator</strong>: 主要的内存分配器实现</li>
+<li><strong>ObjAllocatorBase</strong>: 分配器基类模板，提供通用的make_object接口</li>
+<li><strong>ObjectPtr</strong>: 智能指针类，负责对象引用计数管理</li>
+<li><strong>全局内存分配器实例</strong>: global_memory_allocator</li>
+</ol>
+<p>内存管理系统采用分层设计，顶层通过make_object函数提供统一的对象创建接口，底层通过MemoryPoolAllocator实现具体的内存分配策略。ObjectPtr智能指针负责管理对象的生命周期和引用计数。</p>
+<h1 id="分配器设计与实现"><a class="markdownIt-Anchor" href="#分配器设计与实现"></a> 分配器设计与实现</h1>
+<h2 id="objallocatorbase模板类"><a class="markdownIt-Anchor" href="#objallocatorbase模板类"></a> ObjAllocatorBase模板类</h2>
+<p>ObjAllocatorBase是一个使用奇异递归模板模式（CRTP）实现的基类模板，为各种具体的分配器提供通用的make_object接口。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> Derived&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjAllocatorBase</span> {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line">  <span class="function"><span class="keyword">inline</span> ObjectPtr&lt;T&gt; <span class="title">make_object</span><span class="params">(Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">    <span class="keyword">using</span> Handler = <span class="keyword">typename</span> Derived::<span class="keyword">template</span> Handler&lt;T&gt;;</span><br><span class="line">    <span class="built_in">static_assert</span>(std::is_base_of&lt;Object, T&gt;::value, <span class="string">"make can only be used to create Object"</span>);</span><br><span class="line">    T* ptr = Handler::<span class="built_in">New</span>(<span class="built_in">static_cast</span>&lt;Derived*&gt;(<span class="keyword">this</span>), std::forward&lt;Args&gt;(args)...);</span><br><span class="line">    ptr-&gt;type_index_ = T::<span class="built_in">RuntimeTypeIndex</span>();</span><br><span class="line">    ptr-&gt;deleter_ = Handler::<span class="built_in">Deleter</span>();</span><br><span class="line">    ObjectPtr&lt;T&gt; result;</span><br><span class="line">    result.data_ = ptr;</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">  }</span><br><span class="line">  <span class="comment">// ... 其他方法</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>这种设计允许派生类（如MemoryPoolAllocator）定义特定的Handler来处理不同类型对象的分配和释放。</p>
+<p>这段代码就是一个典型的 CRTP（Curiously Recurring Template Pattern，奇异递归模板模式）的例子。先解释这段代码本身，再结合 CRTP 的思想讲清楚“为什么要这么写”。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> Derived&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjAllocatorBase</span> {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="function"><span class="keyword">inline</span> ObjectPtr&lt;T&gt; <span class="title">make_object</span><span class="params">(Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">    <span class="keyword">using</span> Handler = <span class="keyword">typename</span> Derived::<span class="keyword">template</span> Handler&lt;T&gt;;</span><br><span class="line">    <span class="built_in">static_assert</span>(std::is_base_of&lt;Object, T&gt;::value, <span class="string">"make can only be used to create Object"</span>);</span><br><span class="line">    T* ptr = Handler::<span class="built_in">New</span>(<span class="built_in">static_cast</span>&lt;Derived*&gt;(<span class="keyword">this</span>), std::forward&lt;Args&gt;(args)...);</span><br><span class="line">    ptr-&gt;type_index_ = T::<span class="built_in">RuntimeTypeIndex</span>();</span><br><span class="line">    ptr-&gt;deleter_ = Handler::<span class="built_in">Deleter</span>();</span><br><span class="line">    ObjectPtr&lt;T&gt; result;</span><br><span class="line">    result.data_ = ptr;</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">}</span><br><span class="line"><span class="comment">// ... 其他方法</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="这段代码具体干了什么"><a class="markdownIt-Anchor" href="#这段代码具体干了什么"></a> 这段代码具体干了什么？</h3>
+<p><code>ObjAllocatorBase&lt;Derived&gt;</code> 是一个“分配器基类模板”。真正的分配器类会这样继承它：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">SimpleObjAllocator</span> : <span class="keyword">public</span> ObjAllocatorBase&lt;SimpleObjAllocator&gt; {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Handler</span> {</span><br><span class="line"><span class="function"><span class="type">static</span> T* <span class="title">New</span><span class="params">(SimpleObjAllocator* alloc, <span class="comment">/*Args...*/</span>)</span> </span>{ ... }</span><br><span class="line"><span class="function"><span class="type">static</span> DeleterFunc <span class="title">Deleter</span><span class="params">()</span> </span>{ ... } <span class="comment">// 返回函数指针或类似</span></span><br><span class="line">};</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>然后使用时：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SimpleObjAllocator alloc;</span><br><span class="line"><span class="keyword">auto</span> p = alloc.<span class="built_in">make_object</span>&lt;MyObj&gt;(<span class="comment">/*构造参数*/</span>);</span><br></pre></td></tr></table></figure></div>
+<h3 id="make_object-的步骤"><a class="markdownIt-Anchor" href="#make_object-的步骤"></a> <code>make_object</code> 的步骤：</h3>
+<ol>
+<li><code>using Handler = typename Derived::template Handler&lt;T&gt;;</code></li>
+</ol>
+<ul>
+<li><code>Derived</code> 在这个例子里就是 <code>SimpleObjAllocator</code>。</li>
+<li><code>Derived::template Handler&lt;T&gt;</code> 表示：由具体分配器提供一个 <code>Handler&lt;T&gt;</code>，里面定义这个类型 <code>T</code> 的创建和删除方式。</li>
+<li>这里用 <code>template</code> 关键字是因为 <code>Handler</code> 自身是模板，语法上必须加。</li>
+</ul>
+<ol>
+<li><code>static_assert(std::is_base_of&lt;Object, T&gt;::value, ...)</code></li>
+</ol>
+<ul>
+<li>保证 <code>T</code> 一定是继承自 <code>Object</code> 的类型。</li>
+<li>因为后面要写 <code>ptr-&gt;type_index_</code>、<code>ptr-&gt;deleter_</code>，这些字段是在 <code>Object</code> 里定义的。</li>
+</ul>
+<ol>
+<li><code>T* ptr = Handler::New(static_cast&lt;Derived*&gt;(this), std::forward&lt;Args&gt;(args)...);</code></li>
+</ol>
+<ul>
+<li>调用 <code>Handler&lt;T&gt;::New(...)</code> 来构造一个 <code>T</code> 对象。</li>
+<li><code>static_cast&lt;Derived*&gt;(this)</code> 把当前 <code>ObjAllocatorBase&lt;Derived&gt;*</code> 转成真实的 <code>Derived*</code>（例如 <code>SimpleObjAllocator*</code>），传给 <code>New</code>。</li>
+<li><code>Args&amp;&amp;...</code> 通过 <code>std::forward</code> 完美转发给 <code>T</code> 的构造函数。</li>
+<li>也就是：<strong>真正的分配逻辑由派生类</strong> <code>**Derived**</code> <strong>决定</strong>。</li>
+</ul>
+<ol>
+<li><code>ptr-&gt;type_index_ = T::RuntimeTypeIndex();</code></li>
+</ol>
+<ul>
+<li>给对象 <code>T</code> 填上它自己的运行时类型编号，用于 RTTI/类型擦除框架。</li>
+</ul>
+<ol>
+<li><code>ptr-&gt;deleter_ = Handler::Deleter();</code></li>
+</ol>
+<ul>
+<li>从 <code>Handler&lt;T&gt;</code> 里拿到专门销毁 <code>T</code> 的 deleter（你前面贴过的 <code>Deleter_</code> 那类函数），存到对象里。</li>
+<li>以后 <code>Object</code> 被销毁时，就通过这个函数来正确析构/释放内存。</li>
+</ul>
+<ol>
+<li>把 <code>ptr</code> 封装进 <code>ObjectPtr&lt;T&gt;</code> 返回。</li>
+</ol>
+<hr>
+<h3 id="什么是-crtp奇异递归模板模式"><a class="markdownIt-Anchor" href="#什么是-crtp奇异递归模板模式"></a> 什么是 CRTP（奇异递归模板模式）？</h3>
+<p>CRTP 的典型形式是：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> Derived&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Base</span> {</span><br><span class="line"><span class="comment">// Base 中可以把 this 转成 Derived* 来用</span></span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Derived</span> : <span class="keyword">public</span> Base&lt;Derived&gt; {</span><br><span class="line"><span class="comment">// Derived 继承 Base&lt;Derived&gt;</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>特点：</p>
+<ul>
+<li>模板参数 <code>Derived</code> 是“派生类本身”；也就是“基类用派生类作为模板参数”——看起来像个递归，所以叫“奇异递归模板模式”。</li>
+<li>这样，<code>Base</code> 里有机会写出依赖于 <code>Derived</code> 的代码，比如：</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">static_cast</span>&lt;Derived*&gt;(<span class="keyword">this</span>)-&gt;某个成员函数();</span><br></pre></td></tr></table></figure></div>
+<p>换句话说：<strong>基类模板可以在编译期“知道”派生类的类型，并调用派生类提供的接口</strong>，而不需要虚函数和运行时多态。</p>
+<p>在你这个例子里：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">template &lt;typename Derived&gt;</span><br><span class="line">class ObjAllocatorBase {</span><br><span class="line">    // ...</span><br><span class="line">    using Handler = typename Derived::template Handler&lt;T&gt;;</span><br><span class="line">    T* ptr = Handler::New(static_cast&lt;Derived*&gt;(this), ...);</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>Derived</code> 就是具体的分配器实现类，比如 <code>SimpleObjAllocator</code>、<code>PoolObjAllocator</code> 等。</li>
+<li><code>ObjAllocatorBase</code> 通过 <code>Derived::Handler&lt;T&gt;</code> 和 <code>static_cast&lt;Derived*&gt;(this)</code> 调用派生类提供的逻辑。</li>
+<li>所以：<strong>不同的 Derived，可以提供不同的 Handler<t>::New / Handler<t>::Deleter，从而实现不同的分配策略（普通 new/delete、对象池、共享内存等）</t></t></strong>。</li>
+</ul>
+<hr>
+<h3 id="为什么要用-crtp而不是虚函数"><a class="markdownIt-Anchor" href="#为什么要用-crtp而不是虚函数"></a> 为什么要用 CRTP，而不是虚函数？</h3>
+<p>如果不用 CRTP，你可能会考虑这样写：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">ObjAllocatorBase</span> {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="function"><span class="keyword">virtual</span> T* <span class="title">NewObject</span><span class="params">(<span class="comment">/*...*/</span>)</span> </span>= <span class="number">0</span>;</span><br><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">DeleteObject</span><span class="params">(Object*)</span> </span>= <span class="number">0</span>;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>问题：</p>
+<ol>
+<li>需要虚函数表，<code>ObjAllocatorBase</code> 对象有运行时开销。</li>
+<li>每次调用分配/删除都是运行时多态（虚调用），有一点性能成本。</li>
+<li>对于模板类型 <code>T</code> 的行为细化（比如 <code>Handler&lt;T&gt;</code>）不太好做：只能写非模板虚函数或受限模板。</li>
+</ol>
+<p>而 CRTP 的特性：</p>
+<ul>
+<li>
+<p>所有决策在编译期完成：</p>
+</li>
+<li>
+<p><code>Derived::Handler&lt;T&gt;</code> 是模板，针对每种 <code>T</code> 实例化不同的 Handler。</p>
+</li>
+<li>
+<p><code>Handler::New(...)</code> 是静态函数，调用时可以内联优化。</p>
+</li>
+<li>
+<p>不需要虚表，不发生虚调用，多态完全在编译期展开。</p>
+</li>
+<li>
+<p>适合像对象分配/销毁这种<strong>高频、性能敏感</strong>的操作。</p>
+</li>
+</ul>
+<hr>
+<h3 id="完整链路"><a class="markdownIt-Anchor" href="#完整链路"></a> 完整链路</h3>
+<p>整体结构：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">ObjAllocatorBase&lt;Derived&gt;</span><br><span class="line">    │  提供通用的 make_object&lt;T&gt;</span><br><span class="line">    │  负责：调用 Handler&lt;T&gt;::New / Handler&lt;T&gt;::Deleter</span><br><span class="line">    ▼</span><br><span class="line">Derived （具体分配器）</span><br><span class="line">    │  提供：template &lt;typename T&gt; struct Handler { ... }</span><br><span class="line">    ▼</span><br><span class="line">Handler&lt;T&gt;</span><br><span class="line">    │  提供：静态 New / Deleter_ / Deleter</span><br><span class="line">    ▼</span><br><span class="line">对象 T</span><br></pre></td></tr></table></figure></div>
+<p>CRTP 的作用在这里就是：</p>
+<ul>
+<li>让基类 <code>ObjAllocatorBase</code> 能“看到”派生类 <code>Derived</code> 的 <code>Handler&lt;T&gt;</code>。</li>
+<li>让 <code>make_object</code> 成为通用模板逻辑，而具体分配/销毁方式由不同 <code>Derived</code> 实现。</li>
+</ul>
+<hr>
+<h3 id="一句话总结-crtp-在这里干的事"><a class="markdownIt-Anchor" href="#一句话总结-crtp-在这里干的事"></a> 一句话总结 CRTP 在这里干的事</h3>
+<ul>
+<li><code>ObjAllocatorBase&lt;Derived&gt;</code>：提供统一的“API”（如 <code>make_object&lt;T&gt;</code>），不管分配器是什么实现。</li>
+<li><code>Derived</code>：实现具体的策略（普通分配、内存池、共享内存等），通过 <code>Handler&lt;T&gt;</code> 告诉基类：<code>T</code> 应该怎么创建和销毁。</li>
+<li>CRTP 让基类在编译期就能“知道”派生类的实现细节，从而写出“统一接口 + 策略可插拔 + 无虚函数开销”的代码。</li>
+</ul>
+<p>如果你愿意，我可以写一个最小可运行的完整例子：一个 <code>SimpleAllocator</code> 和一个 <code>PoolAllocator</code>，都继承 <code>ObjAllocatorBase</code>，展示如何通过 CRTP 和 <code>Handler&lt;T&gt;</code> 共用这套 <code>make_object</code>。</p>
+<h2 id="memorypoolallocator实现"><a class="markdownIt-Anchor" href="#memorypoolallocator实现"></a> MemoryPoolAllocator实现</h2>
+<p>MemoryPoolAllocator是运行时系统使用的默认内存分配器，它为不同类型和大小的对象提供了不同的内存管理策略：</p>
+<p>MemoryPoolAllocator通过Handler模板机制为不同类型提供专门的分配和释放操作：</p>
+<ol>
+<li><strong>普通对象Handler</strong>: 处理一般对象的分配和释放</li>
+<li><strong>数组对象ArrayHandler</strong>: 处理数组类型的分配和释放</li>
+</ol>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Simple allocator that uses new/delete.</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">MemoryPoolAllocator</span> : <span class="keyword">public</span> ObjAllocatorBase&lt;MemoryPoolAllocator&gt; {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">Handler</span> {</span><br><span class="line">   <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">using</span> StorageType = <span class="keyword">typename</span> std::aligned_storage&lt;<span class="built_in">sizeof</span>(T), <span class="built_in">alignof</span>(T)&gt;::type;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">template</span> &lt;<span class="keyword">typename</span>... Args&gt;</span><br><span class="line">    <span class="function">MATXSCRIPT_ALWAYS_INLINE <span class="type">static</span> T* <span class="title">New</span><span class="params">(MemoryPoolAllocator*, Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> the first argument is not needed for SimpleObjAllocator</span></span><br><span class="line">      <span class="comment">// It is reserved for special allocators that needs to recycle</span></span><br><span class="line">      <span class="comment">// the object to itself (e.g. in the case of object pool).</span></span><br><span class="line">      <span class="comment">//</span></span><br><span class="line">      <span class="comment">// In the case of an object pool, an allocator needs to create</span></span><br><span class="line">      <span class="comment">// a special chunk memory that hides reference to the allocator</span></span><br><span class="line">      <span class="comment">// and call allocator's release function in the deleter.</span></span><br><span class="line"></span><br><span class="line">      <span class="comment">// NOTE2: Use inplace new to allocate</span></span><br><span class="line">      <span class="comment">// This is used to get rid of warning when deleting a virtual</span></span><br><span class="line">      <span class="comment">// class with non-virtual destructor.</span></span><br><span class="line">      <span class="comment">// We are fine here as we captured the right deleter during construction.</span></span><br><span class="line">      <span class="comment">// This is also the right way to get storage type for an object pool.</span></span><br><span class="line">      StorageType* data = <span class="keyword">new</span> <span class="built_in">StorageType</span>();</span><br><span class="line">      <span class="keyword">new</span> (data) <span class="built_in">T</span>(std::forward&lt;Args&gt;(args)...);</span><br><span class="line">      <span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;T*&gt;(data);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="function">MATXSCRIPT_ALWAYS_INLINE <span class="type">static</span> Object::FDeleter <span class="title">Deleter</span><span class="params">()</span> </span>{</span><br><span class="line">      <span class="keyword">return</span> Deleter_;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">   <span class="keyword">private</span>:</span><br><span class="line">    <span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">Deleter_</span><span class="params">(Object* objptr)</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> this is important to cast back to T*</span></span><br><span class="line">      <span class="comment">// because objptr and tptr may not be the same</span></span><br><span class="line">      <span class="comment">// depending on how sub-class allocates the space.</span></span><br><span class="line">      T* tptr = <span class="built_in">static_cast</span>&lt;T*&gt;(objptr);</span><br><span class="line">      <span class="comment">// It is important to do tptr-&gt;T::~T(),</span></span><br><span class="line">      <span class="comment">// so that we explicitly call the specific destructor</span></span><br><span class="line">      <span class="comment">// instead of tptr-&gt;~T(), which could mean the intention</span></span><br><span class="line">      <span class="comment">// call a virtual destructor(which may not be available and is not required).</span></span><br><span class="line">      tptr-&gt;T::~<span class="built_in">T</span>();</span><br><span class="line">      <span class="keyword">delete</span> <span class="built_in">reinterpret_cast</span>&lt;StorageType*&gt;(tptr);</span><br><span class="line">    }</span><br><span class="line">  };</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Array handler that uses new/delete.</span></span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> ArrayType, <span class="keyword">typename</span> ElemType&gt;</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">ArrayHandler</span> {</span><br><span class="line">   <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">using</span> StorageType = <span class="keyword">typename</span> std::aligned_storage&lt;<span class="built_in">sizeof</span>(ArrayType), <span class="built_in">alignof</span>(ArrayType)&gt;::type;</span><br><span class="line">    <span class="comment">// for now only support elements that aligns with array header.</span></span><br><span class="line">    <span class="built_in">static_assert</span>(<span class="built_in">alignof</span>(ArrayType) % <span class="built_in">alignof</span>(ElemType) == <span class="number">0</span> &amp;&amp;</span><br><span class="line">                      <span class="built_in">sizeof</span>(ArrayType) % <span class="built_in">alignof</span>(ElemType) == <span class="number">0</span>,</span><br><span class="line">                  <span class="string">"element alignment constraint"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">template</span> &lt;<span class="keyword">typename</span>... Args&gt;</span><br><span class="line">    <span class="function"><span class="type">static</span> ArrayType* <span class="title">New</span><span class="params">(MemoryPoolAllocator*, <span class="type">size_t</span> num_elems, Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> the first argument is not needed for ArrayObjAllocator</span></span><br><span class="line">      <span class="comment">// It is reserved for special allocators that needs to recycle</span></span><br><span class="line">      <span class="comment">// the object to itself (e.g. in the case of object pool).</span></span><br><span class="line">      <span class="comment">//</span></span><br><span class="line">      <span class="comment">// In the case of an object pool, an allocator needs to create</span></span><br><span class="line">      <span class="comment">// a special chunk memory that hides reference to the allocator</span></span><br><span class="line">      <span class="comment">// and call allocator's release function in the deleter.</span></span><br><span class="line">      <span class="comment">// NOTE2: Use inplace new to allocate</span></span><br><span class="line">      <span class="comment">// This is used to get rid of warning when deleting a virtual</span></span><br><span class="line">      <span class="comment">// class with non-virtual destructor.</span></span><br><span class="line">      <span class="comment">// We are fine here as we captured the right deleter during construction.</span></span><br><span class="line">      <span class="comment">// This is also the right way to get storage type for an object pool.</span></span><br><span class="line">      <span class="type">size_t</span> unit = <span class="built_in">sizeof</span>(StorageType);</span><br><span class="line">      <span class="type">size_t</span> requested_size = num_elems * <span class="built_in">sizeof</span>(ElemType) + <span class="built_in">sizeof</span>(ArrayType);</span><br><span class="line">      <span class="type">size_t</span> num_storage_slots = (requested_size + unit - <span class="number">1</span>) / unit;</span><br><span class="line">      StorageType* data = <span class="keyword">new</span> StorageType[num_storage_slots];</span><br><span class="line">      <span class="keyword">new</span> (data) <span class="built_in">ArrayType</span>(std::forward&lt;Args&gt;(args)...);</span><br><span class="line">      <span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;ArrayType*&gt;(data);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">static</span> Object::FDeleter <span class="title">Deleter</span><span class="params">()</span> </span>{</span><br><span class="line">      <span class="keyword">return</span> Deleter_;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">   <span class="keyword">private</span>:</span><br><span class="line">    <span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">Deleter_</span><span class="params">(Object* objptr)</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> this is important to cast back to ArrayType*</span></span><br><span class="line">      <span class="comment">// because objptr and tptr may not be the same</span></span><br><span class="line">      <span class="comment">// depending on how sub-class allocates the space.</span></span><br><span class="line">      ArrayType* tptr = <span class="built_in">static_cast</span>&lt;ArrayType*&gt;(objptr);</span><br><span class="line">      <span class="comment">// It is important to do tptr-&gt;ArrayType::~ArrayType(),</span></span><br><span class="line">      <span class="comment">// so that we explicitly call the specific destructor</span></span><br><span class="line">      <span class="comment">// instead of tptr-&gt;~ArrayType(), which could mean the intention</span></span><br><span class="line">      <span class="comment">// call a virtual destructor(which may not be available and is not required).</span></span><br><span class="line">      tptr-&gt;ArrayType::~<span class="built_in">ArrayType</span>();</span><br><span class="line">      StorageType* p = <span class="built_in">reinterpret_cast</span>&lt;StorageType*&gt;(tptr);</span><br><span class="line">      <span class="keyword">delete</span>[] p;</span><br><span class="line">    }</span><br><span class="line">  };</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="keyword">extern</span> MemoryPoolAllocator global_memory_allocator;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="function"><span class="keyword">inline</span> ObjectPtr&lt;T&gt; <span class="title">make_object</span><span class="params">(Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">  <span class="keyword">return</span> global_memory_allocator.<span class="built_in">make_object</span>&lt;T&gt;(std::forward&lt;Args&gt;(args)...);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> ArrayType, <span class="keyword">typename</span> ElemType, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="function"><span class="keyword">inline</span> ObjectPtr&lt;ArrayType&gt; <span class="title">make_inplace_array_object</span><span class="params">(<span class="type">size_t</span> num_elems, Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">  <span class="keyword">return</span> global_memory_allocator.<span class="built_in">make_inplace_array</span>&lt;ArrayType, ElemType&gt;(</span><br><span class="line">      num_elems, std::forward&lt;Args&gt;(args)...);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="自定义对象构造函数"><a class="markdownIt-Anchor" href="#自定义对象构造函数"></a> 自定义对象构造函数</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> StorageType = <span class="keyword">typename</span> std::aligned_storage&lt;<span class="built_in">sizeof</span>(ArrayType), <span class="built_in">alignof</span>(ArrayType)&gt;::type;</span><br><span class="line">    <span class="comment">// for now only support elements that aligns with array header.</span></span><br><span class="line">    <span class="built_in">static_assert</span>(<span class="built_in">alignof</span>(ArrayType) % <span class="built_in">alignof</span>(ElemType) == <span class="number">0</span> &amp;&amp;</span><br><span class="line">                      <span class="built_in">sizeof</span>(ArrayType) % <span class="built_in">alignof</span>(ElemType) == <span class="number">0</span>,</span><br><span class="line">                  <span class="string">"element alignment constraint"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">template</span> &lt;<span class="keyword">typename</span>... Args&gt;</span><br><span class="line">    <span class="function"><span class="type">static</span> ArrayType* <span class="title">New</span><span class="params">(MemoryPoolAllocator*, <span class="type">size_t</span> num_elems, Args&amp;&amp;... args)</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> the first argument is not needed for ArrayObjAllocator</span></span><br><span class="line">      <span class="comment">// It is reserved for special allocators that needs to recycle</span></span><br><span class="line">      <span class="comment">// the object to itself (e.g. in the case of object pool).</span></span><br><span class="line">      <span class="comment">//</span></span><br><span class="line">      <span class="comment">// In the case of an object pool, an allocator needs to create</span></span><br><span class="line">      <span class="comment">// a special chunk memory that hides reference to the allocator</span></span><br><span class="line">      <span class="comment">// and call allocator's release function in the deleter.</span></span><br><span class="line">      <span class="comment">// NOTE2: Use inplace new to allocate</span></span><br><span class="line">      <span class="comment">// This is used to get rid of warning when deleting a virtual</span></span><br><span class="line">      <span class="comment">// class with non-virtual destructor.</span></span><br><span class="line">      <span class="comment">// We are fine here as we captured the right deleter during construction.</span></span><br><span class="line">      <span class="comment">// This is also the right way to get storage type for an object pool.</span></span><br><span class="line">      <span class="type">size_t</span> unit = <span class="built_in">sizeof</span>(StorageType);</span><br><span class="line">      <span class="type">size_t</span> requested_size = num_elems * <span class="built_in">sizeof</span>(ElemType) + <span class="built_in">sizeof</span>(ArrayType);</span><br><span class="line">      <span class="type">size_t</span> num_storage_slots = (requested_size + unit - <span class="number">1</span>) / unit;</span><br><span class="line">      StorageType* data = <span class="keyword">new</span> StorageType[num_storage_slots];</span><br><span class="line">      <span class="keyword">new</span> (data) <span class="built_in">ArrayType</span>(std::forward&lt;Args&gt;(args)...);</span><br><span class="line">      <span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;ArrayType*&gt;(data);</span><br><span class="line">    }</span><br></pre></td></tr></table></figure></div>
+<p>这段代码是一个“自定义对象构造函数”，核心是用 <code>std::aligned_storage</code> 定义了一块“原始内存”，然后在这块内存上用 placement new 构造出一个 <code>T</code> 类型的对象，<strong>实现内存分配与对象构造分离</strong>，并返回指针。</p>
+<p>逐行解析如下：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> StorageType = <span class="keyword">typename</span> std::aligned_storage&lt;<span class="built_in">sizeof</span>(T), <span class="built_in">alignof</span>(T)&gt;::type;</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>对于某个类型 <code>T</code>，<code>std::aligned_storage&lt;sizeof(T), alignof(T)&gt;::type</code> 是一块<strong>原始的、未初始化的内存类型</strong>，大小为 <code>sizeof(T)</code>，对齐为 <code>alignof(T)</code>。</li>
+<li>换句话说，<code>StorageType</code> 就是一块足够存放一个 <code>T</code> 对象且对齐正确的“字节缓冲区”。</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="function">MATXSCRIPT_ALWAYS_INLINE <span class="type">static</span> T* <span class="title">New</span><span class="params">(MemoryPoolAllocator*, Args&amp;&amp;... args)</span> </span>{</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>这是一个静态模板函数 <code>New</code>，返回类型为 <code>T*</code>。</li>
+<li>第一个参数类型是 <code>MemoryPoolAllocator*</code>，但从注释看，在 <code>SimpleObjAllocator</code> 的实现里暂时用不到，只是为将来需要“对象池”等复杂 allocator 接口预留。</li>
+<li><code>Args&amp;&amp;... args</code> 是转发引用，用于完美转发构造参数给 <code>T</code> 的构造函数。</li>
+</ul>
+<p>注释中说的：</p>
+<ul>
+<li>为对象池预留：对象池可能需要在内存块内藏一些“指向分配器自身的指针”，以便在 delete 时能够回收到正确的 pool。</li>
+<li>NOTE2: 使用 placement new 来构造对象，避免一些删除带虚函数却无虚析构函数时的警告，以及为对象池提供合适的 storage 形式。</li>
+</ul>
+<p>核心逻辑：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">StorageType* data = <span class="keyword">new</span> <span class="built_in">StorageType</span>();</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>这里用普通的 <code>new</code> 为 <code>StorageType</code> 分配一块内存并<strong>默认构造</strong>一个 <code>StorageType</code> 对象。</li>
+<li><code>StorageType</code> 通常是类似 <code>struct { unsigned char bytes[N]; }</code> 这样一个“纯字节”类型，它的默认构造一般是 trivial 的（什么都不做）。</li>
+<li>这一步本质上只是从全局/堆上分配了一块大小和对齐都符合 <code>T</code> 要求的内存空间。</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">new</span> (data) <span class="built_in">T</span>(std::forward&lt;Args&gt;(args)...);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>这是 <strong>placement new</strong>：在已经分配好的地址 <code>data</code> 上“就地构造”一个 <code>T</code> 对象。</li>
+<li>调用的是 <code>T</code> 的构造函数，参数通过 <code>std::forward</code> 完美转发，保留左值/右值属性。</li>
+<li>构造完成以后，在 <code>data</code> 这块 <code>StorageType</code> 内存中，就真正存在了一个 <code>T</code> 类型的对象。</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;T*&gt;(data);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>因为现在 <code>data</code> 这个地址处确实存放着一个 <code>T</code> 对象，所以可以把 <code>StorageType*</code> 转成 <code>T*</code> 返回。</li>
+<li>后续使用时，就可以像普通的 <code>T*</code> 一样访问它。</li>
+</ul>
+<p>整体含义总结：</p>
+<ul>
+<li><code>New</code> 函数以一种“底层自管理”的方式为 <code>T</code> 分配原始字节存储，并在这块存储上构造一个 <code>T</code>。</li>
+<li>之所以使用 <code>std::aligned_storage</code> 和 placement new，而不直接 <code>new T(...)</code>：</li>
+</ul>
+<ol>
+<li>为复杂的自定义 allocator（如对象池）提供灵活性：可以把 allocator 的信息和对象放在同一块内存里，并在自定义 deleter 中把对象返回给 allocator。</li>
+<li>可以避免某些关于“通过基类指针 delete 派生类对象但基类没有虚析构”的编译器警告（通过自定义的释放逻辑来管理对象生命周期，而不是直接 <code>delete</code>）。</li>
+<li><code>aligned_storage</code> 给的是“原始内存类型”，特别适合在内存池、对象池中统一管理内存块，而不是直接使用 C++ 的对象类型。</li>
+</ol>
+<h3 id="自定义对象删除函数"><a class="markdownIt-Anchor" href="#自定义对象删除函数"></a> 自定义对象删除函数</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">Deleter_</span><span class="params">(Object* objptr)</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">      <span class="comment">// <span class="doctag">NOTE:</span> this is important to cast back to T*</span></span><br><span class="line">      <span class="comment">// because objptr and tptr may not be the same</span></span><br><span class="line">      <span class="comment">// depending on how sub-class allocates the space.</span></span><br><span class="line">      T* tptr = <span class="built_in">static_cast</span>&lt;T*&gt;(objptr);</span><br><span class="line">      <span class="comment">// It is important to do tptr-&gt;T::~T(),</span></span><br><span class="line">      <span class="comment">// so that we explicitly call the specific destructor</span></span><br><span class="line">      <span class="comment">// instead of tptr-&gt;~T(), which could mean the intention</span></span><br><span class="line">      <span class="comment">// call a virtual destructor(which may not be available and is not required).</span></span><br><span class="line">      tptr-&gt;T::~<span class="built_in">T</span>();</span><br><span class="line">      <span class="keyword">delete</span> <span class="built_in">reinterpret_cast</span>&lt;StorageType*&gt;(tptr);</span><br><span class="line">    }</span><br></pre></td></tr></table></figure></div>
+<p>这段 <code>Deleter_</code> 和你前面贴的 <code>New</code> 是配套的：<code>New</code> 用 <code>StorageType</code>+placement new 构造对象，这里用显式析构 + <code>delete StorageType*</code> 来销毁同一块内存。</p>
+<p>逐行说明：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">Deleter_</span><span class="params">(Object* objptr)</span> <span class="keyword">noexcept</span> </span>{</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>静态函数，签名类似“通用 deleter”：接收一个基类指针 <code>Object*</code>。</li>
+<li><code>noexcept</code> 表示这个删除函数不应该抛异常（析构/删除通常都应保证不抛）。</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// <span class="doctag">NOTE:</span> this is important to cast back to T*</span></span><br><span class="line"><span class="comment">// because objptr and tptr may not be the same</span></span><br><span class="line"><span class="comment">// depending on how sub-class allocates the space.</span></span><br><span class="line">T* tptr = <span class="built_in">static_cast</span>&lt;T*&gt;(objptr);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>真实对象类型是 <code>T</code>，但调用时传进来的是 <code>Object*</code>（<code>T</code> 继承自 <code>Object</code>）。</li>
+<li>需要把 <code>Object*</code> 再转换回 <code>T*</code>，才能调用 <code>T</code> 的析构函数，并正确计算对应的 <code>StorageType*</code>。</li>
+<li>为何强调“可能不一样”：有些类可能通过自定义 allocator 或对象池在更大的块里放对象，基类指针指向的地址不一定和真正管理的内存块结构一一对应，所以要小心转换。</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// It is important to do tptr-&gt;T::~T(),</span></span><br><span class="line"><span class="comment">// so that we explicitly call the specific destructor</span></span><br><span class="line"><span class="comment">// instead of tptr-&gt;~T(), which could mean the intention</span></span><br><span class="line"><span class="comment">// call a virtual destructor(which may not be available and is not required).</span></span><br><span class="line">tptr-&gt;T::~<span class="built_in">T</span>();</span><br></pre></td></tr></table></figure></div>
+<p>关键点：</p>
+<ul>
+<li><code>tptr-&gt;T::~T();</code> 是<strong>显式调用</strong> <code>**T**</code> <strong>的非虚析构函数</strong>。</li>
+<li>如果写成 <code>tptr-&gt;~T();</code>，语义上有可能被理解为“调用（可能是虚的）析构函数”，这在某些上下文会涉及虚析构相关的机制。</li>
+<li>但这里的设计是：基类 <code>Object</code> 可以没有虚析构函数，通过自定义 deleter 来弥补多态删除问题。</li>
+<li>因为我们本来就知道实际类型是 <code>T</code>，直接指定调用 <code>T</code> 的析构函数就行，不依赖虚函数表，也规避编译器关于“基类无虚析构通过基类指针 delete 派生对象”的警告。</li>
+</ul>
+<p>总结：<code>tptr-&gt;T::~T();</code> 语法是“指定类名的析构函数调用”，不走虚调用，确定就是这个类的析构。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">delete</span> <span class="built_in">reinterpret_cast</span>&lt;StorageType*&gt;(tptr);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>与 <code>New</code> 中的分配逻辑对应：</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">StorageType* data = <span class="keyword">new</span> <span class="built_in">StorageType</span>();</span><br><span class="line"><span class="keyword">new</span> (data) <span class="built_in">T</span>(...);               <span class="comment">// 在 data 上构造 T</span></span><br><span class="line"><span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;T*&gt;(data);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>所以这里反向操作：</li>
+</ul>
+<ol>
+<li>先在 <code>tptr</code> 上调用 <code>T</code> 的析构（上面那行）。</li>
+<li>再把 <code>T*</code> 转回当初的 <code>StorageType*</code>：</li>
+</ol>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">reinterpret_cast</span>&lt;StorageType*&gt;(tptr)</span><br></pre></td></tr></table></figure></div>
+<ol>
+<li><code>delete</code> 这块 <code>StorageType</code> 内存。</li>
+</ol>
+<ul>
+<li>这就完成了“placement new + 显式析构 + delete 原始存储”的闭环。</li>
+</ul>
+<p>整体流程回顾：</p>
+<ol>
+<li>创建时：</li>
+</ol>
+<ul>
+<li><code>StorageType* data = new StorageType();</code></li>
+<li><code>new (data) T(args...);</code></li>
+<li>返回 <code>reinterpret_cast&lt;T*&gt;(data);</code></li>
+</ul>
+<ol>
+<li>销毁时：</li>
+</ol>
+<ul>
+<li>得到 <code>Object* objptr</code> → 转成 <code>T* tptr</code>。</li>
+<li>调用 <code>tptr-&gt;T::~T();</code> 显式析构。</li>
+<li><code>delete reinterpret_cast&lt;StorageType*&gt;(tptr);</code> 释放当初那块原始存储。</li>
+</ul>
+<p>这么设计的目的：</p>
+<ul>
+<li>避免要求基类 <code>Object</code> 有虚析构函数（减少对象体积、虚表开销）。</li>
+<li>通过“外部注册的 deleter 函数”来正确销毁真实类型 <code>T</code> 。</li>
+<li>与前面的 <code>aligned_storage</code> + placement new 的内存分配方式对称，适合对象池等自定义分配器场景。</li>
+</ul>
+<h3 id="特殊析构函数"><a class="markdownIt-Anchor" href="#特殊析构函数"></a> 特殊析构函数</h3>
+<p><code>tptr-&gt;T::~T();</code> 这句语法本身有点“奇怪”，但它是标准 C++ 里的<strong>显式析构调用</strong>的一种形式。我们拆到最细来解释。</p>
+<h4 id="普通的析构调用长什么样"><a class="markdownIt-Anchor" href="#普通的析构调用长什么样"></a> 普通的析构调用长什么样？</h4>
+<p>最常见的写法是：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tptr-&gt;~<span class="built_in">T</span>();</span><br></pre></td></tr></table></figure></div>
+<p>含义：对指针 <code>tptr</code> 指向的对象，调用类型为 <code>T</code> 的析构函数。</p>
+<p>如果 <code>T</code> 有虚析构，并且 <code>tptr</code> 是多态指针（如 <code>Base*</code> 指向 <code>Derived</code> 对象），这时根据上下文可能触发<strong>虚调用机制</strong>（但这里细节很多，与实际静态类型和动态类型相关）。</p>
+<h4 id="tptr-t~t-语法结构是什么"><a class="markdownIt-Anchor" href="#tptr-t~t-语法结构是什么"></a> <code>tptr-&gt;T::~T();</code> 语法结构是什么？</h4>
+<p>这行可以拆解为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(tptr) -&gt; T :: ~<span class="built_in">T</span>();</span><br></pre></td></tr></table></figure></div>
+<p>也就是：</p>
+<ul>
+<li><code>tptr</code>：指向某对象的指针</li>
+<li><code>-&gt;</code>：通过指针访问对象</li>
+<li><code>T::</code>：指定“类 T 的成员”（这里是析构函数）</li>
+<li><code>~T()</code>：这个成员就是 <code>T</code> 的析构函数</li>
+</ul>
+<p>组合起来：<strong>“对</strong> <code>**tptr**</code> <strong>指向的对象，调用类</strong> <code>**T**</code> <strong>的析构函数</strong> <code>**T::~T()**</code><strong>”</strong>。</p>
+<p>它和下面这句在语义上类似：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tptr-&gt;~T();   // 普通写法</span><br></pre></td></tr></table></figure></div>
+<p>只是多加了一个限定名 <code>T::</code>，意思是“明确说：我就是要调用 T 这个类的析构函数，而不是靠多态、名字查找等机制来决定”。</p>
+<h4 id="为什么要写成-tptr-t~t-而不是-tptr-~t"><a class="markdownIt-Anchor" href="#为什么要写成-tptr-t~t-而不是-tptr-~t"></a> 为什么要写成 <code>tptr-&gt;T::~T();</code> 而不是 <code>tptr-&gt;~T();</code>？</h4>
+<p>核心原因是“<strong>不要走虚析构或多态逻辑，而是明确调用一个具体类的析构</strong>”。</p>
+<p>在这段代码的使用场景里：</p>
+<ul>
+<li>真实对象类型为 <code>T</code></li>
+<li>有一个基类 <code>Object</code>，但并不一定有虚析构函数</li>
+<li>这个 <code>Deleter_</code> 是用来“知道真实类型是 T 时，明确清理 T 对象”的</li>
+</ul>
+<p>如果你写的是：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tptr-&gt;~T();</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>有些人从语义上会理解为“可能是虚析构”（虽然实际是否虚要看 <code>T</code> 的定义）</li>
+<li>有时工具或代码审查会拿这点做文章：你是不是想通过多态方式删除？</li>
+<li>而这里的设计理念是：<strong>我们根本不想依赖虚析构，因为我们已经知道具体类型就是 T，由外部 deleter 管理多态删除问题</strong>。</li>
+</ul>
+<p>写成：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tptr-&gt;T::~T();</span><br></pre></td></tr></table></figure></div>
+<p>则非常明确地告诉编译器和读代码的人：</p>
+<ul>
+<li>调用的就是 <code>T</code> 这个类的析构函数</li>
+<li>不通过基类类型、不走虚表、不参与多态决策</li>
+<li>就是一个“指定类名的显式析构调用”</li>
+</ul>
+<p>这在语义上更“硬”，更符合这套“手工管理生命周期”的设计。</p>
+<h4 id="显式调用析构函数在-c-里的常见形式"><a class="markdownIt-Anchor" href="#显式调用析构函数在-c-里的常见形式"></a> 显式调用析构函数在 C++ 里的常见形式</h4>
+<p>显式调用析构有几种常见写法：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">obj.~T();           // 对栈上对象 obj 显式调用 T 的析构</span><br><span class="line">ptr-&gt;~T();          // 对指针 ptr 指向的对象显式调用 T 的析构</span><br><span class="line">ptr-&gt;T::~T();       // 指定“调用 T 类的析构”（更明确）</span><br><span class="line">p-&gt;Base::~Base();   // 对指向 Derived 的 Base*，只调用 Base 子对象的析构</span><br></pre></td></tr></table></figure></div>
+<p>特别是最后一种：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Base* p = new Derived;</span><br><span class="line">p-&gt;Base::~Base();   // 只析构 Base 部分，不析构 Derived 部分（通常极少用，但语法允许）</span><br></pre></td></tr></table></figure></div>
+<p>可见“<code>对象表达式 -&gt; 类名 :: ~类名()</code>”这类写法，就是在<strong>显式指定要调用哪个类的析构函数</strong>。</p>
+<h4 id="结合你的代码场景再串一遍"><a class="markdownIt-Anchor" href="#结合你的代码场景再串一遍"></a> 结合你的代码场景再串一遍</h4>
+<p>你的整体代码流程是：</p>
+<ul>
+<li>用 <code>std::aligned_storage</code> 分配一块“原始内存”作为 <code>StorageType</code></li>
+<li>在这块内存上 <code>new (data) T(args...)</code> 构造对象</li>
+<li>返回 <code>reinterpret_cast&lt;T*&gt;(data)</code> 给外部使用</li>
+<li>删除时走 <code>Deleter_(Object* objptr)</code>：</li>
+</ul>
+<ol>
+<li><code>T* tptr = static_cast&lt;T*&gt;(objptr);</code></li>
+<li><code>tptr-&gt;T::~T();</code> // 显式析构 T</li>
+<li><code>delete reinterpret_cast&lt;StorageType*&gt;(tptr);</code> // 释放那块原始存储</li>
+</ol>
+<p>这套模式明确地把：</p>
+<ul>
+<li>构造（placement new）</li>
+<li>析构（显式调用析构）</li>
+<li>内存释放（delete StorageType*）</li>
+</ul>
+<p>三个步骤拆开管理，不再依赖类型本身的 <code>operator new/delete</code>，也不依赖虚析构。</p>
+<p>在第 2 步，为了不让人误以为你是通过虚析构删除多态对象，作者特意用了较“重”的语法：<code>tptr-&gt;T::~T();</code>，强行指定“调用 T 的析构函数本身”。</p>
+<h1 id="对象创建流程"><a class="markdownIt-Anchor" href="#对象创建流程"></a> 对象创建流程</h1>
+<p>对象创建是内存管理系统的核心功能，通过make_object函数实现。以下是完整的对象创建流程：</p>
+<p>整个过程包括以下关键步骤：</p>
+<ol>
+<li>应用程序调用make_object模板函数</li>
+<li>函数转发调用到global_memory_allocator的make_object方法</li>
+<li>根据对象类型选择相应的Handler进行内存分配</li>
+<li>在分配的内存上构造对象实例</li>
+<li>设置对象的类型信息和删除器</li>
+<li>将对象包装在ObjectPtr智能指针中返回</li>
+</ol>
+<h1 id="内存区域管理策略"><a class="markdownIt-Anchor" href="#内存区域管理策略"></a> 内存区域管理策略</h1>
+<p>为了优化不同大小对象的内存分配效率，string_core采用了三种不同的存储策略</p>
+<h3 id="小型对象small-objects"><a class="markdownIt-Anchor" href="#小型对象small-objects"></a> 小型对象（Small Objects）</h3>
+<ul>
+<li>大小：最多23个字符（在64位系统上）</li>
+<li>存储方式：直接内联在对象内部，无需额外分配</li>
+<li>优势：零分配开销，最佳缓存局部性</li>
+</ul>
+<h3 id="中型对象medium-objects"><a class="markdownIt-Anchor" href="#中型对象medium-objects"></a> 中型对象（Medium Objects）</h3>
+<ul>
+<li>大小：24到254个字符</li>
+<li>存储方式：通过malloc分配独立内存块</li>
+<li>特点： eager复制语义，每次拷贝都会分配新内存</li>
+</ul>
+<h3 id="大型对象large-objects"><a class="markdownIt-Anchor" href="#大型对象large-objects"></a> 大型对象（Large Objects）</h3>
+<ul>
+<li>大小：超过254个字符</li>
+<li>存储方式：引用计数的内存块，支持lazy复制</li>
+<li>特点：写时复制（Copy-on-Write），提高大字符串操作效率</li>
+</ul>
+<h1 id="引用计数与内存回收"><a class="markdownIt-Anchor" href="#引用计数与内存回收"></a> 引用计数与内存回收</h1>
+<p>内存管理系统通过ObjectPtr智能指针实现自动引用计数管理：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjectPtr</span> {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="comment">// 增加引用计数</span></span><br><span class="line"><span class="function"><span class="keyword">explicit</span> <span class="title">ObjectPtr</span><span class="params">(Object* data)</span> <span class="keyword">noexcept</span> : data_(data) {</span></span><br><span class="line">    <span class="keyword">if</span> (data != <span class="literal">nullptr</span>) {</span><br><span class="line">        data_-&gt;<span class="built_in">IncRef</span>();</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// 减少引用计数，必要时释放内存</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">reset</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (data_ != <span class="literal">nullptr</span>) {</span><br><span class="line">        data_-&gt;<span class="built_in">DecRef</span>();</span><br><span class="line">        data_ = <span class="literal">nullptr</span>;</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">Object* data_{<span class="literal">nullptr</span>};</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>当对象的引用计数降到0时，会自动调用预设的删除器进行内存释放，从而实现自动垃圾回收。</p>
+<h1 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h1>
+<p>matxscript运行时的内存管理系统通过精心设计的分配器架构和智能指针机制，实现了高效的内存管理和自动垃圾回收。系统的主要特点包括：</p>
+<ol>
+<li><strong>灵活的分配器设计</strong>: 通过模板和CRTP模式实现可扩展的分配器架构</li>
+<li><strong>多级内存管理</strong>: 针对不同大小的对象采用最优的存储策略</li>
+<li><strong>自动引用计数</strong>: 通过ObjectPtr实现内存的自动管理</li>
+<li><strong>高性能实现</strong>: 使用in-place new、内存池等技术优化性能</li>
+</ol>
+<p>这套内存管理系统为matxscript运行时提供了稳定、高效的内存基础，支撑着整个系统的高性能运作。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> matxscript运行时系统之内存系统</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-03 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:21:37
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/03/matxscript内存管理/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/AI-Compiler/">#AI Compiler</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/TVM/">#TVM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/04/KDA%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E4%B9%8BFLA/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">KDA源码剖析之FLA</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/03/matxscript%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">matxscript运行时系统之对象模型</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">matxscript运行时系统之内存系统</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-text"> 概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6%E6%9E%B6%E6%9E%84"><span class="nav-text"> 核心组件架构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E9%85%8D%E5%99%A8%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 分配器设计与实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#objallocatorbase%E6%A8%A1%E6%9D%BF%E7%B1%BB"><span class="nav-text"> ObjAllocatorBase模板类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%99%E6%AE%B5%E4%BB%A3%E7%A0%81%E5%85%B7%E4%BD%93%E5%B9%B2%E4%BA%86%E4%BB%80%E4%B9%88"><span class="nav-text"> 这段代码具体干了什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#make_object-%E7%9A%84%E6%AD%A5%E9%AA%A4"><span class="nav-text"> make_object 的步骤：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF-crtp%E5%A5%87%E5%BC%82%E9%80%92%E5%BD%92%E6%A8%A1%E6%9D%BF%E6%A8%A1%E5%BC%8F"><span class="nav-text"> 什么是 CRTP（奇异递归模板模式）？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E7%94%A8-crtp%E8%80%8C%E4%B8%8D%E6%98%AF%E8%99%9A%E5%87%BD%E6%95%B0"><span class="nav-text"> 为什么要用 CRTP，而不是虚函数？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF"><span class="nav-text"> 完整链路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93-crtp-%E5%9C%A8%E8%BF%99%E9%87%8C%E5%B9%B2%E7%9A%84%E4%BA%8B"><span class="nav-text"> 一句话总结 CRTP 在这里干的事</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#memorypoolallocator%E5%AE%9E%E7%8E%B0"><span class="nav-text"> MemoryPoolAllocator实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E5%AF%B9%E8%B1%A1%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0"><span class="nav-text"> 自定义对象构造函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E5%AF%B9%E8%B1%A1%E5%88%A0%E9%99%A4%E5%87%BD%E6%95%B0"><span class="nav-text"> 自定义对象删除函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%89%B9%E6%AE%8A%E6%9E%90%E6%9E%84%E5%87%BD%E6%95%B0"><span class="nav-text"> 特殊析构函数</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AF%B9%E8%B1%A1%E5%88%9B%E5%BB%BA%E6%B5%81%E7%A8%8B"><span class="nav-text"> 对象创建流程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E7%AE%A1%E7%90%86%E7%AD%96%E7%95%A5"><span class="nav-text"> 内存区域管理策略</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%8F%E5%9E%8B%E5%AF%B9%E8%B1%A1small-objects"><span class="nav-text"> 小型对象（Small Objects）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%AD%E5%9E%8B%E5%AF%B9%E8%B1%A1medium-objects"><span class="nav-text"> 中型对象（Medium Objects）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%A7%E5%9E%8B%E5%AF%B9%E8%B1%A1large-objects"><span class="nav-text"> 大型对象（Large Objects）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E4%B8%8E%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6"><span class="nav-text"> 引用计数与内存回收</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-text"> 总结</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

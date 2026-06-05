@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/03/matxscript线程池/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="matxscript运行时系统之线程池系统">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/03/matxscript%E7%BA%BF%E7%A8%8B%E6%B1%A0/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-03T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:20:57.143Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="AI Compiler">
+<meta property="article:tag" content="TVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            matxscript运行时系统之线程池系统 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">matxscript运行时系统之线程池系统</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-03 23:50</span>
+        <span class="mobile">2026-06-03 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:20:57</span>
+            <span class="mobile">2026-06-05 23:20:57</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/AI-Compiler/">AI Compiler</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/AI-Compiler/">AI Compiler</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/TVM/">TVM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/bytedance/matxscript">bytedance/matxscript: A high-performance, extensible Python AOT compiler.<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h1 id="1-概述"><a class="markdownIt-Anchor" href="#1-概述"></a> 1 概述</h1>
+<p>线程池系统是matxscript运行时的重要组成部分，负责提供并发执行能力。该系统实现了基于锁和无锁两种线程池模式，通过统一的执行器(ThreadPoolExecutor)对外暴露接口，支持任务并行处理、异步调用等功能。</p>
+<p>线程池系统位于运行时层的核心位置，为上层应用提供高性能的并发执行支持。它被广泛应用于各种需要并发处理的场景，如批量数据处理、并行计算等。</p>
+<h1 id="2-整体架构"><a class="markdownIt-Anchor" href="#2-整体架构"></a> 2 整体架构</h1>
+<p><strong>从宏观角度来看：线程池执行器–依赖–&gt;线程池–依赖–&gt;任务队列</strong></p>
+<p>具体而言，线程池系统的整体架构采用分层设计模式，包含以下几个核心组件：</p>
+<ol>
+<li><strong>ThreadPoolExecutor（线程池执行器）</strong>：对外提供统一接口，封装不同类型的线程池实现</li>
+<li><strong>IThreadPool（线程池接口）</strong>：定义线程池的基本行为规范</li>
+<li><strong>LockBasedThreadPool（基于锁的线程池）</strong>：使用互斥锁实现的任务队列管理</li>
+<li><strong>LockFreeThreadPool（无锁线程池）</strong>：基于无锁队列实现的高性能线程池</li>
+<li><strong>SPSCLockFreeThreadPool（单生产者单消费者无锁线程池）</strong>：针对特定场景优化的无锁实现</li>
+<li><strong>IRunnable（可运行任务接口）</strong>：定义任务的基本行为规范</li>
+</ol>
+<p>该架构图展示了线程池系统的主要组件及其关系。ThreadPoolExecutor作为统一入口，通过IThreadPool接口与具体实现解耦，支持多种线程池类型的选择。IRunnable接口定义了任务的基本行为，不同线程池实现对应不同的任务类型。</p>
+<h1 id="3-核心类解析"><a class="markdownIt-Anchor" href="#3-核心类解析"></a> 3 核心类解析</h1>
+<h3 id="threadpoolexecutor-线程池执行器"><a class="markdownIt-Anchor" href="#threadpoolexecutor-线程池执行器"></a> ThreadPoolExecutor 线程池执行器</h3>
+<p>ThreadPoolExecutor是线程池系统的统一入口，负责管理线程池实例并提供对外接口。其主要职责包括：</p>
+<ul>
+<li>封装底层线程池实现</li>
+<li>提供ParallelFor、ParallelStarMap等并行处理接口</li>
+<li>支持异步任务提交(Submit/ApplyAsync)</li>
+<li>处理嵌套调用情况下的特殊逻辑</li>
+</ul>
+<p>关键成员变量：</p>
+<ul>
+<li><code>lock_free_</code>: 标识是否使用无锁线程池</li>
+<li><code>thread_num_</code>: 线程数量</li>
+<li><code>pool_</code>: 底层线程池实例</li>
+<li><code>serial_</code>: 用于生成任务序列号的原子计数器</li>
+<li><code>pool_thread_ids_</code>: 记录线程池中所有线程ID的集合</li>
+</ul>
+<h3 id="ithreadpool-线程池接口"><a class="markdownIt-Anchor" href="#ithreadpool-线程池接口"></a> IThreadPool 线程池接口</h3>
+<p>IThreadPool定义了线程池的基本行为规范，所有具体实现都需要继承此接口：</p>
+<ul>
+<li><code>Enqueue</code>: 添加单个任务到线程池</li>
+<li><code>EnqueueBulk</code>: 批量添加任务到线程池</li>
+<li><code>GetThreadsNum</code>: 获取线程池中的线程数量</li>
+<li><code>GetThreadIds</code>: 获取线程池中所有线程的ID</li>
+<li><code>WaitBulk</code>: 等待一批任务完成</li>
+</ul>
+<h3 id="lockbasedthreadpool-基于锁的线程池"><a class="markdownIt-Anchor" href="#lockbasedthreadpool-基于锁的线程池"></a> LockBasedThreadPool 基于锁的线程池</h3>
+<p>LockBasedThreadPool使用传统的互斥锁和条件变量实现任务队列管理：</p>
+<ul>
+<li>使用<code>std::mutex</code>保护任务队列</li>
+<li>使用<code>std::condition_variable</code>进行线程间通信</li>
+<li>任务队列为<code>std::queue&lt;IRunnablePtr&gt;</code>类型</li>
+<li>线程函数循环等待并执行任务</li>
+</ul>
+<h3 id="lockfreethreadpool-无锁线程池"><a class="markdownIt-Anchor" href="#lockfreethreadpool-无锁线程池"></a> LockFreeThreadPool 无锁线程池</h3>
+<p>LockFreeThreadPool基于无锁队列实现，具有更高的并发性能：</p>
+<ul>
+<li>使用MPMCBoundedQueue作为任务队列</li>
+<li>通过原子操作实现无锁入队和出队</li>
+<li>线程忙等待而非阻塞休眠</li>
+<li>支持设置轮询间隔参数</li>
+</ul>
+<h3 id="spsclockfreethreadpool-单生产者单消费者无锁线程池"><a class="markdownIt-Anchor" href="#spsclockfreethreadpool-单生产者单消费者无锁线程池"></a> SPSCLockFreeThreadPool 单生产者单消费者无锁线程池</h3>
+<p>SPSCLockFreeThreadPool是对LockFreeThreadPool的进一步封装：</p>
+<ul>
+<li>内部维护多个单线程的LockFreeThreadPool实例</li>
+<li>根据任务序列号分配到不同线程池实现负载均衡</li>
+<li>提供更好的缓存局部性和更低的竞争开销</li>
+</ul>
+<h1 id="4-接口详解"><a class="markdownIt-Anchor" href="#4-接口详解"></a> 4 接口详解</h1>
+<p>ThreadPoolExecutor提供了丰富的接口用于并发任务处理：</p>
+<h3 id="parallelfor-并行映射"><a class="markdownIt-Anchor" href="#parallelfor-并行映射"></a> ParallelFor 并行映射</h3>
+<p>ParallelFor将一个函数应用到输入列表或元组的每个元素上，并返回结果列表或元组。</p>
+<p>重载版本：</p>
+<ol>
+<li><code>ParallelFor(op, inputs)</code> - 使用默认线程数和组大小</li>
+<li><code>ParallelFor(op, inputs, expt_num_threads, group_size)</code> - 指定线程数和组大小</li>
+</ol>
+<p>参数说明：</p>
+<ul>
+<li><code>op</code>: 要应用的函数对象</li>
+<li><code>inputs</code>: 输入数据列表或元组</li>
+<li><code>expt_num_threads</code>: 期望使用的线程数，默认为线程池大小+1</li>
+<li><code>group_size</code>: 任务分组大小，默认为1</li>
+</ul>
+<h3 id="parallelstarmap-并行星形映射"><a class="markdownIt-Anchor" href="#parallelstarmap-并行星形映射"></a> ParallelStarMap 并行星形映射</h3>
+<p>ParallelStarMap类似于ParallelFor，但会将输入的每个元素作为参数列表展开传递给函数。</p>
+<p>重载版本：</p>
+<ol>
+<li><code>ParallelStarMap(op, inputs)</code> - 使用默认线程数和组大小</li>
+<li><code>ParallelStarMap(op, inputs, expt_num_threads, group_size)</code> - 指定线程数和组大小</li>
+</ol>
+<h3 id="submit-异步任务提交"><a class="markdownIt-Anchor" href="#submit-异步任务提交"></a> Submit 异步任务提交</h3>
+<p>Submit方法允许异步提交任务并返回Future对象用于获取结果。</p>
+<p>函数签名：<code>RTValue Submit(PyArgs args)</code></p>
+<p>参数说明：</p>
+<ul>
+<li><code>args[0]</code>: 要执行的可调用对象</li>
+<li><code>args[1..n]</code>: 传递给可调用对象的参数</li>
+</ul>
+<h3 id="applyasync-异步调用"><a class="markdownIt-Anchor" href="#applyasync-异步调用"></a> ApplyAsync 异步调用</h3>
+<p>ApplyAsync是Submit方法的底层实现，直接接受函数对象和参数。</p>
+<p>函数签名：<code>RTValue ApplyAsync(const UserDataRef&amp; op, const PyArgs&amp; args)</code></p>
+<h1 id="5-代码实现分析"><a class="markdownIt-Anchor" href="#5-代码实现分析"></a> 5 代码实现分析</h1>
+<h2 id="任务队列"><a class="markdownIt-Anchor" href="#任务队列"></a> 任务队列</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Copyright 2022 ByteDance Ltd. and/or its affiliates.</span></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Acknowledgement:</span></span><br><span class="line"><span class="comment"> * Taken from http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Licensed to the Apache Software Foundation (ASF) under one</span></span><br><span class="line"><span class="comment"> * or more contributor license agreements.  See the NOTICE file</span></span><br><span class="line"><span class="comment"> * distributed with this work for additional information</span></span><br><span class="line"><span class="comment"> * regarding copyright ownership.  The ASF licenses this file</span></span><br><span class="line"><span class="comment"> * to you under the Apache License, Version 2.0 (the</span></span><br><span class="line"><span class="comment"> * "License"); you may not use this file except in compliance</span></span><br><span class="line"><span class="comment"> * with the License.  You may obtain a copy of the License at</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *   http://www.apache.org/licenses/LICENSE-2.0</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Unless required by applicable law or agreed to in writing,</span></span><br><span class="line"><span class="comment"> * software distributed under the License is distributed on an</span></span><br><span class="line"><span class="comment"> * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY</span></span><br><span class="line"><span class="comment"> * KIND, either express or implied.  See the License for the</span></span><br><span class="line"><span class="comment"> * specific language governing permissions and limitations</span></span><br><span class="line"><span class="comment"> * under the License.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstddef&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstdint&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;atomic&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> matxscript {</span><br><span class="line">    <span class="keyword">namespace</span> runtime {</span><br><span class="line"></span><br><span class="line">        <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line">        <span class="keyword">class</span> <span class="title class_">MPMCBoundedQueue</span> {</span><br><span class="line">        <span class="keyword">public</span>:</span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * buffer_size must be 2^n</span></span><br><span class="line"><span class="comment">   * @param buffer_size</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">        <span class="built_in">MPMCBoundedQueue</span>(<span class="type">size_t</span> buffer_size)</span><br><span class="line">        : <span class="built_in">buffer_</span>(<span class="keyword">new</span> <span class="type">cell_t</span>[buffer_size]), <span class="built_in">buffer_mask_</span>(buffer_size - <span class="number">1</span>) {</span><br><span class="line">            <span class="keyword">if</span> (!((buffer_size &gt;= <span class="number">2</span>) &amp;&amp; ((buffer_size &amp; (buffer_size - <span class="number">1</span>)) == <span class="number">0</span>))) {</span><br><span class="line">                <span class="built_in">abort</span>();</span><br><span class="line">            }</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i != buffer_size; i += <span class="number">1</span>)</span><br><span class="line">                buffer_[i].sequence_.<span class="built_in">store</span>(i, std::memory_order_relaxed);</span><br><span class="line">            enqueue_pos_.<span class="built_in">store</span>(<span class="number">0</span>, std::memory_order_relaxed);</span><br><span class="line">            dequeue_pos_.<span class="built_in">store</span>(<span class="number">0</span>, std::memory_order_relaxed);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">virtual</span> ~<span class="built_in">MPMCBoundedQueue</span>() {</span><br><span class="line">            <span class="keyword">delete</span>[] buffer_;</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">template</span> &lt;<span class="keyword">class</span> <span class="title class_">U</span>&gt;</span><br><span class="line">        <span class="function"><span class="type">bool</span> <span class="title">enqueue</span><span class="params">(U&amp;&amp; data)</span> </span>{</span><br><span class="line">            <span class="type">cell_t</span>* cell;</span><br><span class="line">            <span class="type">size_t</span> pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">            <span class="keyword">for</span> (;;) {</span><br><span class="line">                cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">                <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">                <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)pos;</span><br><span class="line">                <span class="keyword">if</span> (dif == <span class="number">0</span>) {</span><br><span class="line">                    <span class="keyword">if</span> (enqueue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>, std::memory_order_relaxed))</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                } <span class="keyword">else</span> <span class="keyword">if</span> (dif &lt; <span class="number">0</span>)</span><br><span class="line">                    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">                <span class="keyword">else</span></span><br><span class="line">                    pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">            }</span><br><span class="line">            cell-&gt;data_ = std::forward&lt;U&gt;(data);</span><br><span class="line">            cell-&gt;sequence_.<span class="built_in">store</span>(pos + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">template</span> &lt;<span class="keyword">class</span> <span class="title class_">U</span>&gt;</span><br><span class="line">        <span class="function"><span class="type">bool</span> <span class="title">try_enqueue</span><span class="params">(U&amp;&amp; data)</span> </span>{</span><br><span class="line">            <span class="type">cell_t</span>* cell;</span><br><span class="line">            <span class="type">size_t</span> pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">            cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">            <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">            <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)pos;</span><br><span class="line">            <span class="keyword">if</span> (dif == <span class="number">0</span>) {</span><br><span class="line">                <span class="keyword">if</span> (enqueue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>, std::memory_order_relaxed)) {</span><br><span class="line">                    cell-&gt;data_ = std::forward&lt;U&gt;(data);</span><br><span class="line">                    cell-&gt;sequence_.<span class="built_in">store</span>(pos + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">                    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// problem: heavy enqueue competition, need better implementation in the future</span></span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">class</span> <span class="title class_">U</span>&gt;</span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">enqueue_bulk</span><span class="params">(U* data, <span class="type">size_t</span> size)</span> </span>{</span><br><span class="line">    <span class="type">cell_t</span>* cell;</span><br><span class="line">    <span class="type">size_t</span> pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    <span class="keyword">for</span> (;;) {</span><br><span class="line">      cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">      <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">      <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)pos;</span><br><span class="line">      <span class="keyword">if</span> (dif == <span class="number">0</span>) {</span><br><span class="line">        <span class="keyword">if</span> (enqueue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + size, std::memory_order_relaxed))</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">      } <span class="keyword">else</span> <span class="keyword">if</span> (dif &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; size; ++i) {</span><br><span class="line">      <span class="type">cell_t</span>* cell = &amp;buffer_[(pos + i) &amp; buffer_mask_];</span><br><span class="line">      cell-&gt;data_ = data[i];</span><br><span class="line">      cell-&gt;sequence_.<span class="built_in">store</span>(pos + <span class="number">1</span> + i, std::memory_order_release);</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">dequeue</span><span class="params">(T&amp; data)</span> </span>{</span><br><span class="line">    <span class="type">cell_t</span>* cell;</span><br><span class="line">    <span class="type">size_t</span> pos = dequeue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    <span class="keyword">for</span> (;;) {</span><br><span class="line">      cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">      <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">      <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)(pos + <span class="number">1</span>);</span><br><span class="line">      <span class="keyword">if</span> (dif == <span class="number">0</span>) {</span><br><span class="line">        <span class="keyword">if</span> (dequeue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>, std::memory_order_relaxed))</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">      } <span class="keyword">else</span> <span class="keyword">if</span> (dif &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        pos = dequeue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    }</span><br><span class="line">    data = std::<span class="built_in">move</span>(cell-&gt;data_);</span><br><span class="line">    cell-&gt;sequence_.<span class="built_in">store</span>(pos + buffer_mask_ + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">try_dequeue</span><span class="params">(T&amp; data)</span> </span>{</span><br><span class="line">    <span class="type">cell_t</span>* cell;</span><br><span class="line">    <span class="type">size_t</span> pos = dequeue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">    <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">    <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)(pos + <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (dif == <span class="number">0</span>) {</span><br><span class="line">      <span class="keyword">if</span> (dequeue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>, std::memory_order_relaxed)) {</span><br><span class="line">        data = std::<span class="built_in">move</span>(cell-&gt;data_);</span><br><span class="line">        cell-&gt;sequence_.<span class="built_in">store</span>(pos + buffer_mask_ + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">inline</span> <span class="type">size_t</span> <span class="title">size</span><span class="params">()</span> <span class="type">const</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> enqueue_pos_ - dequeue_pos_;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">inline</span> <span class="type">bool</span> <span class="title">empty</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">size</span>() == <span class="number">0</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line"> <span class="keyword">protected</span>:</span><br><span class="line">  <span class="keyword">struct</span> <span class="title class_">cell_t</span> {</span><br><span class="line">    std::atomic&lt;<span class="type">size_t</span>&gt; sequence_;</span><br><span class="line">    T data_;</span><br><span class="line">  };</span><br><span class="line"></span><br><span class="line">  <span class="type">static</span> <span class="type">size_t</span> <span class="type">const</span> cacheline_size = <span class="number">64</span>;</span><br><span class="line">  <span class="keyword">typedef</span> <span class="type">char</span> <span class="type">cacheline_pad_t</span>[cacheline_size];</span><br><span class="line"></span><br><span class="line">  <span class="type">cacheline_pad_t</span> pad0_;</span><br><span class="line">  <span class="type">cell_t</span>* <span class="type">const</span> buffer_;</span><br><span class="line">  <span class="type">size_t</span> <span class="type">const</span> buffer_mask_;</span><br><span class="line">  <span class="type">cacheline_pad_t</span> pad1_;</span><br><span class="line">  std::atomic&lt;<span class="type">size_t</span>&gt; enqueue_pos_;</span><br><span class="line">  <span class="type">cacheline_pad_t</span> pad2_;</span><br><span class="line">  std::atomic&lt;<span class="type">size_t</span>&gt; dequeue_pos_;</span><br><span class="line">  <span class="type">cacheline_pad_t</span> pad3_;</span><br><span class="line"></span><br><span class="line">  <span class="built_in">MPMCBoundedQueue</span>(MPMCBoundedQueue <span class="type">const</span>&amp;) = <span class="keyword">delete</span>;</span><br><span class="line">  <span class="type">void</span> <span class="keyword">operator</span>=(MPMCBoundedQueue <span class="type">const</span>&amp;) = <span class="keyword">delete</span>;</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line">}  <span class="comment">// namespace runtime</span></span><br><span class="line">}  <span class="comment">// namespace matxscript</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="类属性"><a class="markdownIt-Anchor" href="#类属性"></a> 类属性：</h3>
+<ul>
+<li>
+<p><code>cell_t</code>: 槽位，每个槽位包含：</p>
+</li>
+<li>
+<p><code>sequence_</code>：序列号，用于同步</p>
+</li>
+<li>
+<p><code>data_</code>：存储的数据</p>
+</li>
+<li>
+<p><code>cell_t* const buffer_;</code>: 环形缓冲区，缓冲区大小必须是 2 的幂次方（2^n）</p>
+</li>
+<li>
+<p><code>size_t const buffer_mask_;</code>: 掩码（用于取模运算）使用掩码 <code>&amp; buffer_mask_</code> 代替取模 <code>% buffer_size</code>，效率更高</p>
+</li>
+<li>
+<p><code>std::atomic&lt;size_t&gt; enqueue_pos_;</code>: 入队位置</p>
+</li>
+<li>
+<p><code>std::atomic&lt;size_t&gt; dequeue_pos_;</code>: 出队位置</p>
+</li>
+<li>
+<p>cacheline_pad_t * ： 缓存行对齐，防止<strong>伪共享（false sharing）</strong></p>
+</li>
+</ul>
+<h3 id="入队算法"><a class="markdownIt-Anchor" href="#入队算法"></a> 入队算法</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">enqueue</span><span class="params">(U&amp;&amp; data)</span> </span>{</span><br><span class="line">  <span class="comment">// 1. 读取当前入队位置</span></span><br><span class="line">  <span class="type">size_t</span> pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">  <span class="keyword">for</span> (;;) {</span><br><span class="line">    <span class="comment">// 2. 找到对应的槽位</span></span><br><span class="line">    <span class="type">cell_t</span>* cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 3. 读取该槽位的序列号</span></span><br><span class="line">    <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 4. 计算差异</span></span><br><span class="line">    <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)pos;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (dif == <span class="number">0</span>) {  <span class="comment">// 槽位为空，可以写入</span></span><br><span class="line">      <span class="comment">// 5. CAS 更新入队位置（防止其他线程同时写入）</span></span><br><span class="line">      <span class="keyword">if</span> (enqueue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>, </span><br><span class="line">          std::memory_order_relaxed))</span><br><span class="line">        <span class="keyword">break</span>;  <span class="comment">// 成功获取槽位</span></span><br><span class="line">    } <span class="keyword">else</span> <span class="keyword">if</span> (dif &lt; <span class="number">0</span>) {</span><br><span class="line">      <span class="comment">// 6. 队列已满（消费者还未取走数据）</span></span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">      <span class="comment">// 7. 其他线程正在操作，重新尝试</span></span><br><span class="line">      pos = enqueue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 8. 写入数据</span></span><br><span class="line">  cell-&gt;data_ = std::forward&lt;U&gt;(data);</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 9. 发布数据：更新序列号为 pos + 1</span></span><br><span class="line">  cell-&gt;sequence_.<span class="built_in">store</span>(pos + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="出队算法"><a class="markdownIt-Anchor" href="#出队算法"></a> 出队算法</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">dequeue</span><span class="params">(T&amp; data)</span> </span>{</span><br><span class="line">  <span class="comment">// 1. 读取当前出队位置</span></span><br><span class="line">  <span class="type">size_t</span> pos = dequeue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">  <span class="keyword">for</span> (;;) {</span><br><span class="line">    <span class="comment">// 2. 找到对应的槽位</span></span><br><span class="line">    <span class="type">cell_t</span>* cell = &amp;buffer_[pos &amp; buffer_mask_];</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 3. 读取序列号</span></span><br><span class="line">    <span class="type">size_t</span> seq = cell-&gt;sequence_.<span class="built_in">load</span>(std::memory_order_acquire);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 4. 计算差异（期待 seq = pos + 1）</span></span><br><span class="line">    <span class="type">intptr_t</span> dif = (<span class="type">intptr_t</span>)seq - (<span class="type">intptr_t</span>)(pos + <span class="number">1</span>);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (dif == <span class="number">0</span>) {  <span class="comment">// 有数据，可以读取</span></span><br><span class="line">      <span class="comment">// 5. CAS 更新出队位置</span></span><br><span class="line">      <span class="keyword">if</span> (dequeue_pos_.<span class="built_in">compare_exchange_weak</span>(pos, pos + <span class="number">1</span>,</span><br><span class="line">          std::memory_order_relaxed))</span><br><span class="line">        <span class="keyword">break</span>;  <span class="comment">// 成功获取槽位</span></span><br><span class="line">    } <span class="keyword">else</span> <span class="keyword">if</span> (dif &lt; <span class="number">0</span>) {</span><br><span class="line">      <span class="comment">// 6. 队列为空（生产者还未写入数据）</span></span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">      <span class="comment">// 7. 其他线程正在操作，重新尝试</span></span><br><span class="line">      pos = dequeue_pos_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 8. 读取数据</span></span><br><span class="line">  data = std::<span class="built_in">move</span>(cell-&gt;data_);</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 9. 标记槽位为空：更新序列号为 pos + buffer_mask_ + 1</span></span><br><span class="line">  cell-&gt;sequence_.<span class="built_in">store</span>(pos + buffer_mask_ + <span class="number">1</span>, std::memory_order_release);</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="疑惑解答"><a class="markdownIt-Anchor" href="#疑惑解答"></a> 疑惑解答</h3>
+<h4 id="缓冲区buffer"><a class="markdownIt-Anchor" href="#缓冲区buffer"></a> 📦 缓冲区（Buffer）</h4>
+<ul>
+<li><strong>是什么</strong>：一块连续的内存区域，用于存储数据元素</li>
+<li><strong>大小</strong>：必须是 2 的幂次方（如 2, 4, 8, 16, 32…）</li>
+<li><strong>作用</strong>：队列的物理存储空间</li>
+</ul>
+<h4 id="索引index"><a class="markdownIt-Anchor" href="#索引index"></a> 🔢 索引（Index）</h4>
+<ul>
+<li><strong>是什么</strong>：访问缓冲区中具体位置的数字（0, 1, 2, 3…）</li>
+<li><strong>计算</strong>：<code>索引 = 位置 &amp; 缓冲区掩码</code></li>
+<li><strong>示例</strong>：位置=5，掩码=3，索引=1（因为 5 &amp; 3 = 1）</li>
+</ul>
+<h4 id="槽位slotcell"><a class="markdownIt-Anchor" href="#槽位slotcell"></a> 🎯 槽位（Slot/Cell）</h4>
+<ul>
+<li><strong>是什么</strong>：缓冲区中的一个存储单元</li>
+<li><strong>组成</strong>：每个槽位包含两部分：</li>
+</ul>
+<ol>
+<li><strong>序列号（sequence_）</strong>：原子计数器，用于同步</li>
+<li><strong>数据（data_）</strong>：实际存储的元素</li>
+</ol>
+<ul>
+<li><strong>位置</strong>：由索引决定在缓冲区中的位置</li>
+</ul>
+<h4 id="序列号sequence-number"><a class="markdownIt-Anchor" href="#序列号sequence-number"></a> 🔄 序列号（Sequence Number）</h4>
+<ul>
+<li><strong>是什么</strong>：每个槽位的"状态标签"</li>
+<li><strong>作用</strong>：</li>
+</ul>
+<ol>
+<li>标识槽位的可用状态</li>
+<li>实现生产者和消费者的同步</li>
+<li>避免ABA问题</li>
+</ol>
+<ul>
+<li><strong>特点</strong>：不断递增，永不重复</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">┌───────────────────────────────────────────────────┐</span><br><span class="line">│                缓冲区（Buffer）                     │</span><br><span class="line">│    大小为<span class="number">4</span>，连续内存块，存储<span class="number">4</span>个槽位                    │</span><br><span class="line">├────────────┬────────────┬────────────┬────────────┤</span><br><span class="line">│   槽位[<span class="number">0</span>]   │   槽位[<span class="number">1</span>]   │   槽位[<span class="number">2</span>]   │   槽位[<span class="number">3</span>]  │</span><br><span class="line">│ 索引=<span class="number">0</span>      │ 索引=<span class="number">1</span>      │ 索引=<span class="number">2</span>      │ 索引=<span class="number">3</span>     │</span><br><span class="line">├────────────┼────────────┼────────────┼────────────┤</span><br><span class="line">│ sequence=<span class="number">8</span> │ sequence=<span class="number">6</span> │ sequence=<span class="number">7</span> │ sequence=<span class="number">8</span> │</span><br><span class="line">│ data=null  │ data=B     │ data=C     │ data=D     │</span><br><span class="line">└────────────┴────────────┴────────────┴────────────┘</span><br><span class="line">     ↑           ↑           ↑           ↑</span><br><span class="line">     │           │           │           │</span><br><span class="line">  状态：空      状态：满     状态：满     状态：满</span><br><span class="line">  (可写入)     (待消费)     (待消费)     (待消费)</span><br><span class="line"></span><br><span class="line">enqueue_pos = <span class="number">9</span>  (下一个要写入的<span class="string">"逻辑位置"</span>)</span><br><span class="line">dequeue_pos = <span class="number">6</span>  (下一个要读取的<span class="string">"逻辑位置"</span>)</span><br><span class="line">buffer_mask = <span class="number">3</span>  (缓冲区大小<span class="number">-1</span>)</span><br></pre></td></tr></table></figure></div>
+<h4 id="如何从逻辑位置找到物理槽位"><a class="markdownIt-Anchor" href="#如何从逻辑位置找到物理槽位"></a> 如何从逻辑位置找到物理槽位？</h4>
+<p>关键映射公式：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">逻辑位置（pos） → 物理索引（index） → 槽位（cell）</span><br><span class="line"></span><br><span class="line">index = pos &amp; buffer_mask;           <span class="comment">// 计算索引</span></span><br><span class="line">cell = &amp;buffer_[index];              <span class="comment">// 找到槽位</span></span><br></pre></td></tr></table></figure></div>
+<p>示例计算：</p>
+<p>假设 <code>buffer_size = 4</code>, <code>buffer_mask = 3</code></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">逻辑位置 pos = 9</span><br><span class="line">索引 index = 9 &amp; 3 = 1  (二进制: 1001 &amp; 0011 = 0001)</span><br><span class="line">槽位 cell = buffer_[1]</span><br></pre></td></tr></table></figure></div>
+<h2 id="无锁线程池"><a class="markdownIt-Anchor" href="#无锁线程池"></a> 无锁线程池</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">LockFreeRunnable</span> : <span class="keyword">public</span> IRunnable {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">Done</span><span class="params">()</span> <span class="keyword">override</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> finish_;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line"> <span class="keyword">protected</span>:</span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">SetDone</span><span class="params">()</span> <span class="keyword">override</span> </span>{</span><br><span class="line">    finish_ = <span class="literal">true</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">bool</span> finish_ = <span class="literal">false</span>;</span><br><span class="line">  <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">LockFreeThreadPool</span>;</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">LockFreeThreadPool</span> : <span class="keyword">public</span> IThreadPool {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="function"><span class="keyword">explicit</span> <span class="title">LockFreeThreadPool</span><span class="params">(<span class="type">size_t</span> threads, <span class="type">const</span> std::string&amp; name, <span class="type">int64_t</span> intervals_ns)</span></span>;</span><br><span class="line">  <span class="function"><span class="keyword">explicit</span> <span class="title">LockFreeThreadPool</span><span class="params">(<span class="type">size_t</span> threads, <span class="type">const</span> std::string&amp; name)</span></span>;</span><br><span class="line">  ~<span class="built_in">LockFreeThreadPool</span>() <span class="keyword">override</span>;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">Enqueue</span><span class="params">(IRunnablePtr&amp; runner, <span class="type">size_t</span> seq)</span> <span class="keyword">override</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">EnqueueBulk</span><span class="params">(std::vector&lt;IRunnablePtr&gt;&amp; runners)</span> <span class="keyword">override</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">size_t</span> <span class="title">GetThreadsNum</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">override</span></span>;</span><br><span class="line">  <span class="function">std::vector&lt;std::thread::id&gt; <span class="title">GetThreadIds</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">override</span></span>;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">protected</span>:</span><br><span class="line">  <span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">ThreadEntry</span><span class="params">(LockFreeThreadPool* pool, <span class="type">const</span> std::string&amp; name)</span></span>;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">// need to keep track of threads so we can join them</span></span><br><span class="line">  std::vector&lt;std::thread&gt; workers_;</span><br><span class="line">  <span class="comment">// the task queue</span></span><br><span class="line">  MPMCBoundedQueue&lt;IRunnablePtr&gt; tasks_;</span><br><span class="line">  <span class="comment">// stop flag</span></span><br><span class="line">  <span class="type">bool</span> stop_ = <span class="literal">false</span>;</span><br><span class="line">  std::string name_;</span><br><span class="line">  <span class="type">int64_t</span> intervals_ns_;</span><br><span class="line">  <span class="type">pid_t</span> belong_to_pid_;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="类属性-2"><a class="markdownIt-Anchor" href="#类属性-2"></a> 类属性</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">std::vector&lt;std::thread&gt; workers_; <span class="comment">//工作的线程池</span></span><br><span class="line">  <span class="comment">// the task queue</span></span><br><span class="line">MPMCBoundedQueue&lt;IRunnablePtr&gt; tasks_; <span class="comment">// 任务队列</span></span><br><span class="line">  <span class="comment">// stop flag</span></span><br><span class="line"><span class="type">bool</span> stop_ = <span class="literal">false</span>;</span><br><span class="line">std::string name_;</span><br><span class="line"><span class="type">int64_t</span> intervals_ns_;</span><br><span class="line"><span class="type">pid_t</span> belong_to_pid_; <span class="comment">// 属于的进程id</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="工作线程创建机制"><a class="markdownIt-Anchor" href="#工作线程创建机制"></a> 工作线程创建机制</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// the constructor just launches some amount of workers</span></span><br><span class="line">LockFreeThreadPool::<span class="built_in">LockFreeThreadPool</span>(<span class="type">size_t</span> threads,</span><br><span class="line">                                       <span class="type">const</span> std::string&amp; name,</span><br><span class="line">                                       <span class="type">int64_t</span> intervals_ns)</span><br><span class="line">    : <span class="built_in">stop_</span>(<span class="literal">false</span>), <span class="built_in">name_</span>(name), <span class="built_in">tasks_</span>(<span class="number">4096</span>), <span class="built_in">intervals_ns_</span>(intervals_ns) {</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> _WIN32</span></span><br><span class="line">  belong_to_pid_ = <span class="built_in">GetCurrentProcessId</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  belong_to_pid_ = <span class="built_in">getpid</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; threads; ++i) {</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">16</span>] = {<span class="number">0</span>};</span><br><span class="line">    <span class="built_in">snprintf</span>(buffer, <span class="built_in">sizeof</span>(buffer), <span class="string">"T%zu.%s"</span>, i, name.<span class="built_in">c_str</span>());</span><br><span class="line">    workers_.<span class="built_in">emplace_back</span>(LockFreeThreadPool::ThreadEntry, <span class="keyword">this</span>, std::<span class="built_in">string</span>(buffer));</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>关键特点</strong>：</p>
+<ul>
+<li>使用 <code>std::vector&lt;std::thread&gt;</code> 存储工作线程</li>
+<li>每个线程都执行静态成员函数 <code>ThreadEntry</code> 作为入口点</li>
+<li>为线程分配唯一名称，便于调试和监控</li>
+<li>记录所属进程ID，确保在fork场景下安全处理</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">workers_.<span class="built_in">emplace_back</span>(ThreadEntry, <span class="keyword">this</span>, name + <span class="string">"_T"</span> + std::<span class="built_in">to_string</span>(i));</span><br></pre></td></tr></table></figure></div>
+<p>这行代码会：</p>
+<ul>
+<li>在 <code>workers_</code>（<code>std::vector&lt;std::thread&gt;</code>）中<strong>创建并初始化</strong>一个新的线程对象</li>
+<li>以 <code>ThreadEntry</code> 函数作为线程的<strong>入口点</strong></li>
+<li>传递 <code>this</code>（线程池对象指针）和线程名称作为参数</li>
+<li>线程<strong>立即开始执行</strong> <code>ThreadEntry</code> 函数</li>
+</ul>
+<h3 id="任务队列监听机制"><a class="markdownIt-Anchor" href="#任务队列监听机制"></a> 任务队列监听机制</h3>
+<p>工作线程通过 <code>ThreadEntry</code> 函数持续监听任务队列</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">LockFreeThreadPool::ThreadEntry</span><span class="params">(LockFreeThreadPool* pool, <span class="type">const</span> std::string&amp; name)</span> </span>{</span><br><span class="line">  <span class="comment">// 设置线程名称（Linux平台）</span></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> __linux__</span></span><br><span class="line">  <span class="built_in">pthread_setname_np</span>(<span class="built_in">pthread_self</span>(), name.<span class="built_in">c_str</span>());</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  </span><br><span class="line">  <span class="type">int64_t</span> sleep_intervals_ns = pool-&gt;intervals_ns_;</span><br><span class="line">  <span class="keyword">if</span> (sleep_intervals_ns &lt;= <span class="number">0</span>) {</span><br><span class="line">    sleep_intervals_ns = <span class="number">1</span>;</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 无限循环，持续监听任务队列</span></span><br><span class="line">  <span class="keyword">for</span> (;;) {</span><br><span class="line">    IRunnablePtr task = <span class="literal">nullptr</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 尝试从无锁队列中获取任务</span></span><br><span class="line">    <span class="keyword">for</span> (;;) {</span><br><span class="line">      <span class="keyword">if</span> (pool-&gt;tasks_.<span class="built_in">try_dequeue</span>(task)) {</span><br><span class="line">        <span class="keyword">break</span>;  <span class="comment">// 获取到任务，退出内层循环</span></span><br><span class="line">      }</span><br><span class="line">      <span class="keyword">if</span> (pool-&gt;stop_) {</span><br><span class="line">        <span class="keyword">break</span>;  <span class="comment">// 线程池停止，退出内层循环</span></span><br><span class="line">      }</span><br><span class="line">      <span class="comment">// 队列为空，短暂休眠后重试</span></span><br><span class="line">      std::this_thread::<span class="built_in">sleep_for</span>(std::chrono::<span class="built_in">nanoseconds</span>(<span class="number">1</span>));</span><br><span class="line">    }</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 检查是否需要退出线程</span></span><br><span class="line">    <span class="keyword">if</span> (pool-&gt;stop_) {</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    } <span class="keyword">else</span> <span class="keyword">if</span> (task != <span class="literal">nullptr</span>) {</span><br><span class="line">      <span class="comment">// 执行任务</span></span><br><span class="line">      task-&gt;<span class="built_in">Run</span>();</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>无锁监听特点</strong>：</p>
+<ul>
+<li>使用 <code>try_dequeue</code> 非阻塞方式获取任务</li>
+<li>空队列时采用自旋等待（busy-waiting）策略</li>
+<li>通过 <code>sleep_for(1ns)</code> 降低CPU占用</li>
+<li>响应速度快，但可能消耗更多CPU资源</li>
+</ul>
+<h3 id="线程池停止与资源释放"><a class="markdownIt-Anchor" href="#线程池停止与资源释放"></a> 线程池停止与资源释放</h3>
+<p>线程池都通过 <code>stop_</code> 标志控制线程生命周期：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 无锁线程池析构函数</span></span><br><span class="line">LockFreeThreadPool::~<span class="built_in">LockFreeThreadPool</span>() {</span><br><span class="line">  <span class="comment">// 检查是否是创建线程池的进程</span></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> _WIN32</span></span><br><span class="line">  <span class="keyword">auto</span> cur_pid = <span class="built_in">GetCurrentProcessId</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  <span class="keyword">auto</span> cur_pid = <span class="built_in">getpid</span>();</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">  </span><br><span class="line">  stop_ = <span class="literal">true</span>;  <span class="comment">// 设置停止标志</span></span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 只有在创建线程池的进程中才join线程</span></span><br><span class="line">  <span class="keyword">if</span> (cur_pid == belong_to_pid_) {</span><br><span class="line">    <span class="keyword">for</span> (std::thread&amp; worker : workers_) {</span><br><span class="line">      <span class="keyword">if</span> (worker.<span class="built_in">joinable</span>()) {</span><br><span class="line">        worker.<span class="built_in">join</span>();</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  } <span class="keyword">else</span> {</span><br><span class="line">    <span class="comment">// fork后的子进程中detach线程</span></span><br><span class="line">    <span class="keyword">for</span> (std::thread&amp; worker : workers_) {</span><br><span class="line">      worker.<span class="built_in">detach</span>();</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>停止机制特点</strong>：</p>
+<ul>
+<li>通过原子或线程安全的方式设置 <code>stop_</code> 标志</li>
+<li>工作线程在循环中检查该标志，决定是否退出</li>
+<li>析构函数中join所有工作线程，确保资源正确释放</li>
+<li>处理fork场景，避免在子进程中操作无效的线程</li>
+</ul>
+<h3 id="任务执行流程"><a class="markdownIt-Anchor" href="#任务执行流程"></a> 任务执行流程</h3>
+<p>无论是无锁还是基于锁的实现，任务执行都遵循统一流程：</p>
+<ol>
+<li>工作线程从队列获取 <code>IRunnable</code> 任务对象</li>
+<li>调用 <code>task-&gt;Run()</code> 方法执行任务</li>
+<li><code>Run()</code> 方法内部调用 <code>RunImpl()</code> 执行实际计算逻辑</li>
+<li>捕获并存储执行过程中的异常</li>
+<li>任务完成后调用 <code>SetDone()</code> 更新状态</li>
+</ol>
+<h2 id="线程池执行器"><a class="markdownIt-Anchor" href="#线程池执行器"></a> 线程池执行器</h2>
+<p>职责：</p>
+<ul>
+<li>封装底层线程池实现</li>
+<li>提供ParallelFor、ParallelStarMap等并行处理接口</li>
+<li>创建任务并提交到任务队列</li>
+<li>支持异步任务提交(Submit/ApplyAsync)</li>
+<li>处理嵌套调用情况下的特殊逻辑</li>
+</ul>
+<p>关键成员变量：</p>
+<ul>
+<li><code>lock_free_</code>: 标识是否使用无锁线程池</li>
+<li><code>thread_num_</code>: 线程数量</li>
+<li><code>pool_</code>: 底层线程池实例</li>
+<li><code>serial_</code>: 用于生成任务序列号的原子计数器</li>
+<li><code>pool_thread_ids_</code>: 记录线程池中所有线程ID的集合</li>
+</ul>
+<h3 id="并行任务的具体定义"><a class="markdownIt-Anchor" href="#并行任务的具体定义"></a> 并行任务的具体定义</h3>
+<p>任务的具体执行逻辑</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> RunnableType, <span class="type">bool</span> UnpackArgs = <span class="literal">false</span>&gt;</span><br><span class="line"><span class="keyword">class</span> ParallelForTask : <span class="keyword">public</span> RunnableType {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="built_in">ParallelForTask</span>(<span class="type">const</span> UserDataRef&amp; op, <span class="type">const</span> Any* input_first, RTValue* output_first, <span class="type">int64_t</span> len)</span><br><span class="line">      : <span class="built_in">op_</span>(&amp;op),</span><br><span class="line">        <span class="built_in">input_first_</span>(input_first),</span><br><span class="line">        <span class="built_in">input_last_</span>(input_first + len),</span><br><span class="line">        <span class="built_in">output_first_</span>(output_first) {</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="type">void</span> <span class="built_in">RunImpl</span>() <span class="keyword">override</span> {</span><br><span class="line">    <span class="keyword">while</span> (input_first_ != input_last_) {</span><br><span class="line">      <span class="keyword">if</span> (UnpackArgs) {</span><br><span class="line">        <span class="keyword">switch</span> (input_first_-&gt;<span class="built_in">type_code</span>()) {</span><br><span class="line">          <span class="keyword">case</span> TypeIndex::kRuntimeList: {</span><br><span class="line">            <span class="keyword">auto</span> args = input_first_-&gt;<span class="keyword">template</span> <span class="built_in">AsObjectRefNoCheck</span>&lt;List&gt;();</span><br><span class="line">            *output_first_ = op_-&gt;<span class="built_in">generic_call</span>(<span class="built_in">PyArgs</span>(args.<span class="built_in">data</span>(), args.<span class="built_in">size</span>()));</span><br><span class="line">          } <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">case</span> TypeIndex::kRuntimeTuple: {</span><br><span class="line">            <span class="keyword">auto</span> args = input_first_-&gt;<span class="keyword">template</span> <span class="built_in">AsObjectRefNoCheck</span>&lt;Tuple&gt;();</span><br><span class="line">            *output_first_ = op_-&gt;<span class="built_in">generic_call</span>(<span class="built_in">PyArgs</span>(args.<span class="built_in">begin</span>(), args.<span class="built_in">size</span>()));</span><br><span class="line">          } <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">case</span> TypeIndex::kRuntimeFTList: {</span><br><span class="line">            <span class="keyword">auto</span> num_args = <span class="built_in">kernel_object___len__</span>(*input_first_);</span><br><span class="line">            Iterator iterable = Kernel_Iterable::<span class="built_in">make</span>(*input_first_);</span><br><span class="line">            std::vector&lt;RTValue&gt; args;</span><br><span class="line">            args.<span class="built_in">reserve</span>(num_args);</span><br><span class="line">            <span class="type">bool</span> has_next = iterable.<span class="built_in">HasNext</span>();</span><br><span class="line">            <span class="keyword">while</span> (has_next) {</span><br><span class="line">              args.<span class="built_in">emplace_back</span>(iterable.<span class="built_in">Next</span>(&amp;has_next));</span><br><span class="line">            }</span><br><span class="line">            *output_first_ = op_-&gt;<span class="built_in">generic_call</span>(<span class="built_in">PyArgs</span>(args.<span class="built_in">data</span>(), args.<span class="built_in">size</span>()));</span><br><span class="line">          } <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">default</span>: {</span><br><span class="line">            MXTHROW &lt;&lt; <span class="string">"matx.pstarmap(f, iterable) expect iterable[i] is list or tuple, but get "</span></span><br><span class="line">                    &lt;&lt; input_first_-&gt;<span class="built_in">type_name</span>();</span><br><span class="line">          } <span class="keyword">break</span>;</span><br><span class="line">        }</span><br><span class="line">      } <span class="keyword">else</span> {</span><br><span class="line">        *output_first_ = op_-&gt;<span class="built_in">generic_call</span>(<span class="built_in">PyArgs</span>(input_first_, <span class="number">1</span>));</span><br><span class="line">      }</span><br><span class="line">      ++input_first_;</span><br><span class="line">      ++output_first_;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="type">const</span> UserDataRef* op_;</span><br><span class="line">  <span class="type">const</span> Any* input_first_;</span><br><span class="line">  <span class="type">const</span> Any* input_last_;</span><br><span class="line">  RTValue* output_first_;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="并行任务的创建-管理-调度"><a class="markdownIt-Anchor" href="#并行任务的创建-管理-调度"></a> 并行任务的创建、管理、调度</h3>
+<p>这个函数是整个线程池执行器的核心，体现了高性能并行计算的设计理念，通过合理的任务分配、线程管理和资源利用，实现了高效的并行数据处理能力。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">ThreadPoolExecutor::ParallelForImpl</span><span class="params">(<span class="type">const</span> UserDataRef&amp; op,</span></span></span><br><span class="line"><span class="params"><span class="function"><span class="type">const</span> Any* inputs_begin,</span></span></span><br><span class="line"><span class="params"><span class="function"><span class="type">const</span> Any* inputs_end,</span></span></span><br><span class="line"><span class="params"><span class="function"><span class="type">int64_t</span> expt_num_threads,</span></span></span><br><span class="line"><span class="params"><span class="function"><span class="type">int64_t</span> group_size,</span></span></span><br><span class="line"><span class="params"><span class="function">RTValue* outputs_begin,</span></span></span><br><span class="line"><span class="params"><span class="function"><span class="type">bool</span> unpack_args)</span> </span>{</span><br><span class="line">    <span class="type">int64_t</span> input_size = inputs_end - inputs_begin;</span><br><span class="line">    <span class="keyword">if</span> (expt_num_threads &lt;= <span class="number">0</span>) {</span><br><span class="line">        expt_num_threads = thread_num_ + <span class="number">1</span>;<span class="comment">// 自动确定线程数</span></span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">if</span> (group_size &lt;= <span class="number">0</span>) {</span><br><span class="line">        group_size = <span class="number">1</span>; <span class="comment">// 默认每组任务大小为1</span></span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">MXCHECK</span>(input_size % group_size == <span class="number">0</span>) &lt;&lt; <span class="string">"Expect the number of tasks to be a multiple of "</span></span><br><span class="line">        &lt;&lt; group_size &lt;&lt; <span class="string">", but get "</span> &lt;&lt; input_size &lt;&lt; <span class="string">""</span>;</span><br><span class="line">    <span class="type">int64_t</span> num_group = input_size / group_size;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//使用向上取整算法计算每个线程应处理的任务量</span></span><br><span class="line">    <span class="type">int64_t</span> step_r = group_size * ((num_group + expt_num_threads - <span class="number">1</span>) / expt_num_threads);</span><br><span class="line">    <span class="type">int64_t</span> step_l = step_r - group_size;</span><br><span class="line">    <span class="comment">//设计两种步长（step_r/step_l）确保任务均匀分配到所有线程</span></span><br><span class="line"></span><br><span class="line">    <span class="type">int64_t</span> pos = <span class="number">0</span>;</span><br><span class="line">    <span class="type">int64_t</span> step = step_r;</span><br><span class="line">    <span class="type">bool</span> need_change = <span class="literal">true</span>;</span><br><span class="line">    std::vector&lt;internal::IRunnablePtr&gt; tasks;</span><br><span class="line">    tasks.<span class="built_in">reserve</span>(expt_num_threads);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int64_t</span> i = <span class="number">0</span>; i &lt; expt_num_threads &amp;&amp; pos &lt; input_size; ++i) {</span><br><span class="line">        <span class="comment">// 动态调整步长确保任务均匀分配</span></span><br><span class="line">        <span class="keyword">if</span> (need_change &amp;&amp; step_l != <span class="number">0</span> &amp;&amp; pos + step_l * (expt_num_threads - i) == input_size) {</span><br><span class="line">            step = step_l;</span><br><span class="line">            need_change = <span class="literal">false</span>;</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// 根据配置创建不同类型的任务</span></span><br><span class="line">        <span class="keyword">if</span> (lock_free_) {</span><br><span class="line">            <span class="keyword">if</span> (unpack_args) {</span><br><span class="line">                <span class="keyword">auto</span> task = std::make_shared&lt;ParallelForTask&lt;internal::LockFreeRunnable, <span class="literal">true</span>&gt;&gt;(</span><br><span class="line">                op, inputs_begin + pos, outputs_begin + pos, step);</span><br><span class="line">                tasks.<span class="built_in">push_back</span>(std::<span class="built_in">static_pointer_cast</span>&lt;internal::IRunnable&gt;(task));</span><br><span class="line">            } <span class="keyword">else</span> {</span><br><span class="line">                <span class="comment">// 创建不需要解包参数的LockFreeRunnable任务</span></span><br><span class="line">                <span class="keyword">auto</span> task = std::make_shared&lt;ParallelForTask&lt;internal::LockFreeRunnable, <span class="literal">false</span>&gt;&gt;(</span><br><span class="line">                op, inputs_begin + pos, outputs_begin + pos, step);</span><br><span class="line">                tasks.<span class="built_in">push_back</span>(std::<span class="built_in">static_pointer_cast</span>&lt;internal::IRunnable&gt;(task));</span><br><span class="line">            }</span><br><span class="line">        } <span class="keyword">else</span> {</span><br><span class="line">            <span class="comment">// 创建基于锁的Runnable任务</span></span><br><span class="line">            <span class="keyword">if</span> (unpack_args) {</span><br><span class="line">                <span class="keyword">auto</span> task = std::make_shared&lt;ParallelForTask&lt;internal::LockBasedRunnable, <span class="literal">true</span>&gt;&gt;(</span><br><span class="line">                op, inputs_begin + pos, outputs_begin + pos, step);</span><br><span class="line">                tasks.<span class="built_in">push_back</span>(std::<span class="built_in">static_pointer_cast</span>&lt;internal::IRunnable&gt;(task));</span><br><span class="line">            } <span class="keyword">else</span> {</span><br><span class="line">                <span class="keyword">auto</span> task = std::make_shared&lt;ParallelForTask&lt;internal::LockBasedRunnable, <span class="literal">false</span>&gt;&gt;(</span><br><span class="line">                op, inputs_begin + pos, outputs_begin + pos, step);</span><br><span class="line">                tasks.<span class="built_in">push_back</span>(std::<span class="built_in">static_pointer_cast</span>&lt;internal::IRunnable&gt;(task));</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        pos += step;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> cur_tid = std::this_thread::<span class="built_in">get_id</span>();</span><br><span class="line">    <span class="keyword">if</span> (pool_thread_ids_.<span class="built_in">find</span>(cur_tid) != pool_thread_ids_.<span class="built_in">end</span>()) {</span><br><span class="line">        <span class="comment">// fix nested pmap: 如果当前线程已经是线程池线程，顺序执行所有任务</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; task : tasks) {</span><br><span class="line">            task-&gt;<span class="built_in">Run</span>();</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// 普通执行路径：主线程执行第一个任务，其余任务提交到线程池</span></span><br><span class="line">        <span class="type">size_t</span> task_size = tasks.<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">if</span> (task_size &gt; <span class="number">1</span>) {</span><br><span class="line">            <span class="type">size_t</span> seq = serial_.<span class="built_in">fetch_add</span>(task_size - <span class="number">1</span>, std::memory_order_relaxed);</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">1</span>; i &lt; tasks.<span class="built_in">size</span>(); ++i) {</span><br><span class="line">                pool_-&gt;<span class="built_in">Enqueue</span>(tasks[i], seq + i - <span class="number">1</span>);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        internal::IRunnablePtr&amp; first_task = tasks[<span class="number">0</span>];</span><br><span class="line"></span><br><span class="line">        first_task-&gt;<span class="built_in">Run</span>();</span><br><span class="line">    }</span><br><span class="line"><span class="comment">//等待所有并行任务执行完毕</span></span><br><span class="line">    internal::IThreadPool::<span class="built_in">WaitBulk</span>(tasks);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h4 id=""><a class="markdownIt-Anchor" href="#"></a> </h4>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> matxscript运行时系统之线程池系统</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-03 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:20:57
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/03/matxscript线程池/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/AI-Compiler/">#AI Compiler</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/TVM/">#TVM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/03/matxscript%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">matxscript运行时系统之对象模型</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/03/%E6%89%8B%E6%92%95KDA/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">手撕KDA</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">matxscript运行时系统之线程池系统</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 1 概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-text"> 2 整体架构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-%E6%A0%B8%E5%BF%83%E7%B1%BB%E8%A7%A3%E6%9E%90"><span class="nav-text"> 3 核心类解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#threadpoolexecutor-%E7%BA%BF%E7%A8%8B%E6%B1%A0%E6%89%A7%E8%A1%8C%E5%99%A8"><span class="nav-text"> ThreadPoolExecutor 线程池执行器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ithreadpool-%E7%BA%BF%E7%A8%8B%E6%B1%A0%E6%8E%A5%E5%8F%A3"><span class="nav-text"> IThreadPool 线程池接口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lockbasedthreadpool-%E5%9F%BA%E4%BA%8E%E9%94%81%E7%9A%84%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-text"> LockBasedThreadPool 基于锁的线程池</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lockfreethreadpool-%E6%97%A0%E9%94%81%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-text"> LockFreeThreadPool 无锁线程池</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#spsclockfreethreadpool-%E5%8D%95%E7%94%9F%E4%BA%A7%E8%80%85%E5%8D%95%E6%B6%88%E8%B4%B9%E8%80%85%E6%97%A0%E9%94%81%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-text"> SPSCLockFreeThreadPool 单生产者单消费者无锁线程池</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-%E6%8E%A5%E5%8F%A3%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 4 接口详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#parallelfor-%E5%B9%B6%E8%A1%8C%E6%98%A0%E5%B0%84"><span class="nav-text"> ParallelFor 并行映射</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#parallelstarmap-%E5%B9%B6%E8%A1%8C%E6%98%9F%E5%BD%A2%E6%98%A0%E5%B0%84"><span class="nav-text"> ParallelStarMap 并行星形映射</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#submit-%E5%BC%82%E6%AD%A5%E4%BB%BB%E5%8A%A1%E6%8F%90%E4%BA%A4"><span class="nav-text"> Submit 异步任务提交</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#applyasync-%E5%BC%82%E6%AD%A5%E8%B0%83%E7%94%A8"><span class="nav-text"> ApplyAsync 异步调用</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90"><span class="nav-text"> 5 代码实现分析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97"><span class="nav-text"> 任务队列</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%B1%9E%E6%80%A7"><span class="nav-text"> 类属性：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%A5%E9%98%9F%E7%AE%97%E6%B3%95"><span class="nav-text"> 入队算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%87%BA%E9%98%9F%E7%AE%97%E6%B3%95"><span class="nav-text"> 出队算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%96%91%E6%83%91%E8%A7%A3%E7%AD%94"><span class="nav-text"> 疑惑解答</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%97%A0%E9%94%81%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-text"> 无锁线程池</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%B1%9E%E6%80%A7-2"><span class="nav-text"> 类属性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B7%A5%E4%BD%9C%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA%E6%9C%BA%E5%88%B6"><span class="nav-text"> 工作线程创建机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97%E7%9B%91%E5%90%AC%E6%9C%BA%E5%88%B6"><span class="nav-text"> 任务队列监听机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0%E5%81%9C%E6%AD%A2%E4%B8%8E%E8%B5%84%E6%BA%90%E9%87%8A%E6%94%BE"><span class="nav-text"> 线程池停止与资源释放</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%BB%E5%8A%A1%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B"><span class="nav-text"> 任务执行流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0%E6%89%A7%E8%A1%8C%E5%99%A8"><span class="nav-text"> 线程池执行器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%B6%E8%A1%8C%E4%BB%BB%E5%8A%A1%E7%9A%84%E5%85%B7%E4%BD%93%E5%AE%9A%E4%B9%89"><span class="nav-text"> 并行任务的具体定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%B6%E8%A1%8C%E4%BB%BB%E5%8A%A1%E7%9A%84%E5%88%9B%E5%BB%BA-%E7%AE%A1%E7%90%86-%E8%B0%83%E5%BA%A6"><span class="nav-text"> 并行任务的创建、管理、调度</span></a></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-03-04T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:04:56.492Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="CUDA">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-03-04 23:50</span>
+        <span class="mobile">2026-03-04 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:04:56</span>
+            <span class="mobile">2026-06-05 23:04:56</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/CUDA/">CUDA</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/CUDA/">CUDA</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel 详解</p>
+<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/tree/eee72be829545bd6bd115a4b252b5068c9f61597">xlite-dev/HGEMM at eee72be829545bd6bd115a4b252b5068c9f61597<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>代码链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/blob/eee72be829545bd6bd115a4b252b5068c9f61597/kernels/hgemm/mma/hgemm_mma_stage.cu">HGEMM/kernels/hgemm/mma/hgemm_mma_stage.cu at eee72be829545bd6bd115a4b252b5068c9f61597 · xlite-dev/HGEMM<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>本文档详细解析带有多阶段流水线（Multi-stage Pipeline）和 Block Swizzle 优化的 HGEMM MMA Kernel 实现原理。</p>
+<div class="code-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> WARP_SIZE 32</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEVICE_INLINE __device__ inline</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HOST_DEVICE_INLINE __device__ __host__ inline</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> INT4(value) (reinterpret_cast<span class="string">&lt;int4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> FLOAT4(value) (reinterpret_cast<span class="string">&lt;float4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HALF2(value) (reinterpret_cast<span class="string">&lt;half2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BFLOAT2(value) (reinterpret_cast<span class="string">&lt;__nv_bfloat162*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST32BITS(value) (reinterpret_cast<span class="string">&lt;half2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST64BITS(value) (reinterpret_cast<span class="string">&lt;float2*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDST128BITS(value) (reinterpret_cast<span class="string">&lt;float4*&gt;</span>(&amp;(value))[0])</span></span><br><span class="line"><span class="comment">// gmem -&gt; smem</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_COMMIT_GROUP() asm volatile(<span class="string">"cp.async.commit_group;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_WAIT_ALL() asm volatile(<span class="string">"cp.async.wait_all;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_WAIT_GROUP(n) asm volatile(<span class="string">"cp.async.wait_group %0;\n"</span> ::<span class="string">"n"</span>(n))</span></span><br><span class="line"><span class="comment">// ca(cache all, L1 + L2): support 4, 8, 16 bytes, cg(cache global, L2): only support 16 bytes.</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_CA(dst, src, bytes) asm volatile(<span class="string">"cp.async.ca.shared.global.L2::128B [%0], [%1], %2;\n"</span> ::<span class="string">"r"</span>(dst), <span class="string">"l"</span>(src), <span class="string">"n"</span>(bytes))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_CG(dst, src, bytes) asm volatile(<span class="string">"cp.async.cg.shared.global.L2::128B [%0], [%1], %2;\n"</span> ::<span class="string">"r"</span>(dst), <span class="string">"l"</span>(src), <span class="string">"n"</span>(bytes))</span></span><br><span class="line"><span class="comment">// smem -&gt; gmem: requires sm_90 or higher.</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_BULK_COMMIT_GROUP() asm volatile(<span class="string">"cp.async.bulk.commit_group;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_BULK_WAIT_ALL() asm volatile(<span class="string">"cp.async.bulk.wait_all;\n"</span> ::)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_BULK_WAIT_GROUP(n) asm volatile(<span class="string">"cp.async.bulk.wait_group %0;\n"</span> ::<span class="string">"n"</span>(n))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CP_ASYNC_BULK(dst, src, bytes) asm volatile(<span class="string">"cp.async.bulk.global.shared::cta.bulk_group.L2::128B [%0], [%1], %2;\n"</span> ::<span class="string">"r"</span>(dst), <span class="string">"l"</span>(src), <span class="string">"n"</span>(bytes))</span></span><br><span class="line"><span class="comment">// ldmatrix</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X1(R, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x1.m8n8.shared.b16 {%0}, [%1];\n"</span> : <span class="string">"=r"</span>(R) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X2(R0, R1, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x2.m8n8.shared.b16 {%0, %1}, [%2];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X4(R0, R1, R2, R3, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x4.m8n8.shared.b16 {%0, %1, %2, %3}, [%4];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1), <span class="string">"=r"</span>(R2), <span class="string">"=r"</span>(R3) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X1_T(R, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x1.trans.m8n8.shared.b16 {%0}, [%1];\n"</span> : <span class="string">"=r"</span>(R) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X2_T(R0, R1, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x2.trans.m8n8.shared.b16 {%0, %1}, [%2];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LDMATRIX_X4_T(R0, R1, R2, R3, addr) asm volatile(<span class="string">"ldmatrix.sync.aligned.x4.trans.m8n8.shared.b16 {%0, %1, %2, %3}, [%4];\n"</span> : <span class="string">"=r"</span>(R0), <span class="string">"=r"</span>(R1), <span class="string">"=r"</span>(R2), <span class="string">"=r"</span>(R3) : <span class="string">"r"</span>(addr))</span></span><br><span class="line"><span class="comment">// stmatrix: requires sm_90 or higher.</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X1(addr, R) asm volatile(<span class="string">"stmatrix.sync.aligned.x1.m8n8.shared.b16 [%0], {%1};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X2(addr, R0, R1) asm volatile(<span class="string">"stmatrix.sync.aligned.x2.m8n8.shared.b16 [%0], {%1, %2};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R0), <span class="string">"r"</span>(R1))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X4(addr, R0, R1, R2, R3) asm volatile(<span class="string">"stmatrix.sync.aligned.x4.m8n8.shared.b16 [%0], {%1, %2, %3, %4};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R0), <span class="string">"r"</span>(R1), <span class="string">"r"</span>(R2), <span class="string">"r"</span>(R3))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X1_T(addr, R) asm volatile(<span class="string">"stmatrix.sync.aligned.x1.trans.m8n8.shared.b16 [%0], {%1};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X2_T(addr, R0, R1) asm volatile(<span class="string">"stmatrix.sync.aligned.x2.trans.m8n8.shared.b16 [%0], {%1, %2};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R0), <span class="string">"r"</span>(R1))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STMATRIX_X4_T(addr, R0, R1, R2, R3) asm volatile(<span class="string">"stmatrix.sync.aligned.x4.trans.m8n8.shared.b16 [%0], {%1, %2, %3, %4};\n"</span> :: <span class="string">"r"</span>(addr), <span class="string">"r"</span>(R0), <span class="string">"r"</span>(R1), <span class="string">"r"</span>(R2), <span class="string">"r"</span>(R3))</span></span><br><span class="line"><span class="comment">// mma m16n8k16</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HMMA16816(RD0, RD1, RA0, RA1, RA2, RA3, RB0, RB1, RC0, RC1) asm volatile(<span class="string">"mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 {%0, %1}, {%2, %3, %4, %5}, {%6, %7}, {%8, %9};\n"</span> : <span class="string">"=r"</span>(RD0), <span class="string">"=r"</span>(RD1) : <span class="string">"r"</span>(RA0), <span class="string">"r"</span>(RA1), <span class="string">"r"</span>(RA2), <span class="string">"r"</span>(RA3), <span class="string">"r"</span>(RB0), <span class="string">"r"</span>(RB1), <span class="string">"r"</span>(RC0), <span class="string">"r"</span>(RC1))</span></span><br><span class="line"></span><br><span class="line"><span class="function">HOST_DEVICE_INLINE </span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">div_ceil</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> </span>{ <span class="keyword">return</span> (a % b != <span class="number">0</span>) ? (a / b + <span class="number">1</span>) : (a / b); }</span><br><span class="line"></span><br><span class="line"><span class="comment">// 128x128, mma2x4, warp4x4(64,32,16), stages, block swizzle</span></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="type">const</span> <span class="type">int</span> MMA_M=<span class="number">16</span>, </span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> MMA_N=<span class="number">8</span>, </span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> MMA_K=<span class="number">16</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> MMA_TILE_M=<span class="number">2</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> MMA_TILE_N=<span class="number">4</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> WARP_TILE_M=<span class="number">4</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> WARP_TILE_N=<span class="number">4</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> A_PAD=<span class="number">0</span>, </span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> B_PAD=<span class="number">0</span>,</span><br><span class="line">         <span class="type">const</span> <span class="type">int</span> K_STAGE=<span class="number">2</span>, </span><br><span class="line">         <span class="type">const</span> <span class="type">bool</span> BLOCK_SWIZZLE=<span class="literal">true</span>&gt;</span><br><span class="line">__global__ <span class="type">void</span>  __launch_bounds__(<span class="number">256</span>) </span><br><span class="line"><span class="built_in">hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</span>(</span><br><span class="line">  half* A, half* B, half* C, <span class="type">int</span> M, <span class="type">int</span> N, <span class="type">int</span> K) {</span><br><span class="line">  <span class="comment">// BLOCK_SWIZZLE 0/1 control use block swizzle or not.</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> bx = ((<span class="type">int</span>) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> by = blockIdx.y;</span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> NUM_K_TILES = <span class="built_in">div_ceil</span>(K, MMA_K);</span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BM = MMA_M * MMA_TILE_M * WARP_TILE_M; <span class="comment">// 16*2*4=128</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BN = MMA_N * MMA_TILE_N * WARP_TILE_N; <span class="comment">// 8*4*4=128</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> BK = MMA_K; <span class="comment">// 16</span></span><br><span class="line"></span><br><span class="line">  __shared__ half s_a[K_STAGE][BM][BK+A_PAD]; <span class="comment">// 128*16*2=4KB</span></span><br><span class="line">  __shared__ half s_b[K_STAGE][BK][BN+B_PAD]; <span class="comment">// 16*128*2=4KB, 16*(128+16)*2=4.5KB</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> s_a_stage_offset = BM * (BK + A_PAD);</span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> s_b_stage_offset = BK * (BN + B_PAD);</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> tid = threadIdx.y * blockDim.x + threadIdx.x; <span class="comment">// within block</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> warp_id = tid / WARP_SIZE; <span class="comment">// 0~7 warp_id within block</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> lane_id = tid % WARP_SIZE; <span class="comment">// 0~31</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> warp_m = warp_id % <span class="number">2</span>; <span class="comment">// 0,1</span></span><br><span class="line">  <span class="type">const</span> <span class="type">int</span> warp_n = warp_id / <span class="number">2</span>; <span class="comment">// 0,1,2,3</span></span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> load_smem_a_m = tid / <span class="number">2</span>; <span class="comment">// row 0~127</span></span><br><span class="line">  <span class="type">int</span> load_smem_a_k = (tid % <span class="number">2</span> == <span class="number">0</span>) ? <span class="number">0</span> : <span class="number">8</span>; <span class="comment">// col 0,8</span></span><br><span class="line">  <span class="type">int</span> load_smem_b_k = tid / <span class="number">16</span>; <span class="comment">// row 0~15</span></span><br><span class="line">  <span class="type">int</span> load_smem_b_n = (tid % <span class="number">16</span>) * <span class="number">8</span>; <span class="comment">// col 0,8,...,120</span></span><br><span class="line">  <span class="type">int</span> load_gmem_a_m = by * BM + load_smem_a_m; <span class="comment">// global row of a and c</span></span><br><span class="line">  <span class="type">int</span> load_gmem_b_n = bx * BN + load_smem_b_n; <span class="comment">// global col of b and c</span></span><br><span class="line">  <span class="keyword">if</span> (load_gmem_a_m &gt;= M || load_gmem_b_n &gt;= N) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="type">uint32_t</span> RC[WARP_TILE_M][WARP_TILE_N][<span class="number">2</span>];</span><br><span class="line">  <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">      RC[i][j][<span class="number">0</span>] = <span class="number">0</span>;</span><br><span class="line">      RC[i][j][<span class="number">1</span>] = <span class="number">0</span>;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="type">uint32_t</span> smem_a_base_ptr = __cvta_generic_to_shared(s_a);</span><br><span class="line">  <span class="type">uint32_t</span> smem_b_base_ptr = __cvta_generic_to_shared(s_b);</span><br><span class="line"></span><br><span class="line">  <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; (K_STAGE - <span class="number">1</span>); ++k) { <span class="comment">// 0, 1</span></span><br><span class="line">    <span class="comment">// k * WMMA_K, WMMA_K=16 -&gt; (k &lt;&lt; 4)</span></span><br><span class="line">    <span class="type">int</span> load_gmem_a_k = k * BK + load_smem_a_k; <span class="comment">// global col of a</span></span><br><span class="line">    <span class="type">int</span> load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    <span class="type">int</span> load_gmem_b_k = k * BK + load_smem_b_k; <span class="comment">// global row of b</span></span><br><span class="line">    <span class="type">int</span> load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n; </span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> load_smem_a_ptr = (</span><br><span class="line">      smem_a_base_ptr + (k * s_a_stage_offset + </span><br><span class="line">                         load_smem_a_m * (BK + A_PAD) + </span><br><span class="line">                         load_smem_a_k) * <span class="built_in">sizeof</span>(half)</span><br><span class="line">    );</span><br><span class="line">    <span class="built_in">CP_ASYNC_CG</span>(load_smem_a_ptr, &amp;A[load_gmem_a_addr], <span class="number">16</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> load_smem_b_ptr = (</span><br><span class="line">      smem_b_base_ptr + (k * s_b_stage_offset + </span><br><span class="line">                         load_smem_b_k * (BN + B_PAD) + </span><br><span class="line">                         load_smem_b_n) * <span class="built_in">sizeof</span>(half)</span><br><span class="line">    );</span><br><span class="line">    <span class="built_in">CP_ASYNC_CG</span>(load_smem_b_ptr, &amp;B[load_gmem_b_addr], <span class="number">16</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">CP_ASYNC_COMMIT_GROUP</span>();</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="built_in">CP_ASYNC_WAIT_GROUP</span>(K_STAGE<span class="number">-2</span>); <span class="comment">// s2-&gt;0, s3-&gt;1, s4-&gt;2</span></span><br><span class="line">  __syncthreads(); </span><br><span class="line"></span><br><span class="line">  <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> k = (K_STAGE - <span class="number">1</span>); k &lt; NUM_K_TILES; ++k) {</span><br><span class="line">    <span class="comment">// gmem -&gt; smem</span></span><br><span class="line">    <span class="comment">// s2/4 can use bitwise ops but s3 can not, so, we use mod</span></span><br><span class="line">    <span class="comment">// ops for all stages kernel. s2: (k + 1)&amp;1, s4: (k + 1)&amp;3</span></span><br><span class="line">    <span class="comment">// s3: (k + 1) % 3</span></span><br><span class="line">    <span class="type">int</span> smem_sel = (k + <span class="number">1</span>) % K_STAGE; <span class="comment">// s3 k 2-&gt;0, k 3-&gt;1, k 4-&gt;2...</span></span><br><span class="line">    <span class="type">int</span> smem_sel_next = k % K_STAGE;  <span class="comment">// s3 k 2-&gt;2, k 3-&gt;0, k 4-&gt;1...</span></span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> load_gmem_a_k = k * BK + load_smem_a_k; <span class="comment">// global col of a</span></span><br><span class="line">    <span class="type">int</span> load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    <span class="type">int</span> load_gmem_b_k = k * BK + load_smem_b_k; <span class="comment">// global row of b</span></span><br><span class="line">    <span class="type">int</span> load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n; </span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> load_smem_a_ptr = (</span><br><span class="line">      smem_a_base_ptr + (smem_sel_next * s_a_stage_offset + </span><br><span class="line">                         load_smem_a_m * (BK + A_PAD) + </span><br><span class="line">                         load_smem_a_k) * <span class="built_in">sizeof</span>(half)</span><br><span class="line">    );</span><br><span class="line">    <span class="built_in">CP_ASYNC_CG</span>(load_smem_a_ptr, &amp;A[load_gmem_a_addr], <span class="number">16</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> load_smem_b_ptr = (</span><br><span class="line">      smem_b_base_ptr + (smem_sel_next * s_b_stage_offset + </span><br><span class="line">                         load_smem_b_k * (BN + B_PAD) + </span><br><span class="line">                         load_smem_b_n) * <span class="built_in">sizeof</span>(half)</span><br><span class="line">    );</span><br><span class="line">    <span class="built_in">CP_ASYNC_CG</span>(load_smem_b_ptr, &amp;B[load_gmem_b_addr], <span class="number">16</span>);</span><br><span class="line">    <span class="built_in">CP_ASYNC_COMMIT_GROUP</span>();</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// ldmatrix for s_a, ldmatrix.trans for s_b.</span></span><br><span class="line">    <span class="type">uint32_t</span> RA[WARP_TILE_M][<span class="number">4</span>];</span><br><span class="line">    <span class="type">uint32_t</span> RB[WARP_TILE_N][<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="comment">// smem -&gt; reg</span></span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">      <span class="type">int</span> warp_smem_a_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;</span><br><span class="line">      <span class="type">int</span> lane_smem_a_m = warp_smem_a_m + lane_id % <span class="number">16</span>; <span class="comment">// 0~15</span></span><br><span class="line">      <span class="type">int</span> lane_smem_a_k = (lane_id / <span class="number">16</span>) * <span class="number">8</span>; <span class="comment">// 0,8</span></span><br><span class="line">      <span class="type">uint32_t</span> lane_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">        &amp;s_a[smem_sel][lane_smem_a_m][lane_smem_a_k]);</span><br><span class="line">      <span class="built_in">LDMATRIX_X4</span>(RA[i][<span class="number">0</span>], RA[i][<span class="number">1</span>], RA[i][<span class="number">2</span>], RA[i][<span class="number">3</span>], lane_smem_a_ptr);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">      <span class="type">int</span> warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;</span><br><span class="line">      <span class="type">int</span> lane_smem_b_k = lane_id % <span class="number">16</span>;  <span class="comment">// 0~15</span></span><br><span class="line">      <span class="type">int</span> lane_smem_b_n = warp_smem_b_n; <span class="comment">// 0, MMA_N=8</span></span><br><span class="line">      <span class="type">uint32_t</span> lane_smem_b_ptr = __cvta_generic_to_shared(</span><br><span class="line">        &amp;s_b[smem_sel][lane_smem_b_k][lane_smem_b_n]);</span><br><span class="line">      <span class="built_in">LDMATRIX_X2_T</span>(RB[j][<span class="number">0</span>], RB[j][<span class="number">1</span>], lane_smem_b_ptr);</span><br><span class="line">    }</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// MMA compute</span></span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">      <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">        <span class="built_in">HMMA16816</span>(RC[i][j][<span class="number">0</span>], RC[i][j][<span class="number">1</span>], </span><br><span class="line">                  RA[i][<span class="number">0</span>], RA[i][<span class="number">1</span>], RA[i][<span class="number">2</span>], RA[i][<span class="number">3</span>], </span><br><span class="line">                  RB[j][<span class="number">0</span>], RB[j][<span class="number">1</span>], </span><br><span class="line">                  RC[i][j][<span class="number">0</span>], RC[i][j][<span class="number">1</span>]);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="built_in">CP_ASYNC_WAIT_GROUP</span>(K_STAGE<span class="number">-2</span>);</span><br><span class="line">    __syncthreads(); </span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// make sure all memory issues ready.</span></span><br><span class="line">  <span class="keyword">if</span> ((K_STAGE - <span class="number">2</span>) &gt; <span class="number">0</span>) {</span><br><span class="line">    <span class="built_in">CP_ASYNC_WAIT_GROUP</span>(<span class="number">0</span>);</span><br><span class="line">    __syncthreads(); </span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// processing last (K_STAGE-1) k iters.</span></span><br><span class="line">  {</span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; (K_STAGE - <span class="number">1</span>); k++) {</span><br><span class="line">      <span class="type">int</span> stage_sel = ((NUM_K_TILES - (K_STAGE - <span class="number">1</span>) + k) % K_STAGE);</span><br><span class="line">      <span class="comment">// ldmatrix for s_a, ldmatrix.trans for s_b.</span></span><br><span class="line">      <span class="type">uint32_t</span> RA[WARP_TILE_M][<span class="number">4</span>];</span><br><span class="line">      <span class="type">uint32_t</span> RB[WARP_TILE_N][<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">      <span class="comment">// smem -&gt; reg</span></span><br><span class="line">      <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">        <span class="type">int</span> warp_smem_a_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;</span><br><span class="line">        <span class="type">int</span> lane_smem_a_m = warp_smem_a_m + lane_id % <span class="number">16</span>; <span class="comment">// 0~15</span></span><br><span class="line">        <span class="type">int</span> lane_smem_a_k = (lane_id / <span class="number">16</span>) * <span class="number">8</span>; <span class="comment">// 0,8</span></span><br><span class="line">        <span class="type">uint32_t</span> lane_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">          &amp;s_a[stage_sel][lane_smem_a_m][lane_smem_a_k]);</span><br><span class="line">        <span class="built_in">LDMATRIX_X4</span>(RA[i][<span class="number">0</span>], RA[i][<span class="number">1</span>], RA[i][<span class="number">2</span>], RA[i][<span class="number">3</span>], lane_smem_a_ptr);</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">        <span class="type">int</span> warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;</span><br><span class="line">        <span class="type">int</span> lane_smem_b_k = lane_id % <span class="number">16</span>;  <span class="comment">// 0~15</span></span><br><span class="line">        <span class="type">int</span> lane_smem_b_n = warp_smem_b_n; <span class="comment">// 0, MMA_N=8</span></span><br><span class="line">        <span class="type">uint32_t</span> lane_smem_b_ptr = __cvta_generic_to_shared(</span><br><span class="line">          &amp;s_b[stage_sel][lane_smem_b_k][lane_smem_b_n]);</span><br><span class="line">        <span class="built_in">LDMATRIX_X2_T</span>(RB[j][<span class="number">0</span>], RB[j][<span class="number">1</span>], lane_smem_b_ptr);</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="comment">// MMA compute</span></span><br><span class="line">      <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">        <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">          <span class="built_in">HMMA16816</span>(RC[i][j][<span class="number">0</span>], RC[i][j][<span class="number">1</span>], </span><br><span class="line">                    RA[i][<span class="number">0</span>], RA[i][<span class="number">1</span>], RA[i][<span class="number">2</span>], RA[i][<span class="number">3</span>], </span><br><span class="line">                    RB[j][<span class="number">0</span>], RB[j][<span class="number">1</span>], </span><br><span class="line">                    RC[i][j][<span class="number">0</span>], RC[i][j][<span class="number">1</span>]);</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// reg -&gt; gmem, MMA_MxMMA_N=16x8</span></span><br><span class="line">  <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">    <span class="meta">#<span class="keyword">pragma</span> unroll</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">      <span class="type">int</span> store_warp_smem_c_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;</span><br><span class="line">      <span class="type">int</span> store_warp_smem_c_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;</span><br><span class="line">      <span class="comment">// mapping lane smem index -&gt; global index.</span></span><br><span class="line">      <span class="comment">// [16][8], https://docs.nvidia.com/cuda/parallel-thread-execution/index.html</span></span><br><span class="line">      <span class="comment">// #matrix-fragments-for-mma-m16n8k16-with-floating-point-type</span></span><br><span class="line">      <span class="comment">// [0~7][0~3 u32 -&gt; 0~7 f16], [8~15][0~3 u32 -&gt; 0~7 f16]</span></span><br><span class="line">      <span class="type">int</span> store_lane_gmem_c_m = by * BM + store_warp_smem_c_m + lane_id / <span class="number">4</span>;</span><br><span class="line">      <span class="type">int</span> store_lane_gmem_c_n = bx * BN + store_warp_smem_c_n + (lane_id % <span class="number">4</span>) * <span class="number">2</span>;</span><br><span class="line">      <span class="type">int</span> store_gmem_c_addr_0 = store_lane_gmem_c_m * N + store_lane_gmem_c_n;</span><br><span class="line">      <span class="type">int</span> store_gmem_c_addr_1 = (store_lane_gmem_c_m + <span class="number">8</span>) * N + store_lane_gmem_c_n;</span><br><span class="line">      <span class="built_in">LDST32BITS</span>(C[store_gmem_c_addr_0]) = <span class="built_in">LDST32BITS</span>(RC[i][j][<span class="number">0</span>]); </span><br><span class="line">      <span class="built_in">LDST32BITS</span>(C[store_gmem_c_addr_1]) = <span class="built_in">LDST32BITS</span>(RC[i][j][<span class="number">1</span>]); </span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="目录"><a class="markdownIt-Anchor" href="#目录"></a> 目录</h2>
+<ol>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#1-kernel-%E6%A6%82%E8%BF%B0">Kernel 概述<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#2-multi-stage-pipeline-%E5%8E%9F%E7%90%86">Multi-stage Pipeline 原理<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#3-%E5%BC%82%E6%AD%A5%E6%8B%B7%E8%B4%9D-cpasync-%E6%8C%87%E4%BB%A4">异步拷贝 cp.async 指令<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#4-%E6%B5%81%E6%B0%B4%E7%BA%BF%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3">流水线实现详解<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#5-block-swizzle-%E4%BC%98%E5%8C%96">Block Swizzle 优化<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#6-%E5%AE%8C%E6%95%B4%E4%BB%A3%E7%A0%81%E6%B5%81%E7%A8%8B">完整代码流程<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/tzefza7d94oxfzdu#7-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E8%A6%81%E7%82%B9">性能优化要点<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ol>
+<hr>
+<h2 id="1-kernel-概述"><a class="markdownIt-Anchor" href="#1-kernel-概述"></a> 1. Kernel 概述</h2>
+<h3 id="11-功能描述"><a class="markdownIt-Anchor" href="#11-功能描述"></a> 1.1 功能描述</h3>
+<p>该 Kernel 在基础版本 <code>hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel</code> 基础上增加了两项关键优化：</p>
+<ol>
+<li><strong>Multi-stage Pipeline</strong>: 使用异步拷贝实现多阶段流水线，隐藏访存延迟</li>
+<li><strong>Block Swizzle</strong>: 重新映射 Block 与矩阵位置的关系，提升 L2 Cache 命中率</li>
+</ol>
+<h3 id="12-核心配置"><a class="markdownIt-Anchor" href="#12-核心配置"></a> 1.2 核心配置</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Block Tile</td>
+<td>128×128</td>
+<td>每个 Block 计算 C 的 128×128 子块</td>
+</tr>
+<tr>
+<td>线程数/Block</td>
+<td>256</td>
+<td>8 个 Warp</td>
+</tr>
+<tr>
+<td>Warp Tile</td>
+<td>64×32</td>
+<td>每个 Warp 计算 64×32 区域</td>
+</tr>
+<tr>
+<td>K_STAGE</td>
+<td>2/3/4</td>
+<td>流水线深度（可配置）</td>
+</tr>
+<tr>
+<td>BLOCK_SWIZZLE</td>
+<td>true/false</td>
+<td>是否启用 Block Swizzle</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-模板参数"><a class="markdownIt-Anchor" href="#13-模板参数"></a> 1.3 模板参数</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">template&lt;const int MMA_M=16, </span><br><span class="line">         const int MMA_N=8, </span><br><span class="line">         const int MMA_K=16,</span><br><span class="line">         const int MMA_TILE_M=2, </span><br><span class="line">         const int MMA_TILE_N=4,</span><br><span class="line">         const int WARP_TILE_M=4, </span><br><span class="line">         const int WARP_TILE_N=4, </span><br><span class="line">         const int WARP_TILE_K=2,  // 每次处理 2 个 K tile (32 elements)</span><br><span class="line">         const int A_PAD=0, </span><br><span class="line">         const int B_PAD=0, </span><br><span class="line">         const int K_STAGE=2,      // 流水线阶段数</span><br><span class="line">         const bool BLOCK_SWIZZLE=false&gt;  // 是否启用 Block Swizzle</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="2-multi-stage-pipeline-原理"><a class="markdownIt-Anchor" href="#2-multi-stage-pipeline-原理"></a> 2. Multi-stage Pipeline 原理</h2>
+<h3 id="21-为什么需要流水线"><a class="markdownIt-Anchor" href="#21-为什么需要流水线"></a> 2.1 为什么需要流水线？</h3>
+<p><strong>问题</strong>：基础 Kernel 的执行模式</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">基础版本的串行执行：</span><br><span class="line">┌──────────────────────────────────────────────────────────────┐</span><br><span class="line">│ 时间线                                                        │</span><br><span class="line">├──────────────────────────────────────────────────────────────┤</span><br><span class="line">│ K=0:  [Load A,B] → [等待] → [Compute MMA] → [等待下一次 Load] │</span><br><span class="line">│ K=1:  [Load A,B] → [等待] → [Compute MMA] → [等待下一次 Load] │</span><br><span class="line">│ ...                                                           │</span><br><span class="line">└──────────────────────────────────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">问题：Global Memory 访问延迟约 400-800 cycles，计算单元大量空闲！</span><br></pre></td></tr></table></figure></div>
+<h3 id="22-流水线解决方案"><a class="markdownIt-Anchor" href="#22-流水线解决方案"></a> 2.2 流水线解决方案</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">K_STAGE=2 的双缓冲流水线：</span><br><span class="line">┌──────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│ 时间线                                                                │</span><br><span class="line">├──────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│ Stage 0: [Load K=0 → buf0] [Load K=2 → buf0] [Load K=4 → buf0] ...  │</span><br><span class="line">│ Stage 1:        [Load K=1 → buf1] [Load K=3 → buf1] [Load K=5 ...   │</span><br><span class="line">│ Compute:              [MMA K=0]   [MMA K=1]   [MMA K=2]   ...       │</span><br><span class="line">└──────────────────────────────────────────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">效果：Load 和 Compute 重叠执行，隐藏访存延迟！</span><br></pre></td></tr></table></figure></div>
+<h3 id="23-k_stage-配置对比"><a class="markdownIt-Anchor" href="#23-k_stage-配置对比"></a> 2.3 K_STAGE 配置对比</h3>
+<table>
+<thead>
+<tr>
+<th>K_STAGE</th>
+<th>Shared Memory 用量</th>
+<th>流水线深度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td>2× 基础用量</td>
+<td>双缓冲</td>
+<td>通用场景</td>
+</tr>
+<tr>
+<td>3</td>
+<td>3× 基础用量</td>
+<td>三缓冲</td>
+<td>高延迟场景</td>
+</tr>
+<tr>
+<td>4</td>
+<td>4× 基础用量</td>
+<td>四缓冲</td>
+<td>超高延迟场景</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Shared Memory 计算</strong> (以 K_STAGE=2 为例):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">s_a: K_STAGE × BM × (BK × WARP_TILE_K + A_PAD) = 2 × 128 × (16×2+8) = 10 KB</span><br><span class="line">s_b: K_STAGE × BK × WARP_TILE_K × (BN + B_PAD) = 2 × 16×2 × (128+8) = 17.4 KB</span><br><span class="line">总计约 27.4 KB</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="3-异步拷贝-cpasync-指令"><a class="markdownIt-Anchor" href="#3-异步拷贝-cpasync-指令"></a> 3. 异步拷贝 cp.async 指令</h2>
+<h3 id="31-cpasync-指令简介"><a class="markdownIt-Anchor" href="#31-cpasync-指令简介"></a> 3.1 cp.async 指令简介</h3>
+<p><code>cp.async</code> 是 CUDA 计算能力 8.0+ (Ampere) 引入的异步拷贝指令：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// 16 bytes (128 bits) 异步拷贝，绕过 L1 cache</span><br><span class="line">cp.async.cg.shared.global [dst], [src], 16;</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cp.async</code></td>
+<td>异步执行，不阻塞后续指令</td>
+</tr>
+<tr>
+<td><code>.cg</code></td>
+<td>Cache Global，仅使用 L2 cache</td>
+</tr>
+<tr>
+<td><code>16</code></td>
+<td>拷贝 16 字节 (8 个 half)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-关键同步指令"><a class="markdownIt-Anchor" href="#32-关键同步指令"></a> 3.2 关键同步指令</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 提交所有 cp.async 操作到 async group</span><br><span class="line">cp.async.commit_group;</span><br><span class="line"></span><br><span class="line">// 等待 async group 完成（N 表示等待到只剩 N 个未完成）</span><br><span class="line">cp.async.wait_group N;</span><br></pre></td></tr></table></figure></div>
+<h3 id="33-代码中的宏定义"><a class="markdownIt-Anchor" href="#33-代码中的宏定义"></a> 3.3 代码中的宏定义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">#define CP_ASYNC_CG(dst, src, bytes) \</span><br><span class="line">    asm volatile("cp.async.cg.shared.global.L2::128B [%0], [%1], %2;\n" \</span><br><span class="line">        :: "r"(dst), "l"(src), "n"(bytes))</span><br><span class="line"></span><br><span class="line">#define CP_ASYNC_COMMIT_GROUP() asm volatile("cp.async.commit_group;\n" ::)</span><br><span class="line"></span><br><span class="line">#define CP_ASYNC_WAIT_GROUP(N)  asm volatile("cp.async.wait_group %0;\n" :: "n"(N))</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="4-流水线实现详解"><a class="markdownIt-Anchor" href="#4-流水线实现详解"></a> 4. 流水线实现详解</h2>
+<h3 id="41-shared-memory-多缓冲布局"><a class="markdownIt-Anchor" href="#41-shared-memory-多缓冲布局"></a> 4.1 Shared Memory 多缓冲布局</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// K_STAGE 个缓冲区</span><br><span class="line">__shared__ half s_a[K_STAGE][BM][BK * WARP_TILE_K + A_PAD];  </span><br><span class="line">// K_STAGE=2: s_a[2][128][40]</span><br><span class="line"></span><br><span class="line">__shared__ half s_b[K_STAGE][BK * WARP_TILE_K][BN + B_PAD];  </span><br><span class="line">// K_STAGE=2: s_b[2][32][136]</span><br></pre></td></tr></table></figure></div>
+<p><strong>缓冲区示意图</strong> (K_STAGE=2):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Shared Memory 布局：</span><br><span class="line">┌─────────────────────────────────────────┐</span><br><span class="line">│ s_a[0][128][40]  ← Stage 0 的 A buffer  │</span><br><span class="line">├─────────────────────────────────────────┤</span><br><span class="line">│ s_a[1][128][40]  ← Stage 1 的 A buffer  │</span><br><span class="line">├─────────────────────────────────────────┤</span><br><span class="line">│ s_b[0][32][136]  ← Stage 0 的 B buffer  │</span><br><span class="line">├─────────────────────────────────────────┤</span><br><span class="line">│ s_b[1][32][136]  ← Stage 1 的 B buffer  │</span><br><span class="line">└─────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="42-prologue流水线填充阶段"><a class="markdownIt-Anchor" href="#42-prologue流水线填充阶段"></a> 4.2 Prologue（流水线填充阶段）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// 预加载前 K_STAGE-1 个 tile 到 Shared Memory</span><br><span class="line">#pragma unroll</span><br><span class="line">for (int k = 0; k &lt; (K_STAGE - 1); ++k) {</span><br><span class="line">    // Stage k 加载到 s_a[k] 和 s_b[k]</span><br><span class="line">    int load_gmem_a_k = k * BK * WARP_TILE_K + load_smem_a_k;</span><br><span class="line">    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    int load_gmem_b_k = k * BK * WARP_TILE_K + load_smem_b_k;</span><br><span class="line">    int load_gmem_b_addr = load_gmem_b_k * N + load_smem_b_n;</span><br><span class="line">    </span><br><span class="line">    uint32_t load_smem_a_ptr = __cvta_generic_to_shared(&amp;s_a[k][load_smem_a_m][load_smem_a_k]);</span><br><span class="line">    CP_ASYNC_CG(load_smem_a_ptr, &amp;A[load_gmem_a_addr], 16);  // 异步加载 A</span><br><span class="line">    </span><br><span class="line">    uint32_t load_smem_b_ptr = __cvta_generic_to_shared(&amp;s_b[k][load_smem_b_k][load_smem_b_n]);</span><br><span class="line">    CP_ASYNC_CG(load_smem_b_ptr, &amp;B[load_gmem_b_addr], 16);  // 异步加载 B</span><br><span class="line">    </span><br><span class="line">    CP_ASYNC_COMMIT_GROUP();  // 提交当前 stage 的异步操作</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">CP_ASYNC_WAIT_GROUP(0);  // 等待所有预加载完成</span><br><span class="line">__syncthreads();</span><br></pre></td></tr></table></figure></div>
+<p><strong>时序图</strong> (K_STAGE=2):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">时间 →</span><br><span class="line">─────────────────────────────────────────────</span><br><span class="line">Prologue:</span><br><span class="line">  [Load K=0 → buf[0]]</span><br><span class="line">  [cp.async.commit]</span><br><span class="line">  [cp.async.wait_group 0]  // 等待 buf[0] 就绪</span><br><span class="line">  [__syncthreads]</span><br><span class="line">─────────────────────────────────────────────</span><br></pre></td></tr></table></figure></div>
+<h3 id="43-main-loop主循环流水线"><a class="markdownIt-Anchor" href="#43-main-loop主循环流水线"></a> 4.3 Main Loop（主循环流水线）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">#pragma unroll</span><br><span class="line">for (int k = (K_STAGE - 1); k &lt; NUM_K_TILES; ++k) {</span><br><span class="line">    int smem_sel = (k - 1) % K_STAGE;      // 当前计算使用的 buffer</span><br><span class="line">    int smem_sel_next = k % K_STAGE;        // 下一次加载使用的 buffer</span><br><span class="line">    </span><br><span class="line">    // ========== Step 1: 启动下一个 tile 的异步加载 ==========</span><br><span class="line">    int load_gmem_a_k = k * BK * WARP_TILE_K + load_smem_a_k;</span><br><span class="line">    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    int load_gmem_b_k = k * BK * WARP_TILE_K + load_smem_b_k;</span><br><span class="line">    int load_gmem_b_addr = load_gmem_b_k * N + load_smem_b_n;</span><br><span class="line">    </span><br><span class="line">    uint32_t load_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">        &amp;s_a[smem_sel_next][load_smem_a_m][load_smem_a_k]);</span><br><span class="line">    CP_ASYNC_CG(load_smem_a_ptr, &amp;A[load_gmem_a_addr], 16);</span><br><span class="line">    </span><br><span class="line">    uint32_t load_smem_b_ptr = __cvta_generic_to_shared(</span><br><span class="line">        &amp;s_b[smem_sel_next][load_smem_b_k][load_smem_b_n]);</span><br><span class="line">    CP_ASYNC_CG(load_smem_b_ptr, &amp;B[load_gmem_b_addr], 16);</span><br><span class="line">    </span><br><span class="line">    CP_ASYNC_COMMIT_GROUP();</span><br><span class="line">    </span><br><span class="line">    // ========== Step 2: 从当前 buffer 加载数据到寄存器 ==========</span><br><span class="line">    // 加载 A 到 RA (使用 ldmatrix.x4)</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int i = 0; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">        int warp_smem_a_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;</span><br><span class="line">        int lane_smem_a_m = warp_smem_a_m + lane_id % 16;</span><br><span class="line">        int lane_smem_a_k = (lane_id / 16) * 8;</span><br><span class="line">        uint32_t lane_smem_a_ptr = __cvta_generic_to_shared(</span><br><span class="line">            &amp;s_a[smem_sel][lane_smem_a_m][lane_smem_a_k]);</span><br><span class="line">        LDMATRIX_X4(RA[i][0], RA[i][1], RA[i][2], RA[i][3], lane_smem_a_ptr);</span><br><span class="line">    }</span><br><span class="line">    </span><br><span class="line">    // 加载 B 到 RB (使用 ldmatrix.x2.trans)</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int j = 0; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">        int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;</span><br><span class="line">        int lane_smem_b_k = lane_id % 16;</span><br><span class="line">        uint32_t lane_smem_b_ptr = __cvta_generic_to_shared(</span><br><span class="line">            &amp;s_b[smem_sel][lane_smem_b_k][warp_smem_b_n]);</span><br><span class="line">        LDMATRIX_X2_T(RB[j][0], RB[j][1], lane_smem_b_ptr);</span><br><span class="line">    }</span><br><span class="line">    </span><br><span class="line">    // ========== Step 3: 等待异步加载完成 ==========</span><br><span class="line">    CP_ASYNC_WAIT_GROUP(K_STAGE - 2);</span><br><span class="line">    __syncthreads();</span><br><span class="line">    </span><br><span class="line">    // ========== Step 4: 执行 MMA 计算 ==========</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int i = 0; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">        #pragma unroll</span><br><span class="line">        for (int j = 0; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">            HMMA16816(RC[i][j][0], RC[i][j][1],</span><br><span class="line">                      RA[i][0], RA[i][1], RA[i][2], RA[i][3],</span><br><span class="line">                      RB[j][0], RB[j][1],</span><br><span class="line">                      RC[i][j][0], RC[i][j][1]);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    </span><br><span class="line">    // 第二个 K tile (WARP_TILE_K=2 时)</span><br><span class="line">    // ... 类似的加载和计算 ...</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="44-流水线时序图-k_stage2"><a class="markdownIt-Anchor" href="#44-流水线时序图-k_stage2"></a> 4.4 流水线时序图 (K_STAGE=2)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">K-tile:     0        1        2        3        4</span><br><span class="line">          ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐</span><br><span class="line">Load A,B: │buf0│──│buf1│──│buf0│──│buf1│──│buf0│</span><br><span class="line">          └────┘  └────┘  └────┘  └────┘  └────┘</span><br><span class="line">                    │        │        │        │</span><br><span class="line">                    ▼        ▼        ▼        ▼</span><br><span class="line">                 ┌────┐  ┌────┐  ┌────┐  ┌────┐</span><br><span class="line">Compute:         │K=0 │──│K=1 │──│K=2 │──│K=3 │</span><br><span class="line">                 └────┘  └────┘  └────┘  └────┘</span><br><span class="line"></span><br><span class="line">Buffer 使用:</span><br><span class="line">- K=0 加载到 buf[0]</span><br><span class="line">- K=1 加载到 buf[1]，同时计算 buf[0] 的数据</span><br><span class="line">- K=2 加载到 buf[0]，同时计算 buf[1] 的数据</span><br><span class="line">- ...</span><br></pre></td></tr></table></figure></div>
+<h3 id="45-epilogue流水线排空阶段"><a class="markdownIt-Anchor" href="#45-epilogue流水线排空阶段"></a> 4.5 Epilogue（流水线排空阶段）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// 处理最后 K_STAGE-1 个 tile（无需再预加载）</span><br><span class="line">#pragma unroll</span><br><span class="line">for (int k = 0; k &lt; (K_STAGE - 1); ++k) {</span><br><span class="line">    int smem_sel = ((NUM_K_TILES - 1) - (K_STAGE - 2) + k) % K_STAGE;</span><br><span class="line">    </span><br><span class="line">    // 从 buffer 加载到寄存器</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int i = 0; i &lt; WARP_TILE_M; ++i) { ... }</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int j = 0; j &lt; WARP_TILE_N; ++j) { ... }</span><br><span class="line">    </span><br><span class="line">    // 执行 MMA 计算</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int i = 0; i &lt; WARP_TILE_M; ++i) {</span><br><span class="line">        #pragma unroll</span><br><span class="line">        for (int j = 0; j &lt; WARP_TILE_N; ++j) {</span><br><span class="line">            HMMA16816(...);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="5-block-swizzle-优化"><a class="markdownIt-Anchor" href="#5-block-swizzle-优化"></a> 5. Block Swizzle 优化</h2>
+<h3 id="51-问题背景l2-cache-不友好的访问模式"><a class="markdownIt-Anchor" href="#51-问题背景l2-cache-不友好的访问模式"></a> 5.1 问题背景：L2 Cache 不友好的访问模式</h3>
+<p><strong>传统 Block 调度方式</strong>：GPU 按 <code>blockIdx.x</code> 递增顺序调度 Block</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">传统调度 (行优先)：</span><br><span class="line">                    矩阵 B 的 N 维度</span><br><span class="line">              ←────────────────────────────────→</span><br><span class="line">              col 0    col 1    col 2    ...</span><br><span class="line">            ┌────────┬────────┬────────┬────────┐</span><br><span class="line">   row 0    │ blk 0  │ blk 1  │ blk 2  │ blk 3  │ ← Block 0,1,2,3 连续执行</span><br><span class="line">            ├────────┼────────┼────────┼────────┤</span><br><span class="line">矩 row 1    │ blk 4  │ blk 5  │ blk 6  │ blk 7  │ ← Block 4,5,6,7 连续执行</span><br><span class="line">阵          ├────────┼────────┼────────┼────────┤</span><br><span class="line">A  row 2    │ blk 8  │ blk 9  │ blk 10 │ blk 11 │</span><br><span class="line">的          └────────┴────────┴────────┴────────┘</span><br><span class="line">M</span><br><span class="line">维</span><br><span class="line">度</span><br></pre></td></tr></table></figure></div>
+<p><strong>问题分析</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Block 0 需要: A[row0, :], B[:, col0]</span><br><span class="line">Block 1 需要: A[row0, :], B[:, col1]  // A[row0] 可复用，但 B 不同列</span><br><span class="line">Block 2 需要: A[row0, :], B[:, col2]  // A[row0] 可复用，但 B 不同列</span><br><span class="line">Block 3 需要: A[row0, :], B[:, col3]  // A[row0] 可复用，但 B 不同列</span><br><span class="line"></span><br><span class="line">问题：当 N 很大时，B 的不同列可能无法同时在 L2 cache 中</span><br><span class="line">     导致：B[:, col0] 被 evict 后，下一行的 Block 4 还需要访问 B[:, col0]</span><br></pre></td></tr></table></figure></div>
+<h3 id="52-block-swizzle-解决方案"><a class="markdownIt-Anchor" href="#52-block-swizzle-解决方案"></a> 5.2 Block Swizzle 解决方案</h3>
+<p><strong>核心思想</strong>：将 Block 划分为多个 “Swizzle 组”，每组内的 Block 访问相邻的数据</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">// Block Swizzle 实现</span><br><span class="line">const int bx = ((int) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;</span><br><span class="line">const int by = blockIdx.y;</span><br></pre></td></tr></table></figure></div>
+<p><strong>Grid 配置</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">const int N_SWIZZLE = (N + stride - 1) / stride;  // stride = 2048 (默认)</span><br><span class="line"></span><br><span class="line">dim3 grid(</span><br><span class="line">    (div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,  // gridDim.x</span><br><span class="line">    div_ceil(M, BM),                                  // gridDim.y</span><br><span class="line">    N_SWIZZLE                                         // gridDim.z</span><br><span class="line">);</span><br></pre></td></tr></table></figure></div>
+<h3 id="53-swizzle-映射公式详解"><a class="markdownIt-Anchor" href="#53-swizzle-映射公式详解"></a> 5.3 Swizzle 映射公式详解</h3>
+<p>设矩阵大小 <code>M=N=4096</code>, <code>BM=BN=128</code>, <code>stride=2048</code>:</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">计算参数:</span><br><span class="line">- blocks_per_row = N / BN = 4096 / 128 = 32 blocks</span><br><span class="line">- N_SWIZZLE = (4096 + 2048 - 1) / 2048 = 2</span><br><span class="line">- gridDim.x = (32 + 2 - 1) / 2 = 16</span><br><span class="line">- gridDim.y = 4096 / 128 = 32</span><br><span class="line">- gridDim.z = 2</span><br></pre></td></tr></table></figure></div>
+<p><strong>映射表</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>blockIdx.z</th>
+<th>blockIdx.x</th>
+<th>bx = z*16 + x</th>
+<th>实际列位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>列 0-127</td>
+</tr>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>列 128-255</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>0</td>
+<td>15</td>
+<td>15</td>
+<td>列 1920-2047</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>16</td>
+<td>列 2048-2175</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>17</td>
+<td>列 2176-2303</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody>
+</table>
+<h3 id="54-swizzle-效果对比"><a class="markdownIt-Anchor" href="#54-swizzle-效果对比"></a> 5.4 Swizzle 效果对比</h3>
+<p><strong>传统调度</strong>（无 Swizzle）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">GPU 调度顺序: 0 → 1 → 2 → 3 → ... → 31 (同一行)</span><br><span class="line">              ↓</span><br><span class="line">             32 → 33 → ... → 63 (下一行)</span><br><span class="line"></span><br><span class="line">L2 Cache 行为:</span><br><span class="line">- Block 0-31 逐个访问 B 的 32 列</span><br><span class="line">- 当 Block 32 开始时，B[:, col0] 可能已被 evict</span><br><span class="line">- Block 32 需要重新从 DRAM 加载 B[:, col0]</span><br></pre></td></tr></table></figure></div>
+<p><strong>Swizzle 调度</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">GPU 调度顺序 (N_SWIZZLE=2):</span><br><span class="line">  z=0: 0 → 1 → 2 → ... → 15  (前 16 列)</span><br><span class="line">  z=1: 16 → 17 → ... → 31    (后 16 列)</span><br><span class="line"></span><br><span class="line">物理执行可能: 0, 16, 1, 17, 2, 18, ...（交错执行）</span><br><span class="line"></span><br><span class="line">L2 Cache 行为:</span><br><span class="line">- Block 0 和 Block 16 可能同时执行</span><br><span class="line">- Block 0 访问 B[:, col0-15], Block 16 访问 B[:, col16-31]</span><br><span class="line">- 两个 Block 共享相同的 A 行数据！</span><br><span class="line">- 相邻执行的 Block 更可能复用 L2 cache 中的数据</span><br></pre></td></tr></table></figure></div>
+<h3 id="55-可视化对比"><a class="markdownIt-Anchor" href="#55-可视化对比"></a> 5.5 可视化对比</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">传统调度：Block 按行顺序执行</span><br><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│  0 → 1 → 2 → 3 → 4 → 5 → ... → 31                  │ ← 同一行全部执行</span><br><span class="line">├─────────────────────────────────────────────────────┤</span><br><span class="line">│ 32 → 33 → 34 → ...                                 │ ← 换行，B 数据可能已 evict</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">Swizzle 调度：Block 按 "带" 交错执行</span><br><span class="line">┌─────────────────────┬───────────────────────────────┐</span><br><span class="line">│ z=0: 0,1,2,...,15   │ z=1: 16,17,18,...,31         │</span><br><span class="line">├─────────────────────┼───────────────────────────────┤</span><br><span class="line">│ 相邻 Block (0和16)  │ 可能同时在 L2 cache 中       │</span><br><span class="line">│ 共享 A 的相同行！   │                               │</span><br><span class="line">└─────────────────────┴───────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="56-stride-参数的选择"><a class="markdownIt-Anchor" href="#56-stride-参数的选择"></a> 5.6 stride 参数的选择</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">template &lt;const int BLOCK_SWIZZLE_STRIDE = 2048&gt;</span><br></pre></td></tr></table></figure></div>
+<p><strong>stride = 2048 的选择依据</strong>：</p>
+<ol>
+<li><strong>L2 Cache 容量匹配</strong></li>
+</ol>
+<ul>
+<li>A100 L2 cache = 40 MB</li>
+<li>一条带的 B 数据量: <code>stride × K × sizeof(half) = 2048 × 4096 × 2 = 16 MB</code></li>
+<li>加上 A 数据，总量仍可容纳在 L2 cache 中</li>
+</ul>
+<ol>
+<li><strong>Block 数量平衡</strong></li>
+</ol>
+<ul>
+<li><code>stride / BN = 2048 / 128 = 16 blocks</code> 为一组</li>
+<li>16 个 Block 形成一个 “复用组”，共享 A 矩阵的相同行</li>
+</ul>
+<ol>
+<li><strong>经验值</strong></li>
+</ol>
+<ul>
+<li>太小：Swizzle 效果不明显</li>
+<li>太大：超出 L2 cache 容量，导致 cache miss</li>
+<li>2048 是在多种 GPU 上验证过的良好平衡点</li>
+</ul>
+<h3 id="57-block-swizzle-的本质"><a class="markdownIt-Anchor" href="#57-block-swizzle-的本质"></a> 5.7 Block Swizzle 的本质</h3>
+<p><strong>核心问题</strong>：Block Swizzle 本质上是根据 Block 的执行顺序，通过<strong>映射函数</strong>改变 Block 计算的矩阵位置，以达到按顺序执行的 Block 能<strong>最大化数据复用</strong>。</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">映射函数: bx = blockIdx.z * gridDim.x + blockIdx.x</span><br><span class="line"></span><br><span class="line">作用：将原本按行顺序执行的 Block，重新映射为按 "带" 交错执行</span><br><span class="line">目的：使相邻执行的 Block 能够复用 L2 Cache 中的数据</span><br></pre></td></tr></table></figure></div>
+<p><strong>传统调度 vs Swizzle 调度</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">传统调度（无 Swizzle）：</span><br><span class="line">- Block 0→1→2→...→31 连续执行同一行</span><br><span class="line">- 每个 Block 读取不同的 A 行或 B 列</span><br><span class="line">- L2 Cache 复用差，大量 cache miss</span><br><span class="line"></span><br><span class="line">Swizzle 调度：</span><br><span class="line">- Block 0 计算位置 (row=0, col=0)</span><br><span class="line">- Block 1 计算位置 (row=0, col=16)  // 跳到另一条带</span><br><span class="line">- Block 2 计算位置 (row=0, col=1)   // 回到第一条带</span><br><span class="line">- Block 3 计算位置 (row=0, col=17)</span><br><span class="line">- ...</span><br><span class="line">- 相邻执行的偶数 Block (0,2,4,...) 在第一条带，复用相同的 A 行数据！</span><br></pre></td></tr></table></figure></div>
+<h3 id="58-n_swizzle-和-stride-的确定方法"><a class="markdownIt-Anchor" href="#58-n_swizzle-和-stride-的确定方法"></a> 5.8 N_SWIZZLE 和 stride 的确定方法</h3>
+<h4 id="581-计算公式"><a class="markdownIt-Anchor" href="#581-计算公式"></a> 5.8.1 计算公式</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">N_SWIZZLE = (N + stride - 1) / stride;  // 即 ceil(N / stride)</span><br></pre></td></tr></table></figure></div>
+<p>其中 <code>stride = BLOCK_SWIZZLE_STRIDE = 2048</code>（默认值）</p>
+<h4 id="582-stride-决定-一条-swizzle-带-的宽度"><a class="markdownIt-Anchor" href="#582-stride-决定-一条-swizzle-带-的宽度"></a> 5.8.2 stride 决定 “一条 Swizzle 带” 的宽度</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">               N 维度 (例如 4096)</span><br><span class="line">    ←─────────────────────────────────→</span><br><span class="line">    |     stride=2048    |    stride=2048    |</span><br><span class="line">    |   (N_SWIZZLE=0)    |   (N_SWIZZLE=1)   |</span><br><span class="line">    ├────────────────────┼──────────────────┤</span><br><span class="line">    | block 0, 2, 4, ... | block 1, 3, 5,...|</span><br><span class="line">M   | block 0, 2, 4, ... | block 1, 3, 5,...|</span><br><span class="line">维  | ...                | ...              |</span><br><span class="line">度  ├────────────────────┼──────────────────┤</span><br><span class="line">    |                    |                  |</span><br></pre></td></tr></table></figure></div>
+<h4 id="583-为什么-stride-2048"><a class="markdownIt-Anchor" href="#583-为什么-stride-2048"></a> 5.8.3 为什么 stride = 2048？</h4>
+<p><strong>stride = 2048</strong> 的选择基于以下考量：</p>
+<ol>
+<li><strong>L2 Cache 大小匹配</strong></li>
+</ol>
+<ul>
+<li>A100 L2 cache = 40 MB</li>
+<li>每个 Block 处理 128×128 = 16K 元素 = 32KB (half 类型)</li>
+<li>一条带(stride=2048)内的 B 数据：<code>2048 × K × sizeof(half)</code></li>
+<li>对于 K=4096：<code>2048 × 4096 × 2 = 16MB</code>，适合 L2 cache</li>
+</ul>
+<ol>
+<li><strong>与 Tile 大小的关系</strong></li>
+</ol>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">stride / BN = 2048 / 128 = 16 blocks</span><br></pre></td></tr></table></figure></div>
+<p>意味着每 16 个 Block 形成一个"复用组"，共享 A 矩阵的同一行 Tile</p>
+<ol>
+<li><strong>实践经验值</strong></li>
+</ol>
+<ul>
+<li>太小（如 512）：Swizzle 效果不明显，复用组太小</li>
+<li>太大（如 8192）：超出 L2 cache 容量，导致 cache miss</li>
+<li>2048 是多种 GPU 上验证过的良好平衡点</li>
+</ul>
+<h4 id="584-n_swizzle-计算示例"><a class="markdownIt-Anchor" href="#584-n_swizzle-计算示例"></a> 5.8.4 N_SWIZZLE 计算示例</h4>
+<table>
+<thead>
+<tr>
+<th>矩阵 N</th>
+<th>stride</th>
+<th>N_SWIZZLE</th>
+<th>每带 Block 数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1024</td>
+<td>2048</td>
+<td>1</td>
+<td>8</td>
+<td>矩阵小，无需 swizzle</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>2048</td>
+<td>1</td>
+<td>16</td>
+<td>刚好一条带</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>2048</td>
+<td>2</td>
+<td>16</td>
+<td>分成 2 条带</td>
+</tr>
+<tr>
+<td>8192</td>
+<td>2048</td>
+<td>4</td>
+<td>16</td>
+<td>分成 4 条带</td>
+</tr>
+<tr>
+<td>16384</td>
+<td>2048</td>
+<td>8</td>
+<td>16</td>
+<td>分成 8 条带</td>
+</tr>
+</tbody>
+</table>
+<h4 id="585-如何调优-stride"><a class="markdownIt-Anchor" href="#585-如何调优-stride"></a> 5.8.5 如何调优 stride？</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 可以尝试不同的值</span></span><br><span class="line">BLOCK_SWIZZLE_STRIDE = <span class="number">1024</span>;  <span class="comment">// 更小的复用组</span></span><br><span class="line">BLOCK_SWIZZLE_STRIDE = <span class="number">2048</span>;  <span class="comment">// 默认值，经验最优</span></span><br><span class="line">BLOCK_SWIZZLE_STRIDE = <span class="number">4096</span>;  <span class="comment">// 更大的复用组</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>最优值取决于</strong>：</p>
+<ul>
+<li><strong>L2 Cache 大小</strong>：stride 对应的数据量不应超过 L2 大小</li>
+<li><strong>矩阵尺寸</strong>：非常大的矩阵可能需要更大的 stride</li>
+<li><strong>GPU 架构</strong>：不同 GPU 的 L2 cache 大小不同</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>GPU</th>
+<th>L2 Cache</th>
+<th>推荐 stride</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTX 3080</td>
+<td>5 MB</td>
+<td>1024~2048</td>
+</tr>
+<tr>
+<td>A100</td>
+<td>40 MB</td>
+<td>2048~4096</td>
+</tr>
+<tr>
+<td>H100</td>
+<td>50 MB</td>
+<td>2048~4096</td>
+</tr>
+</tbody>
+</table>
+<p><strong>总结</strong>：<code>N_SWIZZLE = 2</code> 并不是一个固定值，而是 <code>ceil(N / stride)</code> 计算得来。<code>stride = 2048</code> 是一个基于 L2 cache 大小和实践调优得到的经验值，确保同一 Swizzle 组内的 Block 能最大化复用 L2 cache 中的数据。</p>
+<hr>
+<h2 id="6-完整代码流程"><a class="markdownIt-Anchor" href="#6-完整代码流程"></a> 6. 完整代码流程</h2>
+<h3 id="61-kernel-入口"><a class="markdownIt-Anchor" href="#61-kernel-入口"></a> 6.1 Kernel 入口</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">template&lt;..., const int K_STAGE=2, const bool BLOCK_SWIZZLE=false&gt;</span><br><span class="line">__global__ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel(</span><br><span class="line">    half* __restrict__ A,</span><br><span class="line">    half* __restrict__ B, </span><br><span class="line">    half* __restrict__ C,</span><br><span class="line">    int M, int N, int K) </span><br><span class="line">{</span><br><span class="line">    // 1. Block Swizzle 坐标映射</span><br><span class="line">    const int bx = ((int) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;</span><br><span class="line">    const int by = blockIdx.y;</span><br><span class="line">    </span><br><span class="line">    // 2. 边界检查</span><br><span class="line">    if (bx &gt;= N / BN || by &gt;= M / BM) return;</span><br><span class="line">    </span><br><span class="line">    // 3. 计算各种索引...</span><br><span class="line">    // 4. Prologue: 预加载</span><br><span class="line">    // 5. Main Loop: 流水线执行</span><br><span class="line">    // 6. Epilogue: 排空流水线</span><br><span class="line">    // 7. 存储结果到 Global Memory</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-launch-宏定义"><a class="markdownIt-Anchor" href="#62-launch-宏定义"></a> 6.2 Launch 宏定义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4_KERNEL(stages, stride) \</span><br><span class="line">{                                                                        \</span><br><span class="line">  const int smem_max_size = (                                            \</span><br><span class="line">    (stages) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +          \</span><br><span class="line">    (stages) * BK * (BN + B_PAD) * WARP_TILE_K * sizeof(half));          \</span><br><span class="line">  cudaFuncSetAttribute(                                                  \</span><br><span class="line">    hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel&lt;                     \</span><br><span class="line">      MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                       \</span><br><span class="line">      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true&gt;,\</span><br><span class="line">    cudaFuncAttributeMaxDynamicSharedMemorySize,                         \</span><br><span class="line">    98304);                                                              \</span><br><span class="line">  const int N_SWIZZLE = (N + (stride) - 1) / (stride);                   \</span><br><span class="line">  dim3 block(NUM_THREADS);                                               \</span><br><span class="line">  dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,               \</span><br><span class="line">             div_ceil(M, BM),                                            \</span><br><span class="line">             N_SWIZZLE);                                                 \</span><br><span class="line">  hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel&lt;...&gt;&lt;&lt;&lt;                \</span><br><span class="line">    grid, block, smem_max_size&gt;&gt;&gt;(a, b, c, M, N, K);                     \</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="7-性能优化要点"><a class="markdownIt-Anchor" href="#7-性能优化要点"></a> 7. 性能优化要点</h2>
+<h3 id="71-优化技术总结"><a class="markdownIt-Anchor" href="#71-优化技术总结"></a> 7.1 优化技术总结</h3>
+<table>
+<thead>
+<tr>
+<th>优化技术</th>
+<th>实现方式</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Multi-stage Pipeline</strong></td>
+<td>K_STAGE=2/3/4</td>
+<td>隐藏 Global→Shared 访存延迟</td>
+</tr>
+<tr>
+<td><strong>cp.async</strong></td>
+<td>异步拷贝指令</td>
+<td>Load 与 Compute 重叠</td>
+</tr>
+<tr>
+<td><strong>Block Swizzle</strong></td>
+<td>重映射 Block 坐标</td>
+<td>提升 L2 Cache 命中率</td>
+</tr>
+<tr>
+<td><strong>WARP_TILE_K=2</strong></td>
+<td>每次处理 2 个 K-tile</td>
+<td>增加计算密度</td>
+</tr>
+<tr>
+<td><strong>Shared Memory Padding</strong></td>
+<td>A_PAD=8, B_PAD=8</td>
+<td>消除 Bank Conflict</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-性能提升预期"><a class="markdownIt-Anchor" href="#72-性能提升预期"></a> 7.2 性能提升预期</h3>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>vs 基础版本</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>K_STAGE=2</td>
+<td>+5~15%</td>
+<td>基本流水线</td>
+</tr>
+<tr>
+<td>K_STAGE=3</td>
+<td>+8~20%</td>
+<td>更深流水线</td>
+</tr>
+<tr>
+<td>Block Swizzle</td>
+<td>+3~10%</td>
+<td>大矩阵效果明显</td>
+</tr>
+<tr>
+<td>组合优化</td>
+<td>+15~30%</td>
+<td>最佳配置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-适用场景"><a class="markdownIt-Anchor" href="#73-适用场景"></a> 7.3 适用场景</h3>
+<ul>
+<li>
+<p><strong>推荐使用 stages kernel</strong>：</p>
+</li>
+<li>
+<p>矩阵尺寸 ≥ 2048</p>
+</li>
+<li>
+<p>K 维度较大（访存延迟明显）</p>
+</li>
+<li>
+<p>GPU 计算能力 ≥ 8.0 (支持 cp.async)</p>
+</li>
+<li>
+<p><strong>推荐启用 Block Swizzle</strong>：</p>
+</li>
+<li>
+<p>N 维度 ≥ 2048</p>
+</li>
+<li>
+<p>L2 cache 压力大的场景</p>
+</li>
+<li>
+<p>多 SM 并行度高的情况</p>
+</li>
+</ul>
+<hr>
+<h2 id="附录关键代码片段"><a class="markdownIt-Anchor" href="#附录关键代码片段"></a> 附录：关键代码片段</h2>
+<h3 id="a-cpasync-宏定义"><a class="markdownIt-Anchor" href="#a-cpasync-宏定义"></a> A. cp.async 宏定义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">#define CP_ASYNC_CG(dst, src, bytes) \</span><br><span class="line">    asm volatile("cp.async.cg.shared.global.L2::128B [%0], [%1], %2;\n" \</span><br><span class="line">        :: "r"(dst), "l"(src), "n"(bytes))</span><br><span class="line"></span><br><span class="line">#define CP_ASYNC_COMMIT_GROUP() \</span><br><span class="line">    asm volatile("cp.async.commit_group;\n" ::)</span><br><span class="line"></span><br><span class="line">#define CP_ASYNC_WAIT_GROUP(N) \</span><br><span class="line">    asm volatile("cp.async.wait_group %0;\n" :: "n"(N))</span><br></pre></td></tr></table></figure></div>
+<h3 id="b-ldmatrix-宏定义"><a class="markdownIt-Anchor" href="#b-ldmatrix-宏定义"></a> B. ldmatrix 宏定义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">#define LDMATRIX_X4(R0, R1, R2, R3, addr) \</span><br><span class="line">    asm volatile("ldmatrix.sync.aligned.x4.m8n8.shared.b16 {%0, %1, %2, %3}, [%4];\n" \</span><br><span class="line">        : "=r"(R0), "=r"(R1), "=r"(R2), "=r"(R3) : "r"(addr))</span><br><span class="line"></span><br><span class="line">#define LDMATRIX_X2_T(R0, R1, addr) \</span><br><span class="line">    asm volatile("ldmatrix.sync.aligned.x2.trans.m8n8.shared.b16 {%0, %1}, [%2];\n" \</span><br><span class="line">        : "=r"(R0), "=r"(R1) : "r"(addr))</span><br></pre></td></tr></table></figure></div>
+<h3 id="c-mma-指令宏定义"><a class="markdownIt-Anchor" href="#c-mma-指令宏定义"></a> C. MMA 指令宏定义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">#define HMMA16816(RD0, RD1, RA0, RA1, RA2, RA3, RB0, RB1, RC0, RC1) \</span><br><span class="line">    asm volatile("mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 \</span><br><span class="line">        {%0, %1}, {%2, %3, %4, %5}, {%6, %7}, {%8, %9};\n" \</span><br><span class="line">        : "=r"(RD0), "=r"(RD1) \</span><br><span class="line">        : "r"(RA0), "r"(RA1), "r"(RA2), "r"(RA3), \</span><br><span class="line">          "r"(RB0), "r"(RB1), "r"(RC0), "r"(RC1))</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="参考资料"><a class="markdownIt-Anchor" href="#参考资料"></a> 参考资料</h2>
+<ol>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async">NVIDIA PTX ISA - Asynchronous Copy<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#matrix-fragments-for-mma-m16n8k16-with-floating-point-type">NVIDIA PTX ISA - Matrix Fragments<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://github.com/NVIDIA/cutlass">CUTLASS - Efficient GEMM<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/">NVIDIA Developer Blog - Optimizing Matrix Multiplication<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ol>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-03-04 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:04:56
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/CUDA/">#CUDA</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/05/28/SGLang%E4%B9%8BKV%20Cache%E5%86%85%E5%AD%98%E6%B1%A0%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">SGLang之KV Cache内存池机制</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/03/03/hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%AE%E5%BD%95"><span class="nav-text"> 目录</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-kernel-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 1. Kernel 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-%E5%8A%9F%E8%83%BD%E6%8F%8F%E8%BF%B0"><span class="nav-text"> 1.1 功能描述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-%E6%A0%B8%E5%BF%83%E9%85%8D%E7%BD%AE"><span class="nav-text"> 1.2 核心配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-%E6%A8%A1%E6%9D%BF%E5%8F%82%E6%95%B0"><span class="nav-text"> 1.3 模板参数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-multi-stage-pipeline-%E5%8E%9F%E7%90%86"><span class="nav-text"> 2. Multi-stage Pipeline 原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="nav-text"> 2.1 为什么需要流水线？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-text"> 2.2 流水线解决方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-k_stage-%E9%85%8D%E7%BD%AE%E5%AF%B9%E6%AF%94"><span class="nav-text"> 2.3 K_STAGE 配置对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%BC%82%E6%AD%A5%E6%8B%B7%E8%B4%9D-cpasync-%E6%8C%87%E4%BB%A4"><span class="nav-text"> 3. 异步拷贝 cp.async 指令</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-cpasync-%E6%8C%87%E4%BB%A4%E7%AE%80%E4%BB%8B"><span class="nav-text"> 3.1 cp.async 指令简介</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-%E5%85%B3%E9%94%AE%E5%90%8C%E6%AD%A5%E6%8C%87%E4%BB%A4"><span class="nav-text"> 3.2 关键同步指令</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-%E4%BB%A3%E7%A0%81%E4%B8%AD%E7%9A%84%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="nav-text"> 3.3 代码中的宏定义</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%B5%81%E6%B0%B4%E7%BA%BF%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 4. 流水线实现详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-shared-memory-%E5%A4%9A%E7%BC%93%E5%86%B2%E5%B8%83%E5%B1%80"><span class="nav-text"> 4.1 Shared Memory 多缓冲布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-prologue%E6%B5%81%E6%B0%B4%E7%BA%BF%E5%A1%AB%E5%85%85%E9%98%B6%E6%AE%B5"><span class="nav-text"> 4.2 Prologue（流水线填充阶段）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-main-loop%E4%B8%BB%E5%BE%AA%E7%8E%AF%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="nav-text"> 4.3 Main Loop（主循环流水线）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#44-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%97%B6%E5%BA%8F%E5%9B%BE-k_stage2"><span class="nav-text"> 4.4 流水线时序图 (K_STAGE&#x3D;2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#45-epilogue%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%8E%92%E7%A9%BA%E9%98%B6%E6%AE%B5"><span class="nav-text"> 4.5 Epilogue（流水线排空阶段）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-block-swizzle-%E4%BC%98%E5%8C%96"><span class="nav-text"> 5. Block Swizzle 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E9%97%AE%E9%A2%98%E8%83%8C%E6%99%AFl2-cache-%E4%B8%8D%E5%8F%8B%E5%A5%BD%E7%9A%84%E8%AE%BF%E9%97%AE%E6%A8%A1%E5%BC%8F"><span class="nav-text"> 5.1 问题背景：L2 Cache 不友好的访问模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-block-swizzle-%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-text"> 5.2 Block Swizzle 解决方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-swizzle-%E6%98%A0%E5%B0%84%E5%85%AC%E5%BC%8F%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 5.3 Swizzle 映射公式详解</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#54-swizzle-%E6%95%88%E6%9E%9C%E5%AF%B9%E6%AF%94"><span class="nav-text"> 5.4 Swizzle 效果对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#55-%E5%8F%AF%E8%A7%86%E5%8C%96%E5%AF%B9%E6%AF%94"><span class="nav-text"> 5.5 可视化对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#56-stride-%E5%8F%82%E6%95%B0%E7%9A%84%E9%80%89%E6%8B%A9"><span class="nav-text"> 5.6 stride 参数的选择</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#57-block-swizzle-%E7%9A%84%E6%9C%AC%E8%B4%A8"><span class="nav-text"> 5.7 Block Swizzle 的本质</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#58-n_swizzle-%E5%92%8C-stride-%E7%9A%84%E7%A1%AE%E5%AE%9A%E6%96%B9%E6%B3%95"><span class="nav-text"> 5.8 N_SWIZZLE 和 stride 的确定方法</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E5%AE%8C%E6%95%B4%E4%BB%A3%E7%A0%81%E6%B5%81%E7%A8%8B"><span class="nav-text"> 6. 完整代码流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-kernel-%E5%85%A5%E5%8F%A3"><span class="nav-text"> 6.1 Kernel 入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-launch-%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="nav-text"> 6.2 Launch 宏定义</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E8%A6%81%E7%82%B9"><span class="nav-text"> 7. 性能优化要点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-%E4%BC%98%E5%8C%96%E6%8A%80%E6%9C%AF%E6%80%BB%E7%BB%93"><span class="nav-text"> 7.1 优化技术总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87%E9%A2%84%E6%9C%9F"><span class="nav-text"> 7.2 性能提升预期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-text"> 7.3 适用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E5%BD%95%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81%E7%89%87%E6%AE%B5"><span class="nav-text"> 附录：关键代码片段</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#a-cpasync-%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="nav-text"> A. cp.async 宏定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#b-ldmatrix-%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="nav-text"> B. ldmatrix 宏定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#c-mma-%E6%8C%87%E4%BB%A4%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="nav-text"> C. MMA 指令宏定义</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-text"> 参考资料</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

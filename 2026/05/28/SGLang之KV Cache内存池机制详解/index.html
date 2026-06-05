@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/05/28/sglang之kv cache内存池机制详解/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SGLang之KV Cache内存池机制">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/05/28/SGLang%E4%B9%8BKV%20Cache%E5%86%85%E5%AD%98%E6%B1%A0%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-05-28T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:13:38.773Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="LLM infra">
+<meta property="article:tag" content="SGLang">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            SGLang之KV Cache内存池机制 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">SGLang之KV Cache内存池机制</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-05-28 23:50</span>
+        <span class="mobile">2026-05-28 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:13:38</span>
+            <span class="mobile">2026-06-05 23:13:38</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM-infra/">LLM infra</a>&nbsp;
+                        </li>
+                    
+                    
+                
+                    
+                        
+                            <li>></li>
+                        
+                        <li>
+                            <a href="/categories/LLM-infra/SGLang/">SGLang</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM-infra/">LLM infra</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/SGLang/">SGLang</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>本文档详细解析 SGLang 的 KV Cache 内存池机制，包括核心数据结构、分配流程，以及 KDA（Kimi Delta Attention）线性注意力的缓存机制。</p>
+<h2 id="一-整体架构概览"><a class="markdownIt-Anchor" href="#一-整体架构概览"></a> 一、整体架构概览</h2>
+<p>SGLang 的 KV Cache 内存池分为<strong>三层</strong>结构（见 <code>python/sglang/srt/mem_cache/memory_pool.py</code>）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│  ReqToTokenPool                                      │</span><br><span class="line">│  请求 → token 位置映射（间接索引表）                  │</span><br><span class="line">│  [req_pool_idx][token_position] → kv_index           │</span><br><span class="line">├─────────────────────────────────────────────────────┤</span><br><span class="line">│  TokenToKVPoolAllocator                              │</span><br><span class="line">│  管理 kv_index 的分配/回收（空闲 token 槽位管理）     │</span><br><span class="line">├─────────────────────────────────────────────────────┤</span><br><span class="line">│  KVCache (实际物理存储)                              │</span><br><span class="line">│  k_buffer / v_buffer 等张量                          │</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<p>核心设计思想：<strong>通过间接索引实现非连续的 KV 存储</strong>，从而支持 prefix cache 共享、灵活的内存回收和 paged attention。</p>
+<hr>
+<h2 id="二-核心数据结构"><a class="markdownIt-Anchor" href="#二-核心数据结构"></a> 二、核心数据结构</h2>
+<h3 id="21-两张表的概念模型"><a class="markdownIt-Anchor" href="#21-两张表的概念模型"></a> 2.1 两张"表"的概念模型</h3>
+<p>理解内存池的关键是把它看成两张表的行号分配：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">┌─ 表1: req_to_token ──────────────────────────────────────────────┐</span><br><span class="line">│  形状: (max_requests+1, max_context_len)                          │</span><br><span class="line">│  dtype: int32                                                     │</span><br><span class="line">│                                                                   │</span><br><span class="line">│  行 0: padding (dummy, CUDA graph 填充用)                          │</span><br><span class="line">│  行 1: [5, 8, 12, 3, 7, ...]  ← 请求A的各token对应的kv位置        │</span><br><span class="line">│  行 2: [1, 9, 14, 6, ...]     ← 请求B的各token对应的kv位置        │</span><br><span class="line">│  行 3: (空闲)                                                     │</span><br><span class="line">│  行 4: [2, 11, 4, ...]        ← 请求C的各token对应的kv位置        │</span><br><span class="line">│  ...                                                              │</span><br><span class="line">└───────────────────────────────────────────────────────────────────┘</span><br><span class="line">         ↓ 每个单元格存储的值就是下面表的行号 ↓</span><br><span class="line"></span><br><span class="line">┌─ 表2: k_buffer / v_buffer ───────────────────────────────────────┐</span><br><span class="line">│  形状: (max_total_tokens+1, head_num, head_dim) × num_layers      │</span><br><span class="line">│                                                                   │</span><br><span class="line">│  行 0: padding (dummy)                                            │</span><br><span class="line">│  行 1: 某个 token 的 K/V 向量                                     │</span><br><span class="line">│  行 2: 另一个 token 的 K/V 向量                                   │</span><br><span class="line">│  行 3: ...                                                        │</span><br><span class="line">│  ...                                                              │</span><br><span class="line">│  行 N: 又一个 token 的 K/V 向量                                   │</span><br><span class="line">└───────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="三-reqtotokenpool-详解"><a class="markdownIt-Anchor" href="#三-reqtotokenpool-详解"></a> 三、ReqToTokenPool 详解</h2>
+<h3 id="31-数据结构"><a class="markdownIt-Anchor" href="#31-数据结构"></a> 3.1 数据结构</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">ReqToTokenPool</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, size, max_context_len, device, enable_memory_saver</span>):</span><br><span class="line">        <span class="variable language_">self</span>._alloc_size = size + <span class="number">1</span>  <span class="comment"># +1 for padding row at index 0</span></span><br><span class="line">        <span class="variable language_">self</span>.req_to_token = torch.zeros(</span><br><span class="line">            (<span class="variable language_">self</span>._alloc_size, max_context_len), dtype=torch.int32, device=device</span><br><span class="line">        )</span><br><span class="line">        <span class="variable language_">self</span>.free_slots = <span class="built_in">list</span>(<span class="built_in">range</span>(<span class="number">1</span>, <span class="variable language_">self</span>._alloc_size))  <span class="comment"># Python list</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>req_to_token</code>: 一张二维表，行是请求，列是 token 位置，值是 KV buffer 行号</li>
+<li><code>free_slots</code>: Python list，存储当前空闲的行号</li>
+<li>行 0 是 padding 行：CUDA graph 中 padded batch 默认 req_pool_indices=0，dummy 读写落到此行</li>
+</ul>
+<h3 id="32-alloc分配请求行号"><a class="markdownIt-Anchor" href="#32-alloc分配请求行号"></a> 3.2 alloc：分配请求行号</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">alloc</span>(<span class="params">self, reqs: <span class="built_in">list</span>[Req]</span>) -&gt; <span class="type">Optional</span>[<span class="type">List</span>[<span class="built_in">int</span>]]:</span><br><span class="line">    <span class="comment"># 1. 找出已有行号的请求（chunked prefill 继续使用旧行号）</span></span><br><span class="line">    reusing = [i <span class="keyword">for</span> i, r <span class="keyword">in</span> <span class="built_in">enumerate</span>(reqs) <span class="keyword">if</span> r.req_pool_idx <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2. 计算需要新分配的数量</span></span><br><span class="line">    need_size = <span class="built_in">len</span>(reqs) - <span class="built_in">len</span>(reusing)</span><br><span class="line">    <span class="keyword">if</span> need_size &gt; <span class="built_in">len</span>(<span class="variable language_">self</span>.free_slots):</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span>  <span class="comment"># 内存不足</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3. 从空闲列表头部取行号</span></span><br><span class="line">    select_index = <span class="variable language_">self</span>.free_slots[:need_size]</span><br><span class="line">    <span class="variable language_">self</span>.free_slots = <span class="variable language_">self</span>.free_slots[need_size:]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 4. 赋值给请求</span></span><br><span class="line">    offset = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> r <span class="keyword">in</span> reqs:</span><br><span class="line">        <span class="keyword">if</span> r.req_pool_idx <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            r.req_pool_idx = select_index[offset]</span><br><span class="line">            offset += <span class="number">1</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> [r.req_pool_idx <span class="keyword">for</span> r <span class="keyword">in</span> reqs]</span><br></pre></td></tr></table></figure></div>
+<p><strong>语义：</strong> <code>req_pool_idx = 2</code> 意味着这个请求的 token 位置信息存储在 <code>req_to_token[2, :]</code> 这一行中。</p>
+<p><strong>比喻：</strong> 就像酒店的<strong>房间号</strong>分配。每个请求是一个住客，分配了房间号后，这个房间里可以存放该请求的所有 token 位置信息（最多 <code>max_context_len</code> 个）。</p>
+<h3 id="33-free释放请求行号"><a class="markdownIt-Anchor" href="#33-free释放请求行号"></a> 3.3 free：释放请求行号</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">free</span>(<span class="params">self, req: Req</span>):</span><br><span class="line">    <span class="variable language_">self</span>.free_slots.append(req.req_pool_idx)  <span class="comment"># 归还行号</span></span><br><span class="line">    req.req_pool_idx = <span class="literal">None</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="34-write写入映射关系"><a class="markdownIt-Anchor" href="#34-write写入映射关系"></a> 3.4 write：写入映射关系</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">write</span>(<span class="params">self, indices, values</span>):</span><br><span class="line">    <span class="variable language_">self</span>.req_to_token[indices] = values</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用示例：</span></span><br><span class="line"><span class="comment"># req_to_token[req_pool_idx, prefix_len:seq_len] = out_cache_loc</span></span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="四-tokentokvpoolallocator-详解"><a class="markdownIt-Anchor" href="#四-tokentokvpoolallocator-详解"></a> 四、TokenToKVPoolAllocator 详解</h2>
+<h3 id="41-数据结构"><a class="markdownIt-Anchor" href="#41-数据结构"></a> 4.1 数据结构</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">TokenToKVPoolAllocator</span>(<span class="title class_ inherited__">BaseTokenToKVPoolAllocator</span>):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, size, dtype, device, kvcache, need_sort</span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__(size, <span class="number">1</span>, dtype, device, kvcache, need_sort)</span><br><span class="line">        <span class="variable language_">self</span>.clear()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">clear</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="comment"># 行号 0 是 padding, 从 1 开始</span></span><br><span class="line">        <span class="variable language_">self</span>.free_pages = torch.arange(<span class="number">1</span>, <span class="variable language_">self</span>.size + <span class="number">1</span>, dtype=torch.int64, device=device)</span><br><span class="line">        <span class="variable language_">self</span>.release_pages = torch.empty((<span class="number">0</span>,), dtype=torch.int64, device=device)</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>free_pages</code>: <strong>GPU tensor</strong>，存储当前可用的 KV buffer 行号</li>
+<li><code>release_pages</code>: 延迟释放的行号（需要排序合并后才能复用）</li>
+<li><code>need_sort</code>: 是否需要排序（支持 radix cache 时需要，以保证相邻 token 物理连续）</li>
+</ul>
+<h3 id="42-alloc分配-kv-存储行号"><a class="markdownIt-Anchor" href="#42-alloc分配-kv-存储行号"></a> 4.2 alloc：分配 KV 存储行号</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">alloc</span>(<span class="params">self, need_size: <span class="built_in">int</span></span>):</span><br><span class="line">    <span class="comment"># 如果需要排序且空闲不足，先合并 release_pages</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.need_sort <span class="keyword">and</span> need_size &gt; <span class="built_in">len</span>(<span class="variable language_">self</span>.free_pages):</span><br><span class="line">        <span class="variable language_">self</span>.merge_and_sort_free()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> need_size &gt; <span class="built_in">len</span>(<span class="variable language_">self</span>.free_pages):</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span>  <span class="comment"># 内存不足</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 从 free_pages 头部切片</span></span><br><span class="line">    select_index = <span class="variable language_">self</span>.free_pages[:need_size]</span><br><span class="line">    <span class="variable language_">self</span>.free_pages = <span class="variable language_">self</span>.free_pages[need_size:]</span><br><span class="line">    <span class="keyword">return</span> select_index  <span class="comment"># 返回 GPU tensor</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>语义：</strong> 返回值 <code>[5, 8, 12]</code> 意味着三个 token 的 K/V 向量分别存储在 <code>k_buffer[layer][5]</code>、<code>k_buffer[layer][8]</code>、<code>k_buffer[layer][12]</code>。</p>
+<p><strong>比喻：</strong> 就像仓库的<strong>储物格号码</strong>。每个 token 需要一个格子来存放它的 K/V 数据。</p>
+<h3 id="43-free释放-kv-行号"><a class="markdownIt-Anchor" href="#43-free释放-kv-行号"></a> 4.3 free：释放 KV 行号</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">free</span>(<span class="params">self, free_index: torch.Tensor</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.is_not_in_free_group:</span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.need_sort:</span><br><span class="line">            <span class="variable language_">self</span>.release_pages = torch.cat((<span class="variable language_">self</span>.release_pages, free_index))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="variable language_">self</span>.free_pages = torch.cat((<span class="variable language_">self</span>.free_pages, free_index))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="variable language_">self</span>.free_group.append(free_index)  <span class="comment"># 批量释放模式</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>need_sort=True</code> 时，释放的行号先进入 <code>release_pages</code>（延迟合并排序，保证后续分配连续性）</li>
+<li><code>need_sort=False</code> 时，直接追加到 <code>free_pages</code> 尾部</li>
+</ul>
+<h3 id="44-pagedtokentokvpoolallocator"><a class="markdownIt-Anchor" href="#44-pagedtokentokvpoolallocator"></a> 4.4 PagedTokenToKVPoolAllocator</h3>
+<p>当 <code>page_size &gt; 1</code> 时使用分页版本（<code>allocator.py:362</code>），管理逻辑类似但以<strong>页</strong>为单位分配，一页包含多个连续 token slot。</p>
+<hr>
+<h2 id="五-两个-alloc-如何配合完整数据流"><a class="markdownIt-Anchor" href="#五-两个-alloc-如何配合完整数据流"></a> 五、两个 alloc 如何配合：完整数据流</h2>
+<h3 id="51-extendprefill阶段"><a class="markdownIt-Anchor" href="#51-extendprefill阶段"></a> 5.1 Extend（Prefill）阶段</h3>
+<p>以一个请求有 5 个 token（prefix 2 个已缓存 + 新增 3 个）为例：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">步骤1: alloc_req_slots()  [common.py:398]</span><br><span class="line">     → ReqToTokenPool.alloc(reqs)</span><br><span class="line">     → 得到 req_pool_idx = 2  (这个请求使用 req_to_token 表的第2行)</span><br><span class="line"></span><br><span class="line">步骤2: alloc_token_slots()  [common.py:302]</span><br><span class="line">     → TokenToKVPoolAllocator.alloc(3)  (新增3个token需要3个KV位置)</span><br><span class="line">     → 得到 out_cache_loc = [17, 42, 89]  (KV buffer的3个空闲行号)</span><br><span class="line"></span><br><span class="line">步骤3: write_cache_indices()  [common.py:104]</span><br><span class="line">     → 把映射关系写入 req_to_token 表:</span><br><span class="line"></span><br><span class="line">     req_to_token[2, 0] = 5    ← prefix token 0 (之前已缓存在KV行5)</span><br><span class="line">     req_to_token[2, 1] = 11   ← prefix token 1 (之前已缓存在KV行11)</span><br><span class="line">     req_to_token[2, 2] = 17   ← 新 token 2 (刚分配的)</span><br><span class="line">     req_to_token[2, 3] = 42   ← 新 token 3 (刚分配的)</span><br><span class="line">     req_to_token[2, 4] = 89   ← 新 token 4 (刚分配的)</span><br></pre></td></tr></table></figure></div>
+<p>关键代码路径（<code>common.py:134-150</code>）：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(reqs)):</span><br><span class="line">    req_idx = req_pool_indices_cpu[i]</span><br><span class="line">    prefix_len = prefix_lens_cpu[i]</span><br><span class="line">    seq_len = seq_lens_cpu[i]</span><br><span class="line">    extend_len = extend_lens_cpu[i]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 写入 prefix 部分（来自 radix cache 共享）</span></span><br><span class="line">    req_to_token_pool.write(</span><br><span class="line">        (req_idx, <span class="built_in">slice</span>(<span class="number">0</span>, prefix_len)),</span><br><span class="line">        prefix_tensors[i],</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 写入新分配的 extend 部分</span></span><br><span class="line">    req_to_token_pool.write(</span><br><span class="line">        (req_idx, <span class="built_in">slice</span>(prefix_len, seq_len)),</span><br><span class="line">        out_cache_loc[pt : pt + extend_len],</span><br><span class="line">    )</span><br></pre></td></tr></table></figure></div>
+<h3 id="52-decode-阶段"><a class="markdownIt-Anchor" href="#52-decode-阶段"></a> 5.2 Decode 阶段</h3>
+<p>每步生成 1 个新 token（<code>common.py:524</code>）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">步骤1: (req_pool_idx 已有，不需要重新分配)</span><br><span class="line"></span><br><span class="line">步骤2: TokenToKVPoolAllocator.alloc(batch_size)</span><br><span class="line">     → 得到 out_cache_loc = [103, 104, ...]  (每个请求1个新位置)</span><br><span class="line"></span><br><span class="line">步骤3: write:</span><br><span class="line">     req_to_token[2, 5] = 103  ← 请求A新生成的 token 5</span><br><span class="line">     req_to_token[4, 8] = 104  ← 请求C新生成的 token 8</span><br><span class="line">     ...</span><br></pre></td></tr></table></figure></div>
+<p>关键代码（<code>common.py:559</code>）：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">batch.req_to_token_pool.write(</span><br><span class="line">    (batch.req_pool_indices, batch.seq_lens), out_cache_loc.to(torch.int32)</span><br><span class="line">)</span><br></pre></td></tr></table></figure></div>
+<h3 id="53-attention-计算时的查找路径"><a class="markdownIt-Anchor" href="#53-attention-计算时的查找路径"></a> 5.3 Attention 计算时的查找路径</h3>
+<p>已知 <code>req_pool_idx=2, seq_len=5, layer=3</code>，查找全部 K/V：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">1. indices = req_to_token[2, 0:5] → [5, 11, 17, 42, 89]    (5个KV行号)</span><br><span class="line"></span><br><span class="line">2. k = k_buffer[3][[5, 11, 17, 42, 89]]   (gather 操作, shape: [5, head_num, head_dim])</span><br><span class="line">   v = v_buffer[3][[5, 11, 17, 42, 89]]   (gather 操作, shape: [5, head_num, head_dim])</span><br><span class="line"></span><br><span class="line">3. output = attention(q, k, v)             (标准注意力计算)</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="六-为什么需要两层间接索引"><a class="markdownIt-Anchor" href="#六-为什么需要两层间接索引"></a> 六、为什么需要两层间接索引？</h2>
+<h3 id="不连续存储的核心好处"><a class="markdownIt-Anchor" href="#不连续存储的核心好处"></a> 不连续存储的核心好处</h3>
+<ol>
+<li><strong>Prefix cache 共享：</strong> 不同请求如果有相同的 prefix，它们的 <code>req_to_token</code> 行中前几列可以存相同的 KV 行号 – 物理上共享同一份 KV 数据</li>
+<li><strong>灵活回收：</strong> 可以单独释放某些 token 的 KV（如 SWA 窗口外的 token），无需移动其他数据</li>
+<li><strong>避免碎片：</strong> 无需做 compaction（数据搬移），释放后的行号可直接被新 token 复用</li>
+<li><strong>支持 chunked prefill：</strong> 一个请求可以分多次填充 KV，每次分配新的不连续位置</li>
+</ol>
+<h3 id="如果没有间接层会怎样"><a class="markdownIt-Anchor" href="#如果没有间接层会怎样"></a> 如果没有间接层会怎样？</h3>
+<p>每个请求的 token 必须连续存放在 KV buffer 中：</p>
+<ul>
+<li>Prefix cache 无法共享（相同 prefix 必须复制一份）</li>
+<li>请求完成后留下"空洞"，需要 compaction 或浪费内存</li>
+<li>Chunked prefill 需要预分配连续空间</li>
+</ul>
+<hr>
+<h2 id="七-两个-alloc-的对比总结"><a class="markdownIt-Anchor" href="#七-两个-alloc-的对比总结"></a> 七、两个 alloc 的对比总结</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>ReqToTokenPool.alloc</th>
+<th>TokenToKVPoolAllocator.alloc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>分配什么</strong></td>
+<td>req_to_token 表的行号</td>
+<td>k_buffer/v_buffer 的行号</td>
+</tr>
+<tr>
+<td><strong>粒度</strong></td>
+<td>每个请求 1 个</td>
+<td>每个新 token 1 个</td>
+</tr>
+<tr>
+<td><strong>存储介质</strong></td>
+<td>Python list (CPU)</td>
+<td>GPU tensor</td>
+</tr>
+<tr>
+<td><strong>生命周期</strong></td>
+<td>请求存活期间一直持有</td>
+<td>prefix cache 可跨请求共享复用</td>
+</tr>
+<tr>
+<td><strong>调用时机</strong></td>
+<td>请求首次进入 running batch</td>
+<td>每次 extend/decode 生成新 token</td>
+</tr>
+<tr>
+<td><strong>释放时机</strong></td>
+<td>请求完成时</td>
+<td>token 被从 radix tree 驱逐时</td>
+</tr>
+<tr>
+<td><strong>数量级</strong></td>
+<td>~max_running_requests (少)</td>
+<td>~max_total_tokens (多，通常比请求数大10-100倍)</td>
+</tr>
+<tr>
+<td><strong>OOM 影响</strong></td>
+<td>限制并发请求数</td>
+<td>限制总缓存 token 数</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="八-kdakimi-delta-attention的缓存机制"><a class="markdownIt-Anchor" href="#八-kdakimi-delta-attention的缓存机制"></a> 八、KDA（Kimi Delta Attention）的缓存机制</h2>
+<h3 id="81-kda-概述"><a class="markdownIt-Anchor" href="#81-kda-概述"></a> 8.1 KDA 概述</h3>
+<p>KDA 是 Kimi 系列模型使用的<strong>线性注意力</strong>机制（<code>kda_backend.py:130</code>）。Kimi Linear 是一个混合架构：</p>
+<ul>
+<li>部分层使用 KDA（线性注意力）-- 无 per-token KV cache，维护固定大小递归状态</li>
+<li>部分层使用标准 full attention（MLA）-- 使用上述 per-token KV cache</li>
+</ul>
+<h3 id="82-kda-层的状态结构"><a class="markdownIt-Anchor" href="#82-kda-层的状态结构"></a> 8.2 KDA 层的状态结构</h3>
+<p>KDA 不使用传统的 per-token K/V cache，而是维护两种<strong>递归状态</strong>（类似 Mamba/SSM）：</p>
+<p>从 <code>KimiLinearStateShape.create</code>（<code>configs/mamba_utils.py:197</code>）:</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># causal conv1d 的滑窗历史</span></span><br><span class="line">conv_state_shape = (conv_kernel - <span class="number">1</span>, proj_size / tp)</span><br><span class="line"><span class="comment"># 例: (3, 4096) -- 卷积核大小4, 隐藏维度4096</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Delta Rule 的递归隐藏状态</span></span><br><span class="line">temporal_state_shape = (num_heads / tp, head_dim, head_dim)</span><br><span class="line"><span class="comment"># 例: (32, 128, 128) -- 32个头, 每个头一个 128x128 矩阵</span></span><br></pre></td></tr></table></figure></div>
+<p>物理存储布局：</p>
+<ul>
+<li><strong>conv_state</strong>: <code>[num_kda_layers, pool_size+1, conv_kernel-1, dim]</code></li>
+<li><strong>temporal_state (ssm_state)</strong>: <code>[num_kda_layers, pool_size+1, num_heads, head_dim, head_dim]</code></li>
+</ul>
+<p><strong>关键特性：</strong> 每个请求对应一个 ssm_state slot，大小是固定的 <code>head_dim x head_dim</code> 矩阵，<strong>不随序列长度增长</strong>。</p>
+<h3 id="83-hybridreqtotokenpool-混合内存池"><a class="markdownIt-Anchor" href="#83-hybridreqtotokenpool-混合内存池"></a> 8.3 HybridReqToTokenPool – 混合内存池</h3>
+<p><code>HybridReqToTokenPool</code>（<code>memory_pool.py:487</code>）专为 KDA + full attention 混合架构设计：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">HybridReqToTokenPool</span><br><span class="line">├── req_to_token (继承自 ReqToTokenPool)</span><br><span class="line">│   → 用于 full attention 层的 token → kv 映射</span><br><span class="line">├── MambaPool (mamba_pool)</span><br><span class="line">│   → 用于 KDA 层的 conv_state + ssm_state 存储</span><br><span class="line">├── req_index_to_mamba_index_mapping: torch.Tensor</span><br><span class="line">│   → 请求行号 → mamba state slot 的映射</span><br><span class="line">└── mamba_ping_pong_track_buffer</span><br><span class="line">    → overlap schedule 使用的双缓冲</span><br></pre></td></tr></table></figure></div>
+<p>分配流程（<code>memory_pool.py:572</code>）：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">alloc</span>(<span class="params">self, reqs</span>):</span><br><span class="line">    <span class="comment"># 1. 为 full attention 层分配 req_to_token 行</span></span><br><span class="line">    select_index = <span class="built_in">super</span>().alloc(reqs)  <span class="comment"># ReqToTokenPool.alloc</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2. 为每个请求从 mamba_pool 分配一个 state slot</span></span><br><span class="line">    <span class="keyword">for</span> req <span class="keyword">in</span> reqs:</span><br><span class="line">        mid = <span class="variable language_">self</span>.mamba_pool.alloc(<span class="number">1</span>)  <span class="comment"># 分配 mamba state 槽位</span></span><br><span class="line">        req.mamba_pool_idx = mid[<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3. 记录映射关系</span></span><br><span class="line">    <span class="variable language_">self</span>.req_index_to_mamba_index_mapping[select_index] = mamba_indices</span><br></pre></td></tr></table></figure></div>
+<h3 id="84-hybridlinearkvpool-混合-kv-cache"><a class="markdownIt-Anchor" href="#84-hybridlinearkvpool-混合-kv-cache"></a> 8.4 HybridLinearKVPool – 混合 KV Cache</h3>
+<p><code>HybridLinearKVPool</code>（<code>memory_pool.py:1389</code>）组合了两种存储：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">HybridLinearKVPool</span>(<span class="title class_ inherited__">KVCache</span>):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ...</span>):</span><br><span class="line">        <span class="comment"># Full attention 层：正常的 per-token KV cache</span></span><br><span class="line">        <span class="variable language_">self</span>.full_kv_pool = MHATokenToKVPool(...) 或 MLATokenToKVPool(...)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># KDA 层：引用同一个 MambaPool（不使用 per-token KV）</span></span><br><span class="line">        <span class="variable language_">self</span>.mamba_pool = mamba_pool</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Full attention 层的 layer_id 映射</span></span><br><span class="line">        <span class="variable language_">self</span>.full_attention_layer_id_mapping = {<span class="built_in">id</span>: i <span class="keyword">for</span> i, <span class="built_in">id</span> <span class="keyword">in</span> <span class="built_in">enumerate</span>(full_attention_layer_ids)}</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>Full attention 层：通过 <code>get_kv_buffer(layer_id)</code> 访问 <code>k_buffer[layer]</code>、<code>v_buffer[layer]</code></li>
+<li>KDA 层：通过 <code>mamba2_layer_cache(layer_id)</code> 获取 <code>conv_states</code> 和 <code>ssm_states</code></li>
+</ul>
+<h3 id="85-kda-运行时的缓存使用"><a class="markdownIt-Anchor" href="#85-kda-运行时的缓存使用"></a> 8.5 KDA 运行时的缓存使用</h3>
+<h4 id="decode-阶段kda_backendpy138"><a class="markdownIt-Anchor" href="#decode-阶段kda_backendpy138"></a> Decode 阶段（<code>kda_backend.py:138</code>）</h4>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward_decode</span>(<span class="params">self, layer, mixed_qkv, a, b</span>):</span><br><span class="line">    <span class="comment"># 获取当前层的 mamba state</span></span><br><span class="line">    layer_cache = <span class="variable language_">self</span>.req_to_token_pool.mamba2_layer_cache(layer.layer_id)</span><br><span class="line">    conv_states = layer_cache.conv[<span class="number">0</span>]         <span class="comment"># [pool_size+1, conv_kernel-1, dim]</span></span><br><span class="line">    ssm_states = layer_cache.temporal         <span class="comment"># [pool_size+1, num_heads, head_dim, head_dim]</span></span><br><span class="line">    cache_indices = forward_metadata.mamba_cache_indices  <span class="comment"># 当前 batch 的 slot 索引</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1. Causal Conv1d 更新（原地更新 conv_states）</span></span><br><span class="line">    qkv = causal_conv1d_update(mixed_qkv, conv_states, ..., conv_state_indices=cache_indices)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2. Delta Rule 递归更新（Triton kernel）</span></span><br><span class="line">    <span class="comment">#    内部逻辑:</span></span><br><span class="line">    <span class="comment">#    h = ssm_states[cache_indices]   # 加载状态</span></span><br><span class="line">    <span class="comment">#    h *= exp(g)                      # 门控衰减</span></span><br><span class="line">    <span class="comment">#    v -= sum(h * k)                  # delta 修正</span></span><br><span class="line">    <span class="comment">#    v *= beta                        # beta 门控</span></span><br><span class="line">    <span class="comment">#    h += k ⊗ v                       # 状态更新</span></span><br><span class="line">    <span class="comment">#    o = sum(h * q)                   # 输出</span></span><br><span class="line">    <span class="comment">#    ssm_states[cache_indices] = h    # 写回</span></span><br><span class="line">    output = <span class="variable language_">self</span>.kernel_dispatcher.decode(q, k, v, a, b,</span><br><span class="line">        ssm_states=ssm_states, cache_indices=cache_indices, ...)</span><br></pre></td></tr></table></figure></div>
+<h4 id="extendprefill-阶段kda_backendpy178"><a class="markdownIt-Anchor" href="#extendprefill-阶段kda_backendpy178"></a> Extend/Prefill 阶段（<code>kda_backend.py:178</code>）</h4>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward_extend</span>(<span class="params">self, layer, forward_batch, mixed_qkv, a, b</span>):</span><br><span class="line">    <span class="comment"># 使用 chunk-based 并行算法处理长序列</span></span><br><span class="line">    <span class="comment"># chunk_size = 64, 支持 variable-length (cu_seqlens)</span></span><br><span class="line">    output = <span class="variable language_">self</span>.kernel_dispatcher.extend(q, k, v, g, beta,</span><br><span class="line">        ssm_states=ssm_states,       <span class="comment"># initial_state 从 mamba pool 加载</span></span><br><span class="line">        cache_indices=cache_indices,  <span class="comment"># final_state 原地写回</span></span><br><span class="line">        ...)</span><br></pre></td></tr></table></figure></div>
+<p>Chunk-based 算法（<code>fla/kda.py:1025</code>）将长序列分块，组合 inter-chunk 递归 + intra-chunk 并行计算。</p>
+<h3 id="86-kda-vs-full-attention-内存对比"><a class="markdownIt-Anchor" href="#86-kda-vs-full-attention-内存对比"></a> 8.6 KDA vs Full Attention 内存对比</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Full Attention (per-token KV)</th>
+<th>KDA (递归状态)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>内存增长</strong></td>
+<td>O(seq_len x heads x head_dim) 线性增长</td>
+<td>O(heads x head_dim^2) <strong>固定</strong></td>
+</tr>
+<tr>
+<td><strong>存储位置</strong></td>
+<td><code>k_buffer[layer][token_index]</code></td>
+<td><code>temporal[layer][slot_index]</code></td>
+</tr>
+<tr>
+<td><strong>索引方式</strong></td>
+<td>req_to_token 间接索引</td>
+<td>mamba_cache_indices 直接索引</td>
+</tr>
+<tr>
+<td><strong>Prefix cache</strong></td>
+<td>radix tree 共享 KV 行号</td>
+<td>fork（复制 state）</td>
+</tr>
+<tr>
+<td><strong>Decode 复杂度</strong></td>
+<td>Attention O(seq_len)</td>
+<td>递归更新 O(head_dim^2)</td>
+</tr>
+<tr>
+<td><strong>示例大小 (per req)</strong></td>
+<td>4096 tokens x 32 heads x 128 dim x 2 x 2B = 64MB</td>
+<td>32 heads x 128 x 128 x 4B = 2MB</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="九-完整架构图"><a class="markdownIt-Anchor" href="#九-完整架构图"></a> 九、完整架构图</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">┌─ 请求调度层 ────────────────────────────────────────────────────────┐</span><br><span class="line">│   Scheduler → alloc_for_extend(batch) / alloc_for_decode(batch)      │</span><br><span class="line">│                                                                      │</span><br><span class="line">│   alloc_req_slots():                                                 │</span><br><span class="line">│     → HybridReqToTokenPool.alloc(reqs)                               │</span><br><span class="line">│        ├→ ReqToTokenPool.alloc(): 分配 req_pool_idx (表1行号)         │</span><br><span class="line">│        └→ MambaPool.alloc(): 分配 mamba_pool_idx (state slot)         │</span><br><span class="line">│                                                                      │</span><br><span class="line">│   alloc_token_slots():                                               │</span><br><span class="line">│     → TokenToKVPoolAllocator.alloc(num_tokens): 分配 kv 行号 (表2行号)│</span><br><span class="line">│                                                                      │</span><br><span class="line">│   write_cache_indices():                                             │</span><br><span class="line">│     → req_to_token[req_pool_idx, prefix:seq_len] = kv行号            │</span><br><span class="line">└──────────────────────────────────────────────────────────────────────┘</span><br><span class="line">                              ↓</span><br><span class="line">┌─ Forward 执行层 ─────────────────────────────────────────────────────┐</span><br><span class="line">│                                                                       │</span><br><span class="line">│   Full Attention Layer (layer 0, 4, 8, ...):                          │</span><br><span class="line">│     kv_indices = req_to_token[req_pool_idx, 0:seq_len]                │</span><br><span class="line">│     k = k_buffer[layer][kv_indices]   (gather)                        │</span><br><span class="line">│     v = v_buffer[layer][kv_indices]   (gather)                        │</span><br><span class="line">│     output = attention(q, k, v)                                       │</span><br><span class="line">│                                                                       │</span><br><span class="line">│   KDA Layer (layer 1, 2, 3, 5, 6, 7, ...):                           │</span><br><span class="line">│     layer_cache = mamba2_layer_cache(layer_id)                        │</span><br><span class="line">│     conv_states = layer_cache.conv[0]                                 │</span><br><span class="line">│     ssm_states = layer_cache.temporal                                 │</span><br><span class="line">│     causal_conv1d_update(qkv, conv_states[cache_indices])             │</span><br><span class="line">│     delta_rule_update(q, k, v, ssm_states[cache_indices])             │</span><br><span class="line">│     → 无需 per-token KV indexing, 只需 per-request state slot         │</span><br><span class="line">│                                                                       │</span><br><span class="line">└──────────────────────────────────────────────────────────────────────┘</span><br><span class="line">                              ↓</span><br><span class="line">┌─ 释放层 ─────────────────────────────────────────────────────────────┐</span><br><span class="line">│   release_kv_cache(req):                                              │</span><br><span class="line">│     → tree_cache.cache_finished_req(req)  (可能保留给 prefix cache)    │</span><br><span class="line">│     → token_to_kv_pool_allocator.free(kv_indices)  (释放KV行号)       │</span><br><span class="line">│     → req_to_token_pool.free(req)  (释放请求行号)                     │</span><br><span class="line">│     → mamba_pool.free(mamba_pool_idx)  (释放state slot)               │</span><br><span class="line">└──────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="十-关键源码文件索引"><a class="markdownIt-Anchor" href="#十-关键源码文件索引"></a> 十、关键源码文件索引</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>python/sglang/srt/mem_cache/memory_pool.py</code></td>
+<td>ReqToTokenPool, MambaPool, HybridReqToTokenPool, KVCache 及各实现类</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/mem_cache/allocator.py</code></td>
+<td>TokenToKVPoolAllocator, PagedTokenToKVPoolAllocator</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/mem_cache/common.py</code></td>
+<td>alloc_for_extend, alloc_for_decode, write_cache_indices 等调度逻辑</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/layers/attention/linear/kda_backend.py</code></td>
+<td>KDAAttnBackend (KDA 的 forward_decode/extend)</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/layers/attention/fla/kda.py</code></td>
+<td>chunk_kda (chunk-based KDA prefill 算法)</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/layers/attention/fla/fused_sigmoid_gating_recurrent.py</code></td>
+<td>fused_sigmoid_gating_delta_rule_update (KDA decode kernel)</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/configs/kimi_linear.py</code></td>
+<td>KimiLinearConfig (模型配置, kda_layers 定义)</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/configs/mamba_utils.py</code></td>
+<td>KimiLinearStateShape, KimiLinearCacheParams (state 形状定义)</td>
+</tr>
+<tr>
+<td><code>python/sglang/srt/layers/radix_linear_attention.py</code></td>
+<td>RadixLinearAttention (KDA 层的 nn.Module)</td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> SGLang之KV Cache内存池机制</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-05-28 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:13:38
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/05/28/SGLang之KV Cache内存池机制详解/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM-infra/">#LLM infra</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/SGLang/">#SGLang</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/01/hello-world/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">Hello World — 博客配置说明</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">SGLang之KV Cache内存池机制</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84%E6%A6%82%E8%A7%88"><span class="nav-text"> 一、整体架构概览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C-%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-text"> 二、核心数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E4%B8%A4%E5%BC%A0%E8%A1%A8%E7%9A%84%E6%A6%82%E5%BF%B5%E6%A8%A1%E5%9E%8B"><span class="nav-text"> 2.1 两张&quot;表&quot;的概念模型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89-reqtotokenpool-%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 三、ReqToTokenPool 详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-text"> 3.1 数据结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-alloc%E5%88%86%E9%85%8D%E8%AF%B7%E6%B1%82%E8%A1%8C%E5%8F%B7"><span class="nav-text"> 3.2 alloc：分配请求行号</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-free%E9%87%8A%E6%94%BE%E8%AF%B7%E6%B1%82%E8%A1%8C%E5%8F%B7"><span class="nav-text"> 3.3 free：释放请求行号</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-write%E5%86%99%E5%85%A5%E6%98%A0%E5%B0%84%E5%85%B3%E7%B3%BB"><span class="nav-text"> 3.4 write：写入映射关系</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B-tokentokvpoolallocator-%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 四、TokenToKVPoolAllocator 详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-text"> 4.1 数据结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-alloc%E5%88%86%E9%85%8D-kv-%E5%AD%98%E5%82%A8%E8%A1%8C%E5%8F%B7"><span class="nav-text"> 4.2 alloc：分配 KV 存储行号</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-free%E9%87%8A%E6%94%BE-kv-%E8%A1%8C%E5%8F%B7"><span class="nav-text"> 4.3 free：释放 KV 行号</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#44-pagedtokentokvpoolallocator"><span class="nav-text"> 4.4 PagedTokenToKVPoolAllocator</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94-%E4%B8%A4%E4%B8%AA-alloc-%E5%A6%82%E4%BD%95%E9%85%8D%E5%90%88%E5%AE%8C%E6%95%B4%E6%95%B0%E6%8D%AE%E6%B5%81"><span class="nav-text"> 五、两个 alloc 如何配合：完整数据流</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-extendprefill%E9%98%B6%E6%AE%B5"><span class="nav-text"> 5.1 Extend（Prefill）阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-decode-%E9%98%B6%E6%AE%B5"><span class="nav-text"> 5.2 Decode 阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-attention-%E8%AE%A1%E7%AE%97%E6%97%B6%E7%9A%84%E6%9F%A5%E6%89%BE%E8%B7%AF%E5%BE%84"><span class="nav-text"> 5.3 Attention 计算时的查找路径</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E4%B8%A4%E5%B1%82%E9%97%B4%E6%8E%A5%E7%B4%A2%E5%BC%95"><span class="nav-text"> 六、为什么需要两层间接索引？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8D%E8%BF%9E%E7%BB%AD%E5%AD%98%E5%82%A8%E7%9A%84%E6%A0%B8%E5%BF%83%E5%A5%BD%E5%A4%84"><span class="nav-text"> 不连续存储的核心好处</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E6%9E%9C%E6%B2%A1%E6%9C%89%E9%97%B4%E6%8E%A5%E5%B1%82%E4%BC%9A%E6%80%8E%E6%A0%B7"><span class="nav-text"> 如果没有间接层会怎样？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%83-%E4%B8%A4%E4%B8%AA-alloc-%E7%9A%84%E5%AF%B9%E6%AF%94%E6%80%BB%E7%BB%93"><span class="nav-text"> 七、两个 alloc 的对比总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AB-kdakimi-delta-attention%E7%9A%84%E7%BC%93%E5%AD%98%E6%9C%BA%E5%88%B6"><span class="nav-text"> 八、KDA（Kimi Delta Attention）的缓存机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#81-kda-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 8.1 KDA 概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#82-kda-%E5%B1%82%E7%9A%84%E7%8A%B6%E6%80%81%E7%BB%93%E6%9E%84"><span class="nav-text"> 8.2 KDA 层的状态结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#83-hybridreqtotokenpool-%E6%B7%B7%E5%90%88%E5%86%85%E5%AD%98%E6%B1%A0"><span class="nav-text"> 8.3 HybridReqToTokenPool – 混合内存池</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#84-hybridlinearkvpool-%E6%B7%B7%E5%90%88-kv-cache"><span class="nav-text"> 8.4 HybridLinearKVPool – 混合 KV Cache</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#85-kda-%E8%BF%90%E8%A1%8C%E6%97%B6%E7%9A%84%E7%BC%93%E5%AD%98%E4%BD%BF%E7%94%A8"><span class="nav-text"> 8.5 KDA 运行时的缓存使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#86-kda-vs-full-attention-%E5%86%85%E5%AD%98%E5%AF%B9%E6%AF%94"><span class="nav-text"> 8.6 KDA vs Full Attention 内存对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B9%9D-%E5%AE%8C%E6%95%B4%E6%9E%B6%E6%9E%84%E5%9B%BE"><span class="nav-text"> 九、完整架构图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%81-%E5%85%B3%E9%94%AE%E6%BA%90%E7%A0%81%E6%96%87%E4%BB%B6%E7%B4%A2%E5%BC%95"><span class="nav-text"> 十、关键源码文件索引</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

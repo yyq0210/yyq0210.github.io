@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/03/matxscript对象模型/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="matxscript运行时系统之对象模型">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/03/matxscript%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-03T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T15:19:38.360Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="AI Compiler">
+<meta property="article:tag" content="TVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            matxscript运行时系统之对象模型 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">matxscript运行时系统之对象模型</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-03 23:50</span>
+        <span class="mobile">2026-06-03 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-05 23:19:38</span>
+            <span class="mobile">2026-06-05 23:19:38</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/AI-Compiler/">AI Compiler</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/AI-Compiler/">AI Compiler</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/TVM/">TVM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/bytedance/matxscript">bytedance/matxscript: A high-performance, extensible Python AOT compiler.<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="概述"><a class="markdownIt-Anchor" href="#概述"></a> 概述</h2>
+<p>matxscript运行时系统的核心基础是其基于引用计数的对象模型。该模型提供了自动内存管理、类型安全和面向对象特性支持，为整个运行时环境奠定了坚实的基础。对象模型主要由三个核心组件构成：</p>
+<ol>
+<li><strong>Object类</strong>：作为所有对象容器的基类，包含了类型索引、引用计数器和删除器等关键字段</li>
+<li><strong>ObjectPtr模板类</strong>：一个自定义智能指针，用于管理Object实例的安全访问和生命周期控制</li>
+<li><strong>ObjectRef类</strong>：对象引用类，提供给外部用户使用的接口</li>
+</ol>
+<p>这套设计借鉴了Apache TVM的理念，实现了高效且灵活的对象管理系统，支持继承、多态和运行时类型检查等高级特性。</p>
+<h2 id="核心组件"><a class="markdownIt-Anchor" href="#核心组件"></a> 核心组件</h2>
+<h3 id="object基类"><a class="markdownIt-Anchor" href="#object基类"></a> Object基类</h3>
+<p><code>Object</code>类（定义于<code>include/matxscript/runtime/object.h</code>）是整个对象系统的根基。它包含以下关键成员变量：</p>
+<ul>
+<li><code>type_index_</code>：标识对象类型的唯一索引</li>
+<li><code>ref_counter_</code>：引用计数器，用于跟踪有多少个智能指针正在引用此对象</li>
+<li><code>deleter_</code>：函数指针，在引用计数归零时调用以释放资源</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Object</span> {</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line"><span class="comment">/*! \\brief Type index(tag) that indicates the type of the object. */</span></span><br><span class="line"><span class="type">uint32_t</span> type_index_{<span class="number">0</span>};</span><br><span class="line"><span class="comment">/*! \\brief The internal reference counter */</span></span><br><span class="line">RefCounterType ref_counter_{<span class="number">1</span>};</span><br><span class="line"><span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \\brief deleter of this object to enable customized allocation.</span></span><br><span class="line"><span class="comment">   * If the deleter is nullptr, no deletion will be performed.</span></span><br><span class="line"><span class="comment">   * The creator of the object must always set the deleter field properly.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">FDeleter deleter_ = <span class="literal">nullptr</span>;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>Object类还提供了几个重要的方法：</p>
+<ul>
+<li><code>type_index()</code>：获取当前对象的类型索引</li>
+<li><code>GetTypeKey()</code>：返回对象类型的字符串表示</li>
+<li><code>IsInstance&lt;T&gt;()</code>：模板方法，用于在运行时检查对象是否是指定类型的实例</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Implementations details below</span></span><br><span class="line"><span class="comment">// Object reference counting.</span></span><br><span class="line"><span class="meta">#<span class="keyword">if</span> MATXSCRIPT_OBJECT_ATOMIC_REF_COUNTER</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Object::IncRef</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">  ref_counter_.<span class="built_in">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Object::DecRef</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">use_count</span>() == <span class="number">1</span>) {</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;deleter_ != <span class="literal">nullptr</span>) {</span><br><span class="line">      (*<span class="keyword">this</span>-&gt;deleter_)(<span class="keyword">this</span>);</span><br><span class="line">    }</span><br><span class="line">  } <span class="keyword">else</span> <span class="keyword">if</span> (ref_counter_.<span class="built_in">fetch_sub</span>(<span class="number">1</span>, std::memory_order_release) == <span class="number">1</span>) {</span><br><span class="line">    std::<span class="built_in">atomic_thread_fence</span>(std::memory_order_acquire);</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;deleter_ != <span class="literal">nullptr</span>) {</span><br><span class="line">      (*<span class="keyword">this</span>-&gt;deleter_)(<span class="keyword">this</span>);</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">int</span> <span class="title">Object::use_count</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">  <span class="keyword">return</span> ref_counter_.<span class="built_in">load</span>(std::memory_order_relaxed);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="objectptr智能指针"><a class="markdownIt-Anchor" href="#objectptr智能指针"></a> ObjectPtr智能指针</h3>
+<p><code>ObjectPtr&lt;T&gt;</code>是一个模板类，专门用来管理继承自Object的对象实例。它通过重载运算符（如<code>*</code>、<code>-&gt;</code>）提供了类似原生指针的操作体验，同时自动化处理引用计数逻辑。</p>
+<p>关键特性包括：</p>
+<ul>
+<li>构造或复制时增加引用计数</li>
+<li>销毁或重新赋值时减少引用计数</li>
+<li>当引用计数降至0时自动调用对象的析构函数并释放内存</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjectPtr</span> {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">T* <span class="keyword">operator</span>-&gt;() <span class="type">const</span> <span class="keyword">noexcept</span> {</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">get</span>();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">T&amp; <span class="keyword">operator</span>*() <span class="type">const</span> <span class="keyword">noexcept</span> {</span><br><span class="line">    <span class="keyword">return</span> *<span class="built_in">get</span>();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line"><span class="comment">/*! \\brief internal pointer field */</span></span><br><span class="line">Object* data_{<span class="literal">nullptr</span>};</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="objectref引用类"><a class="markdownIt-Anchor" href="#objectref引用类"></a> ObjectRef引用类</h3>
+<p><code>ObjectRef</code>是对ObjectPtr的一层封装，主要用于向用户提供统一的对象访问接口。它隐藏了底层智能指针的具体实现细节，使得用户可以更方便地操作各种类型的对象实例。</p>
+<p>ObjectRef最重要的功能之一就是类型转换——通过<code>as&lt;T&gt;()</code>方法可以在运行时安全地将通用对象引用转换为特定类型的引用。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*! \brief Base class of all object reference */</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjectRef</span> {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="comment">/*! \return the internal object pointer */</span></span><br><span class="line">  <span class="function"><span class="type">const</span> Object* <span class="title">get</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> data_.<span class="built_in">get</span>();</span><br><span class="line">  }</span><br><span class="line">  <span class="comment">/*! \return the internal object pointer */</span></span><br><span class="line">  <span class="type">const</span> Object* <span class="keyword">operator</span>-&gt;() <span class="type">const</span> <span class="keyword">noexcept</span> {</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">get</span>();</span><br><span class="line">  }</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief Try to downcast the internal Object to a</span></span><br><span class="line"><span class="comment">   *  raw pointer of a corresponding type.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   *  The function will return a nullptr if the cast failed.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * if (const Add *add = node_ref.As&lt;Add&gt;()) {</span></span><br><span class="line"><span class="comment">   *   // This is an add node</span></span><br><span class="line"><span class="comment">   * }</span></span><br><span class="line"><span class="comment">   * \tparam ObjectType the target type, must be a subtype of Object/</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> ObjectType&gt;</span><br><span class="line">  <span class="function"><span class="keyword">inline</span> <span class="type">const</span> ObjectType* <span class="title">as</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span></span>;</span><br><span class="line"> <span class="keyword">protected</span>:</span><br><span class="line">  <span class="comment">/*! \brief Internal pointer that backs the reference. */</span></span><br><span class="line">  ObjectPtr&lt;Object&gt; data_;</span><br><span class="line">  <span class="comment">/*! \return return a mutable internal ptr, can be used by sub-classes. */</span></span><br><span class="line">  <span class="function">Object* <span class="title">get_mutable</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> data_.<span class="built_in">get</span>();</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>拷贝时调 <code>IncRef()</code>，析构/reset 时调 <code>DecRef()</code>，本质就是 <strong>引用计数智能指针</strong> 的标准模式。下面直接用代码路径一步步拆开，让你能在脑中“看到”计数的变化。</p>
+<hr>
+<h2 id="自定义智能指针体系"><a class="markdownIt-Anchor" href="#自定义智能指针体系"></a> 自定义智能指针体系</h2>
+<p>核心是三层：</p>
+<ul>
+<li><code>**Object**</code>：所有“节点对象”的基类，内置引用计数 + 删除器</li>
+<li><code>**ObjectPtr&lt;T&gt;**</code>：指向 <code>**Object**</code> 的智能指针，负责增减引用计数</li>
+<li><code>**ObjectRef**</code>：对外暴露的“句柄类型”（List、Dict、String 等都继承它），内部持有 <code>**ObjectPtr&lt;Object&gt;**</code></li>
+</ul>
+<h3 id="对象的最小单元object-的计数字段"><a class="markdownIt-Anchor" href="#对象的最小单元object-的计数字段"></a> 对象的最小单元：Object 的计数字段</h3>
+<p>在 <code>Object</code> 里有两个关键字段：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Object</span> {</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">RefCounterType ref_counter_{<span class="number">1</span>};  <span class="comment">// 初始值是 1</span></span><br><span class="line">FDeleter deleter_ = <span class="literal">nullptr</span>;     <span class="comment">// 删除器：决定如何 delete</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>任意 <code>Object</code> 派生类（比如 <code>ListNode</code>）在构造完成时，<code>ref_counter_ = 1</code>。</li>
+<li>后续所有“持有这个对象”的智能指针，都围绕这一个 <code>ref_counter_</code> 做加减。</li>
+</ul>
+<hr>
+<h3 id="引用计数的核心incref-decref"><a class="markdownIt-Anchor" href="#引用计数的核心incref-decref"></a> 引用计数的核心：IncRef / DecRef</h3>
+<h4 id="incref增加引用数"><a class="markdownIt-Anchor" href="#incref增加引用数"></a> IncRef：增加引用数</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Object::IncRef</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="meta">#<span class="keyword">if</span> MATXSCRIPT_OBJECT_ATOMIC_REF_COUNTER</span></span><br><span class="line">    ref_counter_.<span class="built_in">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);</span><br><span class="line">    <span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    ++ref_counter_;</span><br><span class="line">    <span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>含义：<strong>又多了一个“拥有者”</strong>（一个新的 <code>ObjectPtr</code> 指向该对象）。</p>
+<h4 id="decref减少引用数并在-0-时析构"><a class="markdownIt-Anchor" href="#decref减少引用数并在-0-时析构"></a> DecRef：减少引用数并在 0 时析构</h4>
+<p>非原子版本（逻辑最简单）：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">void</span> <span class="title">Object::DecRef</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (--ref_counter_ == <span class="number">0</span>) {</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;deleter_ != <span class="literal">nullptr</span>) {</span><br><span class="line">            (*<span class="keyword">this</span>-&gt;deleter_)(<span class="keyword">this</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>含义：</p>
+<ol>
+<li><code>--ref_counter_</code>：当前 <code>ObjectPtr</code> 不再持有该对象，多一个指针销毁 / reset。</li>
+<li>如果减完后计数变为 0：说明再没有任何 <code>ObjectPtr</code> 指向它：</li>
+</ol>
+<ul>
+<li>调用 <code>deleter_(this)</code> 释放对象（类似 <code>delete this</code>）。</li>
+</ul>
+<p>原子版本只是加了一些内存序和优化分支，语义一样：<strong>最后一个引用被销毁时才真正释放对象</strong>。</p>
+<hr>
+<h3 id="objectptr-的行为在哪里调用-incref-decref"><a class="markdownIt-Anchor" href="#objectptr-的行为在哪里调用-incref-decref"></a> ObjectPtr 的行为：在哪里调用 IncRef / DecRef</h3>
+<p>关键点：<code>ObjectPtr&lt;T&gt;</code> 是唯一对 <code>Object::IncRef / DecRef</code> 直接操作的类。
+内部只有一个裸指针：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ObjectPtr</span> {</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">Object* data_{<span class="literal">nullptr</span>};</span><br></pre></td></tr></table></figure></div>
+<h4 id="从原始-object-构造时incref"><a class="markdownIt-Anchor" href="#从原始-object-构造时incref"></a> 从原始 Object* 构造时：IncRef</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">explicit</span> <span class="title">ObjectPtr</span><span class="params">(Object* data)</span> <span class="keyword">noexcept</span> : data_(data) {</span></span><br><span class="line">    <span class="keyword">if</span> (data != <span class="literal">nullptr</span>) {</span><br><span class="line">        data_-&gt;<span class="built_in">IncRef</span>();      <span class="comment">// 这里 +1</span></span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>谁会调用这个构造函数？</p>
+<ul>
+<li><code>GetRef</code> / <code>GetObjectPtr</code> 等内部接口；</li>
+<li><code>make_object</code> 之后，封装到 <code>ObjectPtr</code> 时。</li>
+</ul>
+<p>效果：<strong>每创建一个新的智能指针“拥有者”，引用计数 +1</strong>。</p>
+<h4 id="拷贝构造时incref"><a class="markdownIt-Anchor" href="#拷贝构造时incref"></a> 拷贝构造时：IncRef</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">ObjectPtr</span>(<span class="type">const</span> ObjectPtr&lt;T&gt;&amp; other) <span class="keyword">noexcept</span></span><br><span class="line">: <span class="built_in">ObjectPtr</span>(other.data_) {}   <span class="comment">// 委托给上面的构造</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>拷贝构造直接复用 <code>ObjectPtr(Object*)</code> 构造函数。</li>
+<li>所以每次拷贝 <code>ObjectPtr</code>，都会对 <code>other.data_</code> 调用 <code>IncRef()</code>。</li>
+</ul>
+<p>模板版本同理（从 <code>ObjectPtr&lt;U&gt;</code> 拷贝到父类 <code>ObjectPtr&lt;T&gt;</code>），一样加计数：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> U&gt;</span><br><span class="line"><span class="built_in">ObjectPtr</span>(<span class="type">const</span> ObjectPtr&lt;U&gt;&amp; other) <span class="keyword">noexcept</span></span><br><span class="line">: <span class="built_in">ObjectPtr</span>(other.data_) {</span><br><span class="line">    <span class="built_in">static_assert</span>(std::is_base_of&lt;T, U&gt;::value, ...);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>=&gt; “拷贝时 IncRef()” 就是在这里实现的。</strong></p>
+<h4 id="析构-reset-时decref"><a class="markdownIt-Anchor" href="#析构-reset-时decref"></a> 析构 / reset 时：DecRef</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">~<span class="built_in">ObjectPtr</span>() {</span><br><span class="line">    <span class="keyword">this</span>-&gt;<span class="built_in">reset</span>();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">reset</span><span class="params">()</span> <span class="keyword">noexcept</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (data_ != <span class="literal">nullptr</span>) {</span><br><span class="line">        data_-&gt;<span class="built_in">DecRef</span>();   <span class="comment">// 这里 -1，必要时释放对象</span></span><br><span class="line">        data_ = <span class="literal">nullptr</span>;</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>每一个 <code>ObjectPtr</code> 在生命周期结束（离开作用域、被销毁）时调用 <code>~ObjectPtr()</code>；</li>
+<li>析构调用 <code>reset()</code>，<code>reset()</code> 再调用 <code>DecRef()</code>。</li>
+</ul>
+<p><strong>=&gt; “析构/reset 时 DecRef()” 就在这里实现。</strong></p>
+<h4 id="赋值运算符用-copy-and-swap-保证计数平衡"><a class="markdownIt-Anchor" href="#赋值运算符用-copy-and-swap-保证计数平衡"></a> 赋值运算符：用 copy-and-swap 保证计数平衡</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ObjectPtr&lt;T&gt;&amp; <span class="keyword">operator</span>=(<span class="type">const</span> ObjectPtr&lt;T&gt;&amp; other) <span class="keyword">noexcept</span> {</span><br><span class="line">    <span class="built_in">ObjectPtr</span>(other).<span class="built_in">swap</span>(*<span class="keyword">this</span>);  <span class="comment">// 先拷贝 +1，再交换，旧值在临时对象析构时 -1</span></span><br><span class="line">    <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">ObjectPtr&lt;T&gt;&amp; <span class="keyword">operator</span>=(ObjectPtr&lt;T&gt;&amp;&amp; other) <span class="keyword">noexcept</span> {</span><br><span class="line">    <span class="built_in">ObjectPtr</span>(std::<span class="built_in">move</span>(other)).<span class="built_in">swap</span>(*<span class="keyword">this</span>);</span><br><span class="line">    <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>以拷贝赋值为例说明计数变化：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ObjectPtr&lt;T&gt; a = ...;   <span class="comment">// a 持有 X，ref_count(X) = 1</span></span><br><span class="line">ObjectPtr&lt;T&gt; b = ...;   <span class="comment">// b 持有 Y，ref_count(Y) = 1</span></span><br><span class="line"></span><br><span class="line">b = a;</span><br></pre></td></tr></table></figure></div>
+<p>执行过程：</p>
+<ol>
+<li><code>ObjectPtr(other)</code>：构造一个临时 <code>tmp</code>，其中 <code>tmp.data_ = a.data_</code>：</li>
+</ol>
+<ul>
+<li>调用 <code>IncRef()</code>，所以 <code>ref_count(X)</code> 从 1 -&gt; 2；</li>
+</ul>
+<ol>
+<li><code>tmp.swap(*this)</code>：交换 <code>tmp.data_</code> 和 <code>b.data_</code>：</li>
+</ol>
+<ul>
+<li>此时 <code>b.data_</code> 指向 X，<code>tmp.data_</code> 指向原来的 Y；</li>
+</ul>
+<ol>
+<li>语句结束，<code>tmp</code> 析构：</li>
+</ol>
+<ul>
+<li>在 <code>~ObjectPtr()</code> 中调用 <code>reset()</code>，对 <code>Y</code> 调用 <code>DecRef()</code>：</li>
+<li><code>ref_count(Y)</code> 1 -&gt; 0，触发删除 Y。</li>
+</ul>
+<p>结果：</p>
+<ul>
+<li>X 被 a 和 b 共享，计数 = 2；</li>
+<li>Y 无人再引用，被释放。</li>
+</ul>
+<p><strong>计数始终平衡：谁新持有（拷贝）就 +1，谁不再持有（析构/覆盖）就 -1。</strong></p>
+<hr>
+<h3 id="句柄层objectref-list-等的拷贝析构如何影响计数"><a class="markdownIt-Anchor" href="#句柄层objectref-list-等的拷贝析构如何影响计数"></a> 句柄层（ObjectRef, List 等）的拷贝/析构如何影响计数</h3>
+<p><code>ObjectRef</code> 内部就是一个 <code>ObjectPtr&lt;Object&gt;</code>：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">ObjectRef</span> {</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">ObjectPtr&lt;Object&gt; data_;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="built_in">ObjectRef</span>() <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line"><span class="function"><span class="keyword">explicit</span> <span class="title">ObjectRef</span><span class="params">(ObjectPtr&lt;Object&gt; data)</span> <span class="keyword">noexcept</span> : data_(std::move(data)) {</span>}</span><br><span class="line"><span class="comment">// 拷贝构造/赋值/析构 全都是默认生成，对 data_ 做成员拷贝/析构</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>以 <code>List</code> 为例，通过宏生成的方法类似：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">List</span> : <span class="keyword">public</span> ObjectRef {</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line"><span class="built_in">List</span>() <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line"><span class="function"><span class="keyword">explicit</span> <span class="title">List</span><span class="params">(ObjectPtr&lt;Object&gt; n)</span> <span class="keyword">noexcept</span> : ObjectRef(std::move(n)) {</span>}</span><br><span class="line"><span class="built_in">List</span>(<span class="type">const</span> List&amp; other) <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line"><span class="built_in">List</span>(List&amp;&amp; other) <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line">List&amp; <span class="keyword">operator</span>=(<span class="type">const</span> List&amp; other) <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line">List&amp; <span class="keyword">operator</span>=(List&amp;&amp; other) <span class="keyword">noexcept</span> = <span class="keyword">default</span>;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>行为：</p>
+<ul>
+<li>
+<p>拷贝 <code>List</code>：</p>
+</li>
+<li>
+<p>调用 <code>List(const List&amp;)</code>，成员 <code>data_</code> 执行拷贝构造；</p>
+</li>
+<li>
+<p><code>data_</code> 是 <code>ObjectPtr&lt;Object&gt;</code>，其拷贝构造会调用 <code>IncRef()</code>。</p>
+</li>
+<li>
+<p><code>List</code> 析构：</p>
+</li>
+<li>
+<p><code>data_</code> 析构，调用 <code>ObjectPtr::~ObjectPtr()</code> -&gt; <code>reset()</code> -&gt; <code>DecRef()</code>。</p>
+</li>
+</ul>
+<p>因此，“<strong>拷贝 List -&gt; IncRef()，销毁 List -&gt; DecRef()</strong>”是通过 <code>ObjectPtr</code> 这层自动完成的。</p>
+<hr>
+<h3 id="用例画一条完整的计数变化时间线"><a class="markdownIt-Anchor" href="#用例画一条完整的计数变化时间线"></a> 用例：画一条完整的计数变化时间线</h3>
+<p>假设有一个底层节点 <code>ListNode</code>，其 <code>ref_counter_</code> 初始为 1（刚创建，暂不包到 <code>ObjectPtr</code> 里先忽略这一步的构造逻辑，直接从第一个 <code>ObjectPtr</code> 开始考虑）：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">List a = <span class="built_in">some_function</span>();  <span class="comment">// a 内部有一个 ObjectPtr，指向节点 N</span></span><br><span class="line"><span class="comment">// 设此时 ref_counter(N) = 1</span></span><br><span class="line">List b = a;                <span class="comment">// 拷贝构造 List</span></span><br><span class="line">List c; </span><br><span class="line">c = a;                     <span class="comment">// 拷贝赋值</span></span><br><span class="line">b = <span class="built_in">List</span>();                <span class="comment">// 赋值为一个新的空 List</span></span><br><span class="line"><span class="comment">// 作用域结束，a, c, 临时对象依次析构</span></span><br></pre></td></tr></table></figure></div>
+<p>计数变化：</p>
+<ol>
+<li><code>List a = ...;</code></li>
+</ol>
+<ul>
+<li>创建一个 <code>ObjectPtr&lt;Object&gt;</code> 指向 N，调用 <code>IncRef()</code>：</li>
+<li>假设创建时从原始裸指针开始，N: 1 → 1（构造初始化已经 1，不再重复考虑这一细节），总之最终 <code>use_count()</code> 为 1 或 2，取决于 make_object 实现，这里简化为“此刻 ref_count(N) = 1”。</li>
+</ul>
+<ol>
+<li><code>List b = a;</code></li>
+</ol>
+<ul>
+<li>拷贝构造 <code>List</code>，<code>data_</code> 拷贝构造：</li>
+<li><code>ObjectPtr</code> 拷贝构造调用 <code>IncRef()</code>：</li>
+<li><code>ref_counter(N) : 1 → 2</code>。</li>
+</ul>
+<ol>
+<li><code>c = a;</code></li>
+</ol>
+<ul>
+<li>
+<p><code>c.data_</code> 原本是空指针，拷贝赋值等价于：</p>
+</li>
+<li>
+<p>构造临时 <code>ObjectPtr tmp(a.data_)</code>：<code>ref_counter(N) : 2 → 3</code>；</p>
+</li>
+<li>
+<p><code>swap(tmp, c.data_)</code>：<code>c.data_</code> 指向 N；</p>
+</li>
+<li>
+<p><code>tmp</code> 析构，因 tmp 原来持有的是 <code>nullptr</code>，因此这里对 N 无影响（这里简化理解；如果 c 原来持有别的对象，也会在 tmp 析构时对那个对象做 <code>DecRef()</code>）。</p>
+</li>
+<li>
+<p>结果：<code>ref_counter(N) = 3</code>（a、b、c 都指向 N）。</p>
+</li>
+</ul>
+<ol>
+<li><code>b = List();</code></li>
+</ol>
+<ul>
+<li><code>List()</code> 默认构造，内部的 <code>data_</code> 是一个默认构造的 <code>ObjectPtr&lt;Object&gt;</code>。</li>
+<li>默认构造的 <code>ObjectPtr</code> 内部 <code>data_ = nullptr</code>，不会对任何 <code>Object</code> 调 <code>IncRef()</code>。</li>
+<li>因此，创建 <code>List()</code> 这一步对 N 完全没有影响，<code>ref_count(N)</code> 仍然是 3。</li>
+<li>记住这一点：右值 <code>List()</code> 的内部指针是 <code>nullptr</code>。</li>
+<li>为什么？</li>
+</ul>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">explicit</span> <span class="title">ObjectPtr</span><span class="params">(Object* data)</span> <span class="keyword">noexcept</span> : data_(data) {</span></span><br><span class="line">  <span class="keyword">if</span> (data != <span class="literal">nullptr</span>) {</span><br><span class="line">    data_-&gt;<span class="built_in">IncRef</span>();</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"><span class="comment">// 因为 data == nullptr，所以：</span></span><br><span class="line"><span class="comment">//不会调用 IncRef()；</span></span><br><span class="line"><span class="comment">//tmp.data_ 也是 nullptr；</span></span><br><span class="line"><span class="comment">//此时对 N 的计数没有任何影响，仍然是 3。</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>swap(tmp, b.data_)</code>：b.data_ 改指向新的（或空）；</li>
+<li><code>tmp</code> 析构，对旧的 N 调用 <code>DecRef()</code>：<code>ref_counter(N) : 3 → 2</code>；</li>
+<li>综合起来其实就是 b 由指向 N → 指向其它（或空），N 的计数从 3 → 2。</li>
+</ul>
+<ol>
+<li>作用域结束：</li>
+</ol>
+<ul>
+<li>
+<p><code>c</code> 析构：<code>c.data_</code> 析构，<code>DecRef()</code>：<code>ref_counter(N): 2 → 1</code>；</p>
+</li>
+<li>
+<p><code>a</code> 析构：<code>DecRef()</code>：<code>ref_counter(N): 1 → 0</code>，触发 <code>deleter_(this)</code>，释放 N；</p>
+</li>
+<li>
+<p>其他临时对象的析构一般不会再影响 N（已经释放了）。</p>
+</li>
+<li>
+<p><code>b.data_ == nullptr</code>，即 <code>b</code> 变成空引用；</p>
+</li>
+<li>
+<p><code>a</code> 和 <code>c</code> 仍然指向 N；</p>
+</li>
+<li>
+<p>N 的引用计数从 3 变为 2。</p>
+</li>
+</ul>
+<p><strong>所以：</strong></p>
+<ul>
+<li>每增加一个活跃的句柄 / 智能指针，计数 +1；</li>
+<li>每一个句柄 / 智能指针消失或不再指向该对象，计数 -1；</li>
+<li>当最后一个引用释放时，计数到 0，删除对象。</li>
+</ul>
+<hr>
+<h3 id="总结成一句话"><a class="markdownIt-Anchor" href="#总结成一句话"></a> 总结成一句话</h3>
+<ul>
+<li>
+<p><code>ObjectPtr</code> 是唯一操作 <code>Object::IncRef / DecRef</code> 的封装：</p>
+</li>
+<li>
+<p>拷贝构造 / 从原始 <code>Object*</code> 构造时：<code>IncRef()</code>；</p>
+</li>
+<li>
+<p>析构 / <code>reset()</code> / 赋值导致旧指针被替换时：<code>DecRef()</code>；</p>
+</li>
+<li>
+<p><code>ObjectRef</code>（以及 <code>List</code> 等所有容器句柄）内部只是持有一个 <code>ObjectPtr</code>，靠默认的拷贝/析构行为把这些加减计数“传递”到 <code>Object</code> 上；</p>
+</li>
+<li>
+<p>这样设计保证了：<strong>对象只在无人引用时自动释放，多处引用时共享同一份数据</strong>。</p>
+</li>
+</ul>
+<hr>
+<h2 id="类型系统"><a class="markdownIt-Anchor" href="#类型系统"></a> 类型系统</h2>
+<p>matxscript的类型系统允许开发者创建具有明确类型信息的对象，并能在运行时进行准确的类型识别。这一能力依赖于几个关键机制：</p>
+<h3 id="静态类型信息"><a class="markdownIt-Anchor" href="#静态类型信息"></a> 静态类型信息</h3>
+<p>每个具体对象类都需要声明一组静态常量来描述其类型属性：</p>
+<ul>
+<li><code>_type_key</code>：全局唯一的类型名称字符串</li>
+<li><code>_type_index</code>：预分配的类型索引或者TypeIndex::kDynamic（表示动态分配）</li>
+<li><code>_type_final</code>：标记此类是否可被进一步继承</li>
+<li><code>_type_child_slots</code>：预留的孩子类型数量，用于优化运行时类型检查性能</li>
+</ul>
+<p>例如：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">class MyObject : public Object {</span><br><span class="line"> public:</span><br><span class="line">  static constexpr const uint32_t _type_index = TypeIndex::kDynamic;</span><br><span class="line">  static constexpr const char* _type_key = "MyNamespace.MyObject";</span><br><span class="line">  MATXSCRIPT_DECLARE_FINAL_OBJECT_INFO(MyObject, Object);</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="类型注册宏"><a class="markdownIt-Anchor" href="#类型注册宏"></a> 类型注册宏</h3>
+<p>为了使新定义的对象类型能够在运行时被正确识别，需要使用相应的宏来进行注册：</p>
+<ul>
+<li><code>MATXSCRIPT_DECLARE_BASE_OBJECT_INFO(TypeName, ParentType)</code>：用于声明可继承的对象类型</li>
+<li><code>MATXSCRIPT_DECLARE_FINAL_OBJECT_INFO(TypeName, ParentType)</code>：用于声明不可继承的最终对象类型</li>
+<li><code>MATXSCRIPT_REGISTER_OBJECT_TYPE(TypeName)</code>：在源文件中实际执行类型注册操作</li>
+</ul>
+<p>这些宏会生成必要的辅助函数和初始化代码，确保类型体系能够正常工作。</p>
+<h3 id="运行时类型上下文"><a class="markdownIt-Anchor" href="#运行时类型上下文"></a> 运行时类型上下文</h3>
+<p>真正的类型管理是在<code>TypeContext</code>类（位于<code>src/runtime/object.cc</code>）中完成的。这个单例模式的类维护了一个全局类型表，记录着每种已知类型的信息，包括它们的名称、父类型关系、可用槽位等元数据。</p>
+<p>当首次请求某个动态类型索引时，系统会在互斥锁保护下为其分配一个新的编号，并将其相关信息存入类型表中供后续查询使用。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">TypeInfo</span> {</span><br><span class="line">  <span class="type">uint32_t</span> index{<span class="number">0</span>};            <span class="comment">// 这个类型本身的索引</span></span><br><span class="line">  <span class="type">uint32_t</span> parent_index{<span class="number">0</span>};     <span class="comment">// 父类型的索引</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// [index, index + num_slots) 这段连续的索引区域</span></span><br><span class="line">  <span class="comment">// 是为这个类型及其子类保留的“槽位”区间。</span></span><br><span class="line">  <span class="type">uint32_t</span> num_slots{<span class="number">0</span>};        <span class="comment">// 为“自己 + 子类”预留的总槽位数</span></span><br><span class="line">  <span class="type">uint32_t</span> allocated_slots{<span class="number">0</span>};  <span class="comment">// 已经使用了多少个槽位</span></span><br><span class="line"></span><br><span class="line">  <span class="type">bool</span> child_slots_can_overflow{<span class="literal">true</span>}; <span class="comment">// 槽位用完后，是否允许继续扩展</span></span><br><span class="line">  String name;                 <span class="comment">// 类型名</span></span><br><span class="line">  <span class="type">size_t</span> name_hash{<span class="number">0</span>};         <span class="comment">// 类型名的哈希</span></span><br><span class="line">};</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">TypeContext</span> {</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="comment">// <span class="doctag">NOTE:</span> this is a relatively slow path for child checking</span></span><br><span class="line">  <span class="comment">// Most types are already checked by the fast-path via reserved slot checking.</span></span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">DerivedFrom</span><span class="params">(<span class="type">uint32_t</span> child_tindex, <span class="type">uint32_t</span> parent_tindex)</span> </span>{</span><br><span class="line">    <span class="comment">// invariance: child's type index is always bigger than its parent.</span></span><br><span class="line">    <span class="keyword">if</span> (child_tindex &lt; parent_tindex)</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">if</span> (child_tindex == parent_tindex)</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    {</span><br><span class="line">      <span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(mutex_)</span></span>;</span><br><span class="line">      <span class="built_in">MXCHECK_LT</span>(child_tindex, type_table_.<span class="built_in">size</span>());</span><br><span class="line">      <span class="keyword">while</span> (child_tindex &gt; parent_tindex) {</span><br><span class="line">        child_tindex = type_table_[child_tindex].parent_index;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> child_tindex == parent_tindex;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">uint32_t</span> <span class="title">GetOrAllocRuntimeTypeIndex</span><span class="params">(<span class="type">const</span> string_view&amp; skey,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">uint32_t</span> static_tindex,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">uint32_t</span> parent_tindex,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">uint32_t</span> num_child_slots,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">bool</span> child_slots_can_overflow)</span> </span>{</span><br><span class="line">    <span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(mutex_)</span></span>;</span><br><span class="line">    <span class="keyword">auto</span> it = type_key2index_.<span class="built_in">find</span>(skey);</span><br><span class="line">    <span class="keyword">if</span> (it != type_key2index_.<span class="built_in">end</span>()) {</span><br><span class="line">      <span class="keyword">return</span> it-&gt;second;</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// try to allocate from parent's type table.</span></span><br><span class="line">    <span class="built_in">MXCHECK_LT</span>(parent_tindex, type_table_.<span class="built_in">size</span>())</span><br><span class="line">        &lt;&lt; <span class="string">" skey= "</span> &lt;&lt; skey &lt;&lt; <span class="string">"static_index="</span> &lt;&lt; static_tindex;</span><br><span class="line">    TypeInfo&amp; pinfo = type_table_[parent_tindex];</span><br><span class="line">    <span class="built_in">MXCHECK_EQ</span>(pinfo.index, parent_tindex);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// if parent cannot overflow, then this class cannot.</span></span><br><span class="line">    <span class="keyword">if</span> (!pinfo.child_slots_can_overflow) {</span><br><span class="line">      child_slots_can_overflow = <span class="literal">false</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// total number of slots include the type itself.</span></span><br><span class="line">    <span class="type">uint32_t</span> num_slots = num_child_slots + <span class="number">1</span>;</span><br><span class="line">    <span class="type">uint32_t</span> allocated_tindex;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (static_tindex != TypeIndex::kDynamic) {</span><br><span class="line">      <span class="comment">// statically assigned type</span></span><br><span class="line">      allocated_tindex = static_tindex;</span><br><span class="line">      <span class="built_in">MXCHECK_LT</span>(static_tindex, type_table_.<span class="built_in">size</span>());</span><br><span class="line">      <span class="built_in">MXCHECK_EQ</span>(type_table_[allocated_tindex].allocated_slots, <span class="number">0U</span>)</span><br><span class="line">          &lt;&lt; <span class="string">"Conflicting static index "</span> &lt;&lt; static_tindex &lt;&lt; <span class="string">" between "</span></span><br><span class="line">          &lt;&lt; type_table_[allocated_tindex].name &lt;&lt; <span class="string">" and "</span> &lt;&lt; skey;</span><br><span class="line">    } <span class="keyword">else</span> <span class="keyword">if</span> (pinfo.allocated_slots + num_slots &lt;= pinfo.num_slots) {</span><br><span class="line">      <span class="comment">// allocate the slot from parent's reserved pool</span></span><br><span class="line">      allocated_tindex = parent_tindex + pinfo.allocated_slots;</span><br><span class="line">      <span class="comment">// update parent's state</span></span><br><span class="line">      pinfo.allocated_slots += num_slots;</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">      <span class="built_in">MXCHECK</span>(pinfo.child_slots_can_overflow)</span><br><span class="line">          &lt;&lt; <span class="string">"Reach maximum number of sub-classes for "</span> &lt;&lt; pinfo.name;</span><br><span class="line">      <span class="comment">// allocate new entries.</span></span><br><span class="line">      allocated_tindex = type_counter_;</span><br><span class="line">      type_counter_ += num_slots;</span><br><span class="line">      <span class="built_in">MXCHECK_LE</span>(type_table_.<span class="built_in">size</span>(), type_counter_);</span><br><span class="line">      type_table_.<span class="built_in">resize</span>(type_counter_, <span class="built_in">TypeInfo</span>());</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">MXCHECK_GT</span>(allocated_tindex, parent_tindex);</span><br><span class="line">    <span class="comment">// initialize the slot.</span></span><br><span class="line">    type_table_[allocated_tindex].index = allocated_tindex;</span><br><span class="line">    type_table_[allocated_tindex].parent_index = parent_tindex;</span><br><span class="line">    type_table_[allocated_tindex].num_slots = num_slots;</span><br><span class="line">    type_table_[allocated_tindex].allocated_slots = <span class="number">1</span>;</span><br><span class="line">    type_table_[allocated_tindex].child_slots_can_overflow = child_slots_can_overflow;</span><br><span class="line">    type_table_[allocated_tindex].name = <span class="built_in">String</span>(skey.<span class="built_in">data</span>(), skey.<span class="built_in">size</span>());</span><br><span class="line">    type_table_[allocated_tindex].name_hash = <span class="built_in">SmartHash</span>()(skey);</span><br><span class="line">    <span class="comment">// update the key2index mapping.</span></span><br><span class="line">    type_key2index_[skey] = allocated_tindex;</span><br><span class="line">    <span class="keyword">return</span> allocated_tindex;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">const</span> String&amp; <span class="title">TypeIndex2Key</span><span class="params">(<span class="type">uint32_t</span> tindex)</span> </span>{</span><br><span class="line">    <span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(mutex_)</span></span>;</span><br><span class="line">    <span class="built_in">MXCHECK</span>(tindex &lt; type_table_.<span class="built_in">size</span>() &amp;&amp; type_table_[tindex].allocated_slots != <span class="number">0</span>)</span><br><span class="line">        &lt;&lt; <span class="string">"Unknown type index "</span> &lt;&lt; tindex;</span><br><span class="line">    <span class="keyword">return</span> type_table_[tindex].name;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">bool</span> <span class="title">TryTypeIndex2Key</span><span class="params">(<span class="type">uint32_t</span> tindex, string_view* tkey)</span> </span>{</span><br><span class="line">    <span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(mutex_)</span></span>;</span><br><span class="line">    <span class="keyword">if</span> (tindex &lt; type_table_.<span class="built_in">size</span>() &amp;&amp; type_table_[tindex].allocated_slots != <span class="number">0</span>) {</span><br><span class="line">      *tkey = type_table_[tindex].name;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">size_t</span> <span class="title">TypeIndex2KeyHash</span><span class="params">(<span class="type">uint32_t</span> tindex)</span> </span>{</span><br><span class="line">    <span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(mutex_)</span></span>;</span><br><span class="line">    <span class="built_in">MXCHECK</span>(tindex &lt; type_table_.<span class="built_in">size</span>() &amp;&amp; type_table_[tindex].allocated_slots != <span class="number">0</span>)</span><br><span class="line">        &lt;&lt; <span class="string">"Unknown type index "</span> &lt;&lt; tindex;</span><br><span class="line">    <span class="keyword">return</span> type_table_[tindex].name_hash;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">uint32_t</span> <span class="title">TypeKey2Index</span><span class="params">(<span class="type">const</span> string_view&amp; skey)</span> </span>{</span><br><span class="line">    <span class="keyword">auto</span> it = type_key2index_.<span class="built_in">find</span>(skey);</span><br><span class="line">    <span class="built_in">MXCHECK</span>(it != type_key2index_.<span class="built_in">end</span>())</span><br><span class="line">        &lt;&lt; <span class="string">"Cannot find type "</span> &lt;&lt; skey</span><br><span class="line">        &lt;&lt; <span class="string">". Did you forget to register the node by MATXSCRIPT_REGISTER_NODE_TYPE ?"</span>;</span><br><span class="line">    <span class="keyword">return</span> it-&gt;second;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">Dump</span><span class="params">(<span class="type">int</span> min_children_count)</span> </span>{</span><br><span class="line">    <span class="function">std::vector&lt;<span class="type">int</span>&gt; <span class="title">num_children</span><span class="params">(type_table_.size(), <span class="number">0</span>)</span></span>;</span><br><span class="line">    <span class="comment">// reverse accumulation so we can get total counts in a bottom-up manner.</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span> it = type_table_.<span class="built_in">rbegin</span>(); it != type_table_.<span class="built_in">rend</span>(); ++it) {</span><br><span class="line">      <span class="keyword">if</span> (it-&gt;index != <span class="number">0</span>) {</span><br><span class="line">        num_children[it-&gt;parent_index] += num_children[it-&gt;index] + <span class="number">1</span>;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span>&amp; info : type_table_) {</span><br><span class="line">      <span class="keyword">if</span> (info.index != <span class="number">0</span> &amp;&amp; num_children[info.index] &gt;= min_children_count) {</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">'['</span> &lt;&lt; info.index &lt;&lt; <span class="string">"] "</span> &lt;&lt; info.name</span><br><span class="line">                  &lt;&lt; <span class="string">"\tparent="</span> &lt;&lt; type_table_[info.parent_index].name</span><br><span class="line">                  &lt;&lt; <span class="string">"\tnum_child_slots="</span> &lt;&lt; info.num_slots - <span class="number">1</span></span><br><span class="line">                  &lt;&lt; <span class="string">"\tnum_children="</span> &lt;&lt; num_children[info.index] &lt;&lt; std::endl;</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="type">static</span> TypeContext* <span class="title">Global</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="type">static</span> TypeContext inst;</span><br><span class="line">    <span class="keyword">return</span> &amp;inst;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="built_in">TypeContext</span>() {</span><br><span class="line">    type_table_.<span class="built_in">resize</span>(TypeIndex::kStaticIndexEnd, <span class="built_in">TypeInfo</span>());</span><br><span class="line">    type_table_[<span class="number">0</span>].name = <span class="string">"runtime.Object"</span>;</span><br><span class="line">  }</span><br><span class="line">  <span class="comment">// mutex to avoid registration from multiple threads.</span></span><br><span class="line">  std::mutex mutex_;</span><br><span class="line">  std::atomic&lt;<span class="type">uint32_t</span>&gt; type_counter_{TypeIndex::kStaticIndexEnd};</span><br><span class="line">  std::vector&lt;TypeInfo&gt; type_table_;</span><br><span class="line">  std::unordered_map&lt;String, <span class="type">uint32_t</span>, SmartHash, SmartEqualTo&gt; type_key2index_;</span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p><code>TypeContext</code> 这个类的作用，可以概括成一句话：</p>
+<p><strong>它是一个全局的“类型注册与查询中心”，用来维护运行时的类型层次结构（继承关系）以及类型名和类型索引之间的映射。</strong></p>
+<p>下面按功能拆开讲：</p>
+<hr>
+<h4 id="维护类型层次结构父子关系"><a class="markdownIt-Anchor" href="#维护类型层次结构父子关系"></a> 维护类型层次结构（父子关系）</h4>
+<p>核心思想：每个类型在运行时都有一个 <code>uint32_t</code> 的类型索引（type index），并且知道自己的父类型索引，从而形成一棵类型继承树。</p>
+<ul>
+<li>
+<p><code>type_table_</code> 是一个 <code>std::vector&lt;TypeInfo&gt;</code>，每个 <code>TypeInfo</code> 表示一个类型的信息：</p>
+</li>
+<li>
+<p><code>index</code>：当前类型的索引</p>
+</li>
+<li>
+<p><code>parent_index</code>：父类型的索引</p>
+</li>
+<li>
+<p><code>num_slots</code> / <code>allocated_slots</code>：为子类型预留的“类型槽位”及已使用数量</p>
+</li>
+<li>
+<p><code>child_slots_can_overflow</code>：是否允许超过预留槽位继续扩展</p>
+</li>
+<li>
+<p><code>name</code> / <code>name_hash</code>：类型名称及其哈希</p>
+</li>
+<li>
+<p>构造函数中：</p>
+</li>
+</ul>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">TypeContext() {</span><br><span class="line">  type_table_.resize(TypeIndex::kStaticIndexEnd, TypeInfo());</span><br><span class="line">  type_table_[0].name = "runtime.Object";</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>初始化了一个类型表，索引 0 是根类型 <code>"runtime.Object"</code>。</p>
+<hr>
+<h4 id="判断继承关系derivedfrom"><a class="markdownIt-Anchor" href="#判断继承关系derivedfrom"></a> 判断继承关系：<code>DerivedFrom</code></h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bool DerivedFrom(uint32_t child_tindex, uint32_t parent_tindex)</span><br></pre></td></tr></table></figure></div>
+<p>用途：<strong>判断一个类型（child_tindex）是否是另一个类型（parent_tindex）的子类或本身。</strong></p>
+<p>实现方式：</p>
+<ol>
+<li>利用不变式：<strong>子类的 type index 一定大于父类</strong></li>
+</ol>
+<ul>
+<li>如果 <code>child_tindex &lt; parent_tindex</code> → 肯定不是子类，返回 <code>false</code></li>
+<li>如果相等 → 是同一类型，返回 <code>true</code></li>
+</ul>
+<ol>
+<li>在互斥锁保护下，从子类型开始不断沿 <code>parent_index</code> 往上跳：</li>
+</ol>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">while (child_tindex &gt; parent_tindex) {</span><br><span class="line">  child_tindex = type_table_[child_tindex].parent_index;</span><br><span class="line">}</span><br><span class="line">return child_tindex == parent_tindex;</span><br></pre></td></tr></table></figure></div>
+<p>最终判断能否追溯到父类型。</p>
+<p>注释里也说了：这是一个<strong>相对慢的路径</strong>，真正高频的类型检查通常用更快速的“保留槽位”机制来判断。</p>
+<hr>
+<h4 id="注册分配运行时类型索引getorallocruntimetypeindex"><a class="markdownIt-Anchor" href="#注册分配运行时类型索引getorallocruntimetypeindex"></a> 注册/分配运行时类型索引：<code>GetOrAllocRuntimeTypeIndex</code></h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">uint32_t GetOrAllocRuntimeTypeIndex(const string_view&amp; skey,</span><br><span class="line">                                    uint32_t static_tindex,</span><br><span class="line">                                    uint32_t parent_tindex,</span><br><span class="line">                                    uint32_t num_child_slots,</span><br><span class="line">                                    bool child_slots_can_overflow)</span><br></pre></td></tr></table></figure></div>
+<p>用途：**给一个类型名（<code>skey</code>）分配一个运行时类型索引，并记录它的父类、子类槽位信息等。**这个函数也负责处理“静态分配”和“动态分配”的两种情况。</p>
+<p>步骤：</p>
+<ol>
+<li>先查 <code>type_key2index_</code>，如果已经注册，直接返回原来的 type index。</li>
+<li>否则，需要新注册：</li>
+</ol>
+<ul>
+<li>确认 <code>parent_tindex</code> 合法，拿到父类型 <code>pinfo</code></li>
+<li>如果父类不能 overflow 子槽 (<code>!pinfo.child_slots_can_overflow</code>)，那么子类也不能</li>
+</ul>
+<ol>
+<li>计算当前类型需要占用的槽位数（自身 + 子槽）：</li>
+</ol>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uint32_t num_slots = num_child_slots + 1;</span><br></pre></td></tr></table></figure></div>
+<ol>
+<li>决定 <code>allocated_tindex</code>（当前类型的索引）：</li>
+</ol>
+<ul>
+<li>
+<p><strong>静态类型</strong>（<code>static_tindex != TypeIndex::kDynamic</code>）
+直接使用编译期给定的 <code>static_tindex</code>，并检查该位置没有被占用。</p>
+</li>
+<li>
+<p><strong>动态类型</strong>：从父类的预留槽中分配：</p>
+</li>
+<li>
+<p>如果 <code>pinfo.allocated_slots + num_slots &lt;= pinfo.num_slots</code>，就在父类的预留范围内分配</p>
+</li>
+<li>
+<p>否则，如果父类允许溢出（overflow），则在 <code>type_table_</code> 尾部扩展一个新的区间作为新类型的槽位</p>
+</li>
+<li>
+<p>如果不允许 overflow，则直接报错（达到子类型最大数量）</p>
+</li>
+</ul>
+<ol>
+<li>对新类型在 <code>type_table_</code> 中进行初始化：</li>
+</ol>
+<ul>
+<li>设置 <code>index</code>, <code>parent_index</code>, <code>num_slots</code>, <code>allocated_slots=1</code></li>
+<li>设置 <code>child_slots_can_overflow</code></li>
+<li>填写 <code>name</code> 和 <code>name_hash</code></li>
+</ul>
+<ol>
+<li>更新 <code>type_key2index_</code> 映射，返回分配到的 <code>allocated_tindex</code>。</li>
+</ol>
+<p>这部分逻辑使得系统可以：</p>
+<ul>
+<li>有计划地为某些类型预留固定数量的“子类型位置”（有利于快速类型判断和布局）</li>
+<li>在必要时支持扩张（overflow），不硬性限制子类型数量</li>
+</ul>
+<hr>
+<h4 id="类型名与索引互查"><a class="markdownIt-Anchor" href="#类型名与索引互查"></a> 类型名与索引互查</h4>
+<p>索引 → 名称</p>
+<ul>
+<li><code>const String&amp; TypeIndex2Key(uint32_t tindex)</code></li>
+<li><code>bool TryTypeIndex2Key(uint32_t tindex, string_view* tkey)</code></li>
+<li><code>size_t TypeIndex2KeyHash(uint32_t tindex)</code></li>
+</ul>
+<p>功能：</p>
+<ul>
+<li>根据类型索引拿到类型名称或名称哈希</li>
+<li>会检查该索引是否在表内且已经分配（<code>allocated_slots != 0</code>），否则报错或返回 <code>false</code></li>
+</ul>
+<p>名称 → 索引</p>
+<ul>
+<li><code>uint32_t TypeKey2Index(const string_view&amp; skey)</code></li>
+</ul>
+<p>功能：</p>
+<ul>
+<li>根据类型名查找对应的 type index</li>
+<li>如果找不到，会提示是否忘记注册该类型（通过宏 <code>MATXSCRIPT_REGISTER_NODE_TYPE</code>）</li>
+</ul>
+<hr>
+<h4 id="调试输出类型树dump"><a class="markdownIt-Anchor" href="#调试输出类型树dump"></a> 调试输出类型树：<code>Dump</code></h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">void Dump(int min_children_count)</span><br></pre></td></tr></table></figure></div>
+<p>用途：<strong>方便调试，输出所有子类数量不少于</strong> <code>**min_children_count**</code> <strong>的类型，以及它们的父类、预留子槽数量等。</strong></p>
+<p>实现：</p>
+<ol>
+<li>创建 <code>num_children</code> 数组，记录每个类型的所有子孙数目</li>
+<li>从 <code>type_table_</code> 末尾往前累加（逆序遍历），实现自底向上的统计</li>
+<li>输出符合条件的类型信息到 <code>std::cerr</code></li>
+</ol>
+<hr>
+<h4 id="全局单例global"><a class="markdownIt-Anchor" href="#全局单例global"></a> 全局单例：<code>Global</code></h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">static TypeContext* Global() {</span><br><span class="line">  static TypeContext inst;</span><br><span class="line">  return &amp;inst;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>TypeContext</code> 被设计为<strong>进程内的全局单例</strong>，所有类型注册和查询都通过 <code>TypeContext::Global()</code> 访问。</li>
+<li>内部用 <code>std::mutex</code> 保证多线程注册/查询的线程安全。</li>
+</ul>
+<hr>
+<p><code>TypeContext</code> 的主要作用是：</p>
+<ol>
+<li>作为一个全局的<strong>运行时类型系统管理器</strong>；</li>
+<li>管理：</li>
+</ol>
+<ul>
+<li>类型索引（type index）</li>
+<li>类型名称</li>
+<li>父子继承关系</li>
+<li>预留子类型槽位与溢出策略</li>
+</ul>
+<ol>
+<li>提供接口完成：</li>
+</ol>
+<ul>
+<li>注册/分配新类型索引</li>
+<li>判断继承关系（<code>DerivedFrom</code>）</li>
+<li>类型名与索引之间的互相转换</li>
+<li>打印调试信息（类型树结构）</li>
+</ul>
+<p>下面用一个简化的“伪使用示例”来说明 <code>TypeContext</code> 的使用流程：注册几个类型，然后做继承判断与查询。</p>
+<p>假设有这样的类型关系：</p>
+<ul>
+<li>
+<p><code>runtime.Object</code>（根，索引 0，系统已初始化好）</p>
+</li>
+<li>
+<p><code>MyBase</code></p>
+</li>
+<li>
+<p><code>MyChild</code></p>
+</li>
+</ul>
+<p>我们在 C++ 里模拟一下操作（伪代码，接近真实用法）：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">"type_context.h"</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">Example</span><span class="params">()</span> </span>{</span><br><span class="line">    TypeContext* ctx = TypeContext::<span class="built_in">Global</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 假设 runtime.Object 已经是 0</span></span><br><span class="line">    <span class="type">uint32_t</span> object_tindex = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1. 注册 MyBase 类型</span></span><br><span class="line">    <span class="comment">// 假设它有静态索引 10（仅作为示例），</span></span><br><span class="line">    <span class="comment">// 预留 10 个子类槽位，并允许子类继续 overflow。</span></span><br><span class="line">    <span class="type">uint32_t</span> mybase_tindex = ctx-&gt;<span class="built_in">GetOrAllocRuntimeTypeIndex</span>(</span><br><span class="line">    <span class="string">"MyBase"</span>,          <span class="comment">// skey: 类型名</span></span><br><span class="line">    <span class="number">10</span>,                <span class="comment">// static_tindex: 静态索引（非 kDynamic）</span></span><br><span class="line">    object_tindex,     <span class="comment">// parent_tindex: 父类型是 runtime.Object</span></span><br><span class="line">    <span class="number">10</span>,                <span class="comment">// num_child_slots: 为 MyBase 的子类预留 10 个槽位</span></span><br><span class="line">    <span class="literal">true</span>               <span class="comment">// child_slots_can_overflow: 超过 10 仍可扩展</span></span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 注册 MyChild 类型</span></span><br><span class="line">    <span class="comment">// 这里假设它是动态索引（没有固定静态 index），</span></span><br><span class="line">    <span class="comment">// 不再给它预留子类槽位，只需要自身一个槽位。</span></span><br><span class="line">    <span class="type">uint32_t</span> mychild_tindex = ctx-&gt;<span class="built_in">GetOrAllocRuntimeTypeIndex</span>(</span><br><span class="line">    <span class="string">"MyChild"</span>,         <span class="comment">// skey</span></span><br><span class="line">    TypeIndex::kDynamic, <span class="comment">// 动态分配索引</span></span><br><span class="line">    mybase_tindex,     <span class="comment">// 父类型是 MyBase</span></span><br><span class="line">    <span class="number">0</span>,                 <span class="comment">// num_child_slots: 不给它预留子类</span></span><br><span class="line">    <span class="literal">false</span>              <span class="comment">// child_slots_can_overflow: 它不能再 overflow</span></span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 判断继承关系</span></span><br><span class="line">    <span class="type">bool</span> b1 = ctx-&gt;<span class="built_in">DerivedFrom</span>(mychild_tindex, mybase_tindex);</span><br><span class="line">    <span class="comment">// b1 == true，因为 MyChild 是 MyBase 的子类</span></span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span> b2 = ctx-&gt;<span class="built_in">DerivedFrom</span>(mychild_tindex, object_tindex);</span><br><span class="line">    <span class="comment">// b2 == true，因为 MyChild 间接继承 runtime.Object</span></span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span> b3 = ctx-&gt;<span class="built_in">DerivedFrom</span>(mybase_tindex, mychild_tindex);</span><br><span class="line">    <span class="comment">// b3 == false，父类不是子类的派生类型</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 4. 名称 -&gt; 索引</span></span><br><span class="line">    <span class="type">uint32_t</span> idx_from_name = ctx-&gt;<span class="built_in">TypeKey2Index</span>(<span class="string">"MyBase"</span>);</span><br><span class="line">    <span class="comment">// idx_from_name == mybase_tindex</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 5. 索引 -&gt; 名称</span></span><br><span class="line">    <span class="type">const</span> String&amp; name_from_idx = ctx-&gt;<span class="built_in">TypeIndex2Key</span>(mychild_tindex);</span><br><span class="line">    <span class="comment">// name_from_idx == "MyChild"</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 6. 安全尝试索引 -&gt; 名称（可能失败）</span></span><br><span class="line">    string_view tkey;</span><br><span class="line">    <span class="keyword">if</span> (ctx-&gt;<span class="built_in">TryTypeIndex2Key</span>(<span class="number">12345</span>, &amp;tkey)) {</span><br><span class="line">        <span class="comment">// 找到了</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// 没有这个类型索引</span></span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 7. 调试打印：只打印拥有至少 1 个子孙的类型</span></span><br><span class="line">    ctx-&gt;<span class="built_in">Dump</span>(<span class="number">1</span>);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>要点说明：</p>
+<ol>
+<li><code>GetOrAllocRuntimeTypeIndex</code> 的参数含义：</li>
+</ol>
+<ul>
+<li>
+<p><code>skey</code>：类型的字符串标识（通常就是类型名）</p>
+</li>
+<li>
+<p><code>static_tindex</code>：</p>
+</li>
+<li>
+<p>如果你为类型预先安排了固定索引（编译时约定），传这个值</p>
+</li>
+<li>
+<p>如果没有固定索引，则传 <code>TypeIndex::kDynamic</code>，由系统动态分配</p>
+</li>
+<li>
+<p><code>parent_tindex</code>：父类型的索引，用来建立继承关系</p>
+</li>
+<li>
+<p><code>num_child_slots</code>：为这个类型的子类预留多少槽位</p>
+</li>
+<li>
+<p><code>child_slots_can_overflow</code>：当预留槽位用完后，是否允许继续扩展</p>
+</li>
+</ul>
+<ol>
+<li>一旦类型注册成功：</li>
+</ol>
+<ul>
+<li>可以通过 <code>TypeKey2Index</code> / <code>TypeIndex2Key</code> 做名称与索引的双向转换</li>
+<li>可以通过 <code>DerivedFrom(child, parent)</code> 判断任何两种类型是否存在“子类/祖先”关系</li>
+</ul>
+<ol>
+<li>实际工程中通常不会手写调用 <code>GetOrAllocRuntimeTypeIndex</code>，而是通过宏 <code>MATXSCRIPT_REGISTER_NODE_TYPE(MyType)</code> 之类的封装宏进行注册； 宏内部会调用 <code>TypeContext::Global()-&gt;GetOrAllocRuntimeTypeIndex(...)</code>。</li>
+</ol>
+<p>如果你给我看一下 <code>TypeInfo</code> 结构体的定义，我可以再结合它把“预留子槽”的布局画成一张小图，帮助理解索引分配策略。</p>
+<h2 id="内存管理"><a class="markdownIt-Anchor" href="#内存管理"></a> 内存管理</h2>
+<p>matxscript采用基于引用计数的自动内存管理模式。每当一个新的ObjectPtr指向某个对象时，该对象的引用计数就会加一；反之，当某个ObjectPtr销毁或不再指向该对象时，引用计数减一。一旦引用计数变为零，就意味着没有任何活跃的引用存在了，此时就会触发对象的清理过程。</p>
+<p>这种方案有几个显著优点：</p>
+<ul>
+<li>自动化程度高，减轻程序员负担</li>
+<li>允许跨线程共享对象所有权（前提是使用原子引用计数）</li>
+<li>相比垃圾收集机制延迟更低，更加可预测</li>
+</ul>
+<p>不过也需要注意循环引用问题可能导致内存泄漏，这要求开发者在设计对象间关系时格外小心。</p>
+<h2 id="继承与多态"><a class="markdownIt-Anchor" href="#继承与多态"></a> 继承与多态</h2>
+<p>借助精心设计的类型系统，matxscript很好地支持了面向对象编程中的继承和多态概念。</p>
+<p>子类只需按照规定格式填写自己的类型信息并注册到系统中即可成为合法的对象类型。运行时可以通过<code>IsInstance&lt;T&gt;()</code>方法判断任意对象是否属于指定类型或其派生类型。</p>
+<p>此外，配合使用<code>Downcast&lt;T&gt;(ref)</code>函数还能实现在保持类型安全性的同时进行向上转型操作。</p>
+<h2 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h2>
+<p>matxscript运行时的对象模型是一套完整而优雅的设计方案，兼顾了效率、灵活性和易用性。通过对引用计数技术的应用，实现了高效的内存管理；通过丰富的类型信息支持，赋予了强大的运行时类型识别能力；再加上良好的继承体系构建，极大地提升了代码复用率和模块化水平。无论是对于底层基础设施建设还是上层应用开发来说，都是极其宝贵的资产。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> matxscript运行时系统之对象模型</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-03 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-05 23:19:38
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/03/matxscript对象模型/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/AI-Compiler/">#AI Compiler</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/TVM/">#TVM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/03/matxscript%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">matxscript运行时系统之内存系统</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/03/matxscript%E7%BA%BF%E7%A8%8B%E6%B1%A0/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">matxscript运行时系统之线程池系统</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">matxscript运行时系统之对象模型</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-text"> 概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6"><span class="nav-text"> 核心组件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#object%E5%9F%BA%E7%B1%BB"><span class="nav-text"> Object基类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#objectptr%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88"><span class="nav-text"> ObjectPtr智能指针</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#objectref%E5%BC%95%E7%94%A8%E7%B1%BB"><span class="nav-text"> ObjectRef引用类</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88%E4%BD%93%E7%B3%BB"><span class="nav-text"> 自定义智能指针体系</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E6%9C%80%E5%B0%8F%E5%8D%95%E5%85%83object-%E7%9A%84%E8%AE%A1%E6%95%B0%E5%AD%97%E6%AE%B5"><span class="nav-text"> 对象的最小单元：Object 的计数字段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E7%9A%84%E6%A0%B8%E5%BF%83incref-decref"><span class="nav-text"> 引用计数的核心：IncRef &#x2F; DecRef</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#objectptr-%E7%9A%84%E8%A1%8C%E4%B8%BA%E5%9C%A8%E5%93%AA%E9%87%8C%E8%B0%83%E7%94%A8-incref-decref"><span class="nav-text"> ObjectPtr 的行为：在哪里调用 IncRef &#x2F; DecRef</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%A5%E6%9F%84%E5%B1%82objectref-list-%E7%AD%89%E7%9A%84%E6%8B%B7%E8%B4%9D%E6%9E%90%E6%9E%84%E5%A6%82%E4%BD%95%E5%BD%B1%E5%93%8D%E8%AE%A1%E6%95%B0"><span class="nav-text"> 句柄层（ObjectRef, List 等）的拷贝&#x2F;析构如何影响计数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%A8%E4%BE%8B%E7%94%BB%E4%B8%80%E6%9D%A1%E5%AE%8C%E6%95%B4%E7%9A%84%E8%AE%A1%E6%95%B0%E5%8F%98%E5%8C%96%E6%97%B6%E9%97%B4%E7%BA%BF"><span class="nav-text"> 用例：画一条完整的计数变化时间线</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93%E6%88%90%E4%B8%80%E5%8F%A5%E8%AF%9D"><span class="nav-text"> 总结成一句话</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B%E7%B3%BB%E7%BB%9F"><span class="nav-text"> 类型系统</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E7%B1%BB%E5%9E%8B%E4%BF%A1%E6%81%AF"><span class="nav-text"> 静态类型信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B%E6%B3%A8%E5%86%8C%E5%AE%8F"><span class="nav-text"> 类型注册宏</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E6%97%B6%E7%B1%BB%E5%9E%8B%E4%B8%8A%E4%B8%8B%E6%96%87"><span class="nav-text"> 运行时类型上下文</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="nav-text"> 内存管理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%A7%E6%89%BF%E4%B8%8E%E5%A4%9A%E6%80%81"><span class="nav-text"> 继承与多态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-text"> 总结</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 13 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
