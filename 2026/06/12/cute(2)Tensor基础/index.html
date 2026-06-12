@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/12/cute(2)tensor基础/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="stay hungry stay foolish">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/12/cute(2)Tensor%E5%9F%BA%E7%A1%80/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-12T07:00:37.877Z">
+<meta property="article:modified_time" content="2026-06-12T07:21:17.115Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="Compuer Science, Large Langaue Model">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            stay hungry stay foolish - 记录思考，分享成长
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">15</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3"></h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-12 15:37</span>
+        <span class="mobile">2026-06-12 15:37</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-12 15:21:17</span>
+            <span class="mobile">2026-06-12 15:21:17</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">title: cute（2）Tensor基础</span><br><span class="line">date: 2026-06-07 22:13:32</span><br><span class="line">tags: cuda, cutlass,cute</span><br><span class="line">categories: cuda</span><br><span class="line">mathjax: false</span><br></pre></td></tr></table></figure></div>
+<h1 id="ref"><a class="markdownIt-Anchor" href="#ref"></a> Ref</h1>
+<ul>
+<li>
+<p>官方文档：<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cutlass/latest/media/docs/cpp/cute/index.html">CuTe — NVIDIA CUTLASS Documentation<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>reed博士：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/663093816">(4 封私信 / 14 条消息) cute 之 Tensor - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+</ul>
+<h1 id="2-tensor-基础"><a class="markdownIt-Anchor" href="#2-tensor-基础"></a> 2 Tensor 基础</h1>
+<blockquote>
+<p>对应代码：<code>02_tensor_basics.cu</code>
+纯 host 代码，不需要 GPU。</p>
+</blockquote>
+<p>reed博士：Layout描述了数据的排列和底层存储位置关系，但Layout并没有指定存储。Tensor就是在Layout的基础上包含了存储，即Tensor = Layout + storage，数据存储的具体表现上可以是指针表达的数据或则是栈上数据（<a class="link" target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=235483071&amp;content_type=Article&amp;match_order=1&amp;q=GPU&amp;zhida_source=entity">GPU<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>上表现为寄存器）。cute中的Tensor并不同于深度学习框架中的Tensor（如Pytorch、<a class="link" target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=235483071&amp;content_type=Article&amp;match_order=1&amp;q=Tensorflow&amp;zhida_source=entity">Tensorflow<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>），深度学习框架中的Tensor更强调数据的表达实体，通过Tensor实体与实体之间的计算产生新的Tensor实体，即多份数据实体，cute中的Tensor更多的是对Tensor进行分解和组合等操作，而这些操作多是对Layout的变换（只是逻辑层面的数据组织形式），底层的数据实体一般不变更。也就是说深度学习框架中的Tensor是通过Tensor产生新Tensor，cute中是对数据表达形式的变换，底层数据一般不变更，指变更表达的形式，这个表达形式的变更是通过之前文章介绍的Layout上的运算实现的。之所以有这些差别是因为深度学习框架中的Tensor是用来表达数据实体，cute中的Tensor是偏向描述的实体</p>
+<h2 id="核心概念"><a class="markdownIt-Anchor" href="#核心概念"></a> 核心概念</h2>
+<p><strong>Tensor = 数据指针 + Layout</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Tensor = (data_ptr, layout)</span><br><span class="line">          ^           ^</span><br><span class="line">        数据在哪     怎么索引</span><br></pre></td></tr></table></figure></div>
+<p>数据和索引方式是分离的。同一段内存可以用不同的 layout 去解读，不搬运任何数据。</p>
+<h2 id="代码解析"><a class="markdownIt-Anchor" href="#代码解析"></a> 代码解析</h2>
+<h3 id="第-1-节从数组创建-tensor"><a class="markdownIt-Anchor" href="#第-1-节从数组创建-tensor"></a> 第 1 节：从数组创建 Tensor</h3>
+<div class="code-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 1. 从数组创建 Tensor</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 1. Create Tensor from array ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 准备一个 host 数组</span></span><br><span class="line">    <span class="type">float</span> data[<span class="number">12</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">12</span>; ++i) data[i] = <span class="built_in">float</span>(i);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建一个 3x4 row-major Tensor</span></span><br><span class="line">    <span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor: "</span>);</span><br><span class="line">    <span class="built_in">print</span>(tensor);  <span class="comment">// 打印 tensor 的元信息（指针 + layout）</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 访问元素</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor(0, 0) = %.0f\n"</span>, <span class="built_in">tensor</span>(<span class="number">0</span>, <span class="number">0</span>));  <span class="comment">// data[0*4 + 0] = 0</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor(1, 2) = %.0f\n"</span>, <span class="built_in">tensor</span>(<span class="number">1</span>, <span class="number">2</span>));  <span class="comment">// data[1*4 + 2] = 6</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor(2, 3) = %.0f\n"</span>, <span class="built_in">tensor</span>(<span class="number">2</span>, <span class="number">3</span>));  <span class="comment">// data[2*4 + 3] = 11</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印整个 tensor 的值</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  print_tensor:\n"</span>);</span><br><span class="line">    <span class="built_in">print_tensor</span>(tensor);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="c1.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span> data[<span class="number">12</span>];</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">12</span>; ++i) data[i] = <span class="built_in">float</span>(i);</span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>第一个参数：<strong>指针</strong>（<code>&amp;data[0]</code>），不能直接传数组名</li>
+<li>第二个参数：layout，决定怎么解读这段内存</li>
+<li>结果：3×4 row-major tensor</li>
+</ul>
+<p><strong>访问元素</strong>：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">tensor</span>(<span class="number">0</span>, <span class="number">0</span>)  <span class="comment">// data[0*4 + 0*1] = data[0] = 0</span></span><br><span class="line"><span class="built_in">tensor</span>(<span class="number">1</span>, <span class="number">2</span>)  <span class="comment">// data[1*4 + 2*1] = data[6] = 6</span></span><br><span class="line"><span class="built_in">tensor</span>(<span class="number">2</span>, <span class="number">3</span>)  <span class="comment">// data[2*4 + 3*1] = data[11] = 11</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>常见错误</strong>：<code>make_tensor(data, layout)</code> 传数组名会报错，必须传 <code>&amp;data[0]</code> 指针。</p>
+<p><strong>打印函数</strong>：</p>
+<ul>
+<li><code>print(tensor)</code> — 打印元信息（指针地址 + layout）</li>
+<li><code>print_tensor(tensor)</code> — 打印所有元素的值</li>
+</ul>
+<h3 id="第-2-节同一数据不同-layout"><a class="markdownIt-Anchor" href="#第-2-节同一数据不同-layout"></a> 第 2 节：同一数据，不同 Layout</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 2. Tensor 的 layout 和 data 是独立的</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 2. Same data, different layout ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> data[<span class="number">12</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">12</span>; ++i) data[i] = <span class="built_in">float</span>(i);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 同一段内存，用不同 layout 解读</span></span><br><span class="line">    <span class="keyword">auto</span> row_major = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br><span class="line">    <span class="keyword">auto</span> col_major = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">1</span>, <span class="number">3</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  row_major(1, 2) = %.0f\n"</span>, <span class="built_in">row_major</span>(<span class="number">1</span>, <span class="number">2</span>));  <span class="comment">// data[6] = 6</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  col_major(1, 2) = %.0f\n"</span>, <span class="built_in">col_major</span>(<span class="number">1</span>, <span class="number">2</span>));  <span class="comment">// data[7] = 7</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  row_major:\n"</span>);</span><br><span class="line">    <span class="built_in">print_tensor</span>(row_major);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  col_major:\n"</span>);</span><br><span class="line">    <span class="built_in">print_tensor</span>(col_major);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="c2.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span> data[<span class="number">12</span>];</span><br><span class="line"><span class="keyword">auto</span> row_major = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br><span class="line"><span class="keyword">auto</span> col_major = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">1</span>, <span class="number">3</span>)));</span><br></pre></td></tr></table></figure></div>
+<p><strong>同一段内存 <code>data</code>，两个 tensor 指向同一个地址</strong>，只是 layout 不同：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">row_major(1, 2) = data[1*4 + 2*1] = data[6] = 6</span><br><span class="line">col_major(1, 2) = data[1*1 + 2*3] = data[7] = 7</span><br></pre></td></tr></table></figure></div>
+<p><strong>核心理解</strong>：Layout 改变的是"怎么看数据"，不是"数据本身"。这就是为什么后面的 <code>compose</code>、<code>retile_D</code> 等操作都是零开销——只改 layout 元数据，不搬数据。</p>
+<h3 id="第-3-节slice-用-_-取整行整列"><a class="markdownIt-Anchor" href="#第-3-节slice-用-_-取整行整列"></a> 第 3 节：Slice —— 用 <code>_</code> 取整行/整列</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 3. Slice：用 _ 取整行/整列</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 3. Slice with Underscore ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> data[<span class="number">12</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">12</span>; ++i) data[i] = <span class="built_in">float</span>(i);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3x4 row-major</span></span><br><span class="line">    <span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 取第 1 行（固定 M=1，保留 N 方向）</span></span><br><span class="line">    <span class="keyword">auto</span> row1 = <span class="built_in">tensor</span>(<span class="number">1</span>, _);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor(1, _) = "</span>);</span><br><span class="line">    <span class="built_in">print</span>(row1);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  values: "</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="built_in">size</span>(row1); ++j) <span class="built_in">printf</span>(<span class="string">"%.0f "</span>, <span class="built_in">row1</span>(j));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 取第 2 列（保留 M 方向，固定 N=2）</span></span><br><span class="line">    <span class="keyword">auto</span> col2 = <span class="built_in">tensor</span>(_, <span class="number">2</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tensor(_, 2) = "</span>);</span><br><span class="line">    <span class="built_in">print</span>(col2);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  values: "</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">size</span>(col2); ++i) <span class="built_in">printf</span>(<span class="string">"%.0f "</span>, <span class="built_in">col2</span>(i));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="c3.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">3</span>, <span class="number">4</span>), <span class="built_in">make_stride</span>(<span class="number">4</span>, <span class="number">1</span>)));</span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> row1 = <span class="built_in">tensor</span>(<span class="number">1</span>, _);   <span class="comment">// 固定 M=1，保留 N 方向 → 取第 1 行</span></span><br><span class="line"><span class="keyword">auto</span> col2 = <span class="built_in">tensor</span>(_, <span class="number">2</span>);   <span class="comment">// 保留 M 方向，固定 N=2 → 取第 2 列</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>_</code>（Underscore）表示"保留这个维度"</li>
+<li>结果是一个<strong>降维的 tensor</strong>（二维变一维）</li>
+</ul>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">tensor(1, _) = [4, 5, 6, 7]    ← 第 1 行的 4 个元素</span><br><span class="line">tensor(_, 2) = [2, 6, 10]       ← 第 2 列的 3 个元素</span><br></pre></td></tr></table></figure></div>
+<p><strong>Slice 的本质</strong>：</p>
+<ul>
+<li>固定某个维度的 index → 指针偏移到那个位置</li>
+<li>保留的维度 → 构成新的 layout</li>
+<li>不拷贝数据，只是换了一个起始指针 + 新 layout</li>
+</ul>
+<h3 id="第-4-节local_tile-把大-tensor-切成小-tile"><a class="markdownIt-Anchor" href="#第-4-节local_tile-把大-tensor-切成小-tile"></a> 第 4 节：local_tile —— 把大 Tensor 切成小 Tile</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 4. local_tile：把大 Tensor 切成小 tile</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 4. local_tile ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> data[<span class="number">48</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">48</span>; ++i) data[i] = <span class="built_in">float</span>(i);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 6x8 row-major 矩阵</span></span><br><span class="line">    <span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">6</span>, <span class="number">8</span>), <span class="built_in">make_stride</span>(<span class="number">8</span>, <span class="number">1</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印原始 tensor</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  原始 tensor (6x8 row-major):\n"</span>);</span><br><span class="line">    <span class="built_in">print_tensor</span>(tensor);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 按 (3, 4) 切 tile</span></span><br><span class="line">    <span class="keyword">auto</span> tiled = <span class="built_in">local_tile</span>(tensor, <span class="built_in">make_tile</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_coord</span>(_, _));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tiled shape: "</span>);</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">shape</span>(tiled));</span><br><span class="line">    <span class="built_in">print_tensor</span>(tiled);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="comment">// shape = (3, 4, 2, 2)</span></span><br><span class="line">    <span class="comment">// 前两维是 tile 内的坐标 (3, 4)</span></span><br><span class="line">    <span class="comment">// 后两维是 tile 的编号 (6/3=2, 8/4=2)</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tiled tensor (4D):\n"</span>);</span><br><span class="line">    <span class="built_in">print_tensor</span>(tiled);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印所有 4 个 tile</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> ti = <span class="number">0</span>; ti &lt; <span class="number">2</span>; ++ti) {</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> tj = <span class="number">0</span>; tj &lt; <span class="number">2</span>; ++tj) {</span><br><span class="line">        <span class="keyword">auto</span> tile = <span class="built_in">local_tile</span>(tensor, <span class="built_in">make_tile</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_coord</span>(ti, tj));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"  tile(%d,%d) shape: "</span>, ti, tj);</span><br><span class="line">        <span class="built_in">print</span>(<span class="built_in">shape</span>(tile));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">        <span class="built_in">print_tensor</span>(tile);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="c4.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 6×8 row-major 矩阵</span></span><br><span class="line"><span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">6</span>, <span class="number">8</span>), <span class="built_in">make_stride</span>(<span class="number">8</span>, <span class="number">1</span>)));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 按 (3, 4) 切 tile，保留所有 tile</span></span><br><span class="line"><span class="keyword">auto</span> tiled = <span class="built_in">local_tile</span>(tensor, <span class="built_in">make_tile</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_coord</span>(_, _));</span><br><span class="line"><span class="comment">// shape = (3, 4, 2, 2)</span></span><br></pre></td></tr></table></figure></div>
+<p><code>local_tile</code> 的三个参数：</p>
+<ol>
+<li>原始 tensor</li>
+<li>tile 的大小 <code>(3, 4)</code></li>
+<li>取哪个 tile 的坐标，<code>_</code> 表示保留所有</li>
+</ol>
+<p><strong>结果 shape <code>(3, 4, 2, 2)</code> 的含义</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">前两维 (3, 4) = tile 内部的坐标（每个 tile 是 3×4）</span><br><span class="line">后两维 (2, 2) = tile 的编号（6/3=2 个行方向 tile，8/4=2 个列方向 tile）</span><br></pre></td></tr></table></figure></div>
+<p><strong>取具体某个 tile</strong>：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tile = <span class="built_in">local_tile</span>(tensor, <span class="built_in">make_tile</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_coord</span>(ti, tj));</span><br><span class="line"><span class="comment">// shape = (3, 4)，就是第 (ti, tj) 个 tile</span></span><br></pre></td></tr></table></figure></div>
+<p>可视化（6×8 矩阵切成 4 个 3×4 tile）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">原始 6×8 矩阵：</span><br><span class="line">+---+---+---+---+---+---+---+---+</span><br><span class="line">|  0   1   2   3 |  4   5   6   7 |</span><br><span class="line">|  8   9  10  11 | 12  13  14  15 |</span><br><span class="line">| 16  17  18  19 | 20  21  22  23 |</span><br><span class="line">+-----------------+-----------------+</span><br><span class="line">| 24  25  26  27 | 28  29  30  31 |</span><br><span class="line">| 32  33  34  35 | 36  37  38  39 |</span><br><span class="line">| 40  41  42  43 | 44  45  46  47 |</span><br><span class="line">+-----------------+-----------------+</span><br><span class="line">  tile(0,0)          tile(0,1)</span><br><span class="line">  tile(1,0)          tile(1,1)</span><br></pre></td></tr></table></figure></div>
+<p><strong>local_tile 的内部原理</strong>：把每个维度拆成 <code>(tile_内部, tile_编号)</code>，stride = tile_size × 原始 stride。不拷贝数据。</p>
+<p>reef博士：该函数是Tensor中用户可以使用到的重要的函数，可以通过tile方法对tensor进行分块，通过local_tile可以实现从大的tensor中切取tile块，并且通过coord进行块的选取，以下代码展示了将维度为MNK的张量按照<code>2x3x4</code>的小块进行划分，取出其中的第<code>(1, 2, 3)</code>块。</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="1.jpg" alt="img"></p>
+<p>如上图所示，A Tensor表达了4行6列的行优先的数据，分块的tile大小为2x2, local_tile会将A矩阵按照tile的单位进行分块，然后根据坐标选取出(1, 1)位置的分块，如图则取出了（1，1）位置的tensor得到右下角的结果。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Tensor tensor = <span class="built_in">make_tensor</span>(ptr, <span class="built_in">make_shape</span>(M, N, K));</span><br><span class="line">Tensor tensor1 = <span class="built_in">local_tile</span>(tensor, <span class="built_in">make_shape</span>(<span class="number">2</span>, <span class="number">3</span>，<span class="number">4</span>), <span class="built_in">make_coord</span>(<span class="number">1</span>, <span class="number">2</span>，<span class="number">3</span>));</span><br></pre></td></tr></table></figure></div>
+<h3 id="第-5-节make_tensor_like"><a class="markdownIt-Anchor" href="#第-5-节make_tensor_like"></a> 第 5 节：make_tensor_like</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tensor = <span class="built_in">make_tensor</span>(&amp;data[<span class="number">0</span>], <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}),</span><br><span class="line">                                                 <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})));</span><br><span class="line"><span class="keyword">auto</span> new_tensor = <span class="built_in">make_tensor_like</span>(tensor);</span><br></pre></td></tr></table></figure></div>
+<p>创建一个和 <code>tensor</code> 同 shape/layout 的新 tensor，数据分配在栈上。</p>
+<p><strong>要求</strong>：shape 必须是静态的（<code>Int&lt;N&gt;{}</code>），因为编译期需要知道大小才能在栈上分配数组。</p>
+<p><strong>用途</strong>：在 kernel 中创建临时的寄存器 tensor，用于类型转换等。</p>
+<h3 id="第-6-节tensor的局部数据提取local_partition"><a class="markdownIt-Anchor" href="#第-6-节tensor的局部数据提取local_partition"></a> 第 6 节：Tensor的局部数据提取local_partition</h3>
+<p>local partition和local tile类似，现将大的Tensor按照tile大小进行分块，分块后每一块取出coordinate指定的元素形成新的块，代码形式和具体实例参考下图:</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="2.jpg" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Tensor tensor = <span class="built_in">make_tensor</span>(ptr, ...);</span><br><span class="line">Tensor tensor1 = <span class="built_in">local_partition</span>(tensor, tile);</span><br></pre></td></tr></table></figure></div>
+<h2 id="api-速查"><a class="markdownIt-Anchor" href="#api-速查"></a> API 速查</h2>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make_tensor(ptr, layout)</code></td>
+<td>从指针+layout 创建 tensor</td>
+</tr>
+<tr>
+<td><code>make_tensor_like(tensor)</code></td>
+<td>创建同 layout 的新 tensor（栈上分配）</td>
+</tr>
+<tr>
+<td><code>tensor(i, j)</code></td>
+<td>二维访问</td>
+</tr>
+<tr>
+<td><code>tensor(i, _)</code></td>
+<td>Slice：取第 i 行</td>
+</tr>
+<tr>
+<td><code>tensor(_, j)</code></td>
+<td>Slice：取第 j 列</td>
+</tr>
+<tr>
+<td><code>local_tile(tensor, tile, coord)</code></td>
+<td>按 tile 大小切分</td>
+</tr>
+<tr>
+<td><code>print(tensor)</code></td>
+<td>打印元信息</td>
+</tr>
+<tr>
+<td><code>print_tensor(tensor)</code></td>
+<td>打印所有值</td>
+</tr>
+<tr>
+<td><code>size(tensor)</code></td>
+<td>总元素数</td>
+</tr>
+</tbody>
+</table>
+<h2 id="易错点总结"><a class="markdownIt-Anchor" href="#易错点总结"></a> 易错点总结</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>解决方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make_tensor(data, layout)</code> 报错</td>
+<td>必须传指针 <code>&amp;data[0]</code>，不能传数组名</td>
+</tr>
+<tr>
+<td><code>make_tensor_like</code> 报错</td>
+<td>shape 必须是静态 <code>Int&lt;N&gt;{}</code>，不能是动态 int</td>
+</tr>
+<tr>
+<td><code>local_tile</code> 结果维度太多</td>
+<td>正常，前半是 tile 内坐标，后半是 tile 编号</td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> </li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-12 15:00:37</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-12 15:21:17
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/12/cute(2)Tensor基础/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/12/cute(1)Layout%E5%9F%BA%E7%A1%80/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48"></span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title"></div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ref"><span class="nav-text"> Ref</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-tensor-%E5%9F%BA%E7%A1%80"><span class="nav-text"> 2 Tensor 基础</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text"> 核心概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-text"> 代码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-1-%E8%8A%82%E4%BB%8E%E6%95%B0%E7%BB%84%E5%88%9B%E5%BB%BA-tensor"><span class="nav-text"> 第 1 节：从数组创建 Tensor</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-2-%E8%8A%82%E5%90%8C%E4%B8%80%E6%95%B0%E6%8D%AE%E4%B8%8D%E5%90%8C-layout"><span class="nav-text"> 第 2 节：同一数据，不同 Layout</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-3-%E8%8A%82slice-%E7%94%A8-_-%E5%8F%96%E6%95%B4%E8%A1%8C%E6%95%B4%E5%88%97"><span class="nav-text"> 第 3 节：Slice —— 用 _ 取整行&#x2F;整列</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-4-%E8%8A%82local_tile-%E6%8A%8A%E5%A4%A7-tensor-%E5%88%87%E6%88%90%E5%B0%8F-tile"><span class="nav-text"> 第 4 节：local_tile —— 把大 Tensor 切成小 Tile</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-5-%E8%8A%82make_tensor_like"><span class="nav-text"> 第 5 节：make_tensor_like</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-6-%E8%8A%82tensor%E7%9A%84%E5%B1%80%E9%83%A8%E6%95%B0%E6%8D%AE%E6%8F%90%E5%8F%96local_partition"><span class="nav-text"> 第 6 节：Tensor的局部数据提取local_partition</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#api-%E9%80%9F%E6%9F%A5"><span class="nav-text"> API 速查</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%98%93%E9%94%99%E7%82%B9%E6%80%BB%E7%BB%93"><span class="nav-text"> 易错点总结</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 15 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
