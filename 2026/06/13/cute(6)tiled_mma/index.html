@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/13/cute(6)tiled_mma/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cute（6）tiled_mma">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/13/cute(6)tiled_mma/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-13T14:13:32.000Z">
+<meta property="article:modified_time" content="2026-06-12T09:15:23.840Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="cuda, cutlass,cute">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            cute（6）tiled_mma | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">19</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">cute（6）tiled_mma</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-13 22:13:32</span>
+        <span class="mobile">2026-06-13 22:13:32</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-12 17:15:23</span>
+            <span class="mobile">2026-06-12 17:15:23</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="前置阅读"><a class="markdownIt-Anchor" href="#前置阅读"></a> 前置阅读</h1>
+<ul>
+<li>
+<p>官方文档：<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cutlass/latest/media/docs/cpp/cute/index.html">CuTe — NVIDIA CUTLASS Documentation<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>reed博士：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/663092747">(4 封私信 / 16 条消息) cute 之 MMA抽象 - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>竹佬：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/1937145378446226159">(4 封私信 / 16 条消息) 写给大家看的 CuTe 教程：tiled mma - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+</ul>
+<h1 id="6-tiledmma"><a class="markdownIt-Anchor" href="#6-tiledmma"></a> 6 TiledMMA</h1>
+<blockquote>
+<p>对应代码：<code>06_tiled_mma.cu</code>
+纯 host 代码，不需要 GPU。</p>
+</blockquote>
+<h2 id="核心概念"><a class="markdownIt-Anchor" href="#核心概念"></a> 核心概念</h2>
+<p>MMA（Matrix Multiply-Accumulate）是 GPU 的矩阵乘硬件指令。CuTe 提供了三层抽象：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">MMA_Atom（一条指令）→ EU Repeat（多 warp 覆盖更大面积）→ P Tile（每线程多算几轮）</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="第-1-节mma-atom-基础信息"><a class="markdownIt-Anchor" href="#第-1-节mma-atom-基础信息"></a> 第 1 节：MMA Atom 基础信息</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"> <span class="comment">// 1. MMA Atom 基础信息</span></span><br><span class="line"> <span class="comment">// ============================================================</span></span><br><span class="line"> {</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"=== 1. MMA Atom: SM80_16x8x16_F16F16F16F16_TN ===\n"</span>);</span><br><span class="line"></span><br><span class="line">   <span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line">   <span class="keyword">using</span> mma_traits = MMA_Traits&lt;mma_op&gt;;</span><br><span class="line"></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  Shape_MNK = "</span>); <span class="built_in">print</span>(<span class="keyword">typename</span> mma_traits::Shape_MNK{});</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);  <span class="comment">// (16, 8, 16)</span></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  ThrID = "</span>); <span class="built_in">print</span>(<span class="keyword">typename</span> mma_traits::ThrID{});</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);  <span class="comment">// 32 (一个 warp)</span></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  每个 atom 需要 %d 个线程\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(<span class="keyword">typename</span> mma_traits::ThrID{})));</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"> }</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="1.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line"><span class="keyword">using</span> mma_traits = MMA_Traits&lt;mma_op&gt;;</span><br></pre></td></tr></table></figure></div>
+<p><strong>命名解读 <code>SM80_16x8x16_F16F16F16F16_TN</code></strong>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SM80</td>
+<td>Ampere 架构（A100 等）</td>
+</tr>
+<tr>
+<td>16x8x16</td>
+<td>Shape_MNK = (M=16, N=8, K=16)</td>
+</tr>
+<tr>
+<td>F16F16F16F16</td>
+<td>A=half, B=half, C=half, D=half</td>
+</tr>
+<tr>
+<td>TN</td>
+<td>A 转置，B 不转置（数据排列方式）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键属性</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Shape_MNK = (16, 8, 16)    → 一条指令计算 A(16×16) × B(8×16)^T = C(16×8)</span><br><span class="line">ThrID = 32                  → 需要 32 个线程（1 个 warp）协作</span><br></pre></td></tr></table></figure></div>
+<p>一个 atom 是<strong>不可再分的最小单元</strong>，对应一条 PTX <code>mma.sync</code> 指令。</p>
+<hr>
+<h2 id="第-2-节只用一个-atom不扩展"><a class="markdownIt-Anchor" href="#第-2-节只用一个-atom不扩展"></a> 第 2 节：只用一个 Atom（不扩展）</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 2. 只用一个 atom（不扩展）</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 2. TiledMMA: 1 atom (no repeat) ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line">    <span class="keyword">using</span> mma_atom = MMA_Atom&lt;MMA_Traits&lt;mma_op&gt;&gt;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 不扩展：(1, 1, 1) repeat, 只覆盖 (16, 8, 16)</span></span><br><span class="line">    <span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(mma_atom{});</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  TiledMMA: "</span>); <span class="built_in">print</span>(tiled_mma); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  线程数: %d\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(tiled_mma)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 看 partition 的 shape（需要传 tensor，不能传 layout）</span></span><br><span class="line">    <span class="type">half_t</span> dummy_a[<span class="number">16</span>*<span class="number">16</span>] = {};</span><br><span class="line">    <span class="type">half_t</span> dummy_b[<span class="number">8</span>*<span class="number">16</span>] = {};</span><br><span class="line">    <span class="type">half_t</span> dummy_c[<span class="number">16</span>*<span class="number">8</span>] = {};</span><br><span class="line">    <span class="keyword">auto</span> test_A = <span class="built_in">make_tensor</span>(&amp;dummy_a[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">16</span>&gt;{}, Int&lt;<span class="number">16</span>&gt;{}));   <span class="comment">// (M, K)</span></span><br><span class="line">    <span class="keyword">auto</span> test_B = <span class="built_in">make_tensor</span>(&amp;dummy_b[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">8</span>&gt;{},  Int&lt;<span class="number">16</span>&gt;{}));   <span class="comment">// (N, K)</span></span><br><span class="line">    <span class="keyword">auto</span> test_C = <span class="built_in">make_tensor</span>(&amp;dummy_c[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">16</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}));    <span class="comment">// (M, N)</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> thr = tiled_mma.<span class="built_in">get_slice</span>(<span class="number">0</span>);  <span class="comment">// thread 0</span></span><br><span class="line">    <span class="keyword">auto</span> fragA = thr.<span class="built_in">partition_fragment_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> fragB = thr.<span class="built_in">partition_fragment_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> fragC = thr.<span class="built_in">partition_fragment_C</span>(test_C);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 fragment shapes:\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragA: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragA)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragB: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragB)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragC: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragC)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印 Layout_TV 的 2D 可视化 ----</span></span><br><span class="line">    <span class="comment">// Layout_TV 是 (Thread, Value) -&gt; 矩阵位置 的映射</span></span><br><span class="line">    <span class="keyword">using</span> mma_traits = MMA_Traits&lt;mma_op&gt;;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  LayoutC_TV (Thread x Value -&gt; 16x8 矩阵位置):\n"</span>);</span><br><span class="line">    <span class="keyword">auto</span> layoutC_TV = <span class="keyword">typename</span> mma_traits::CLayout{};</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    "</span>); <span class="built_in">print</span>(layoutC_TV); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(layoutC_TV);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  LayoutA_TV (Thread x Value -&gt; 16x16 矩阵位置):\n"</span>);</span><br><span class="line">    <span class="keyword">auto</span> layoutA_TV = <span class="keyword">typename</span> mma_traits::ALayout{};</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    "</span>); <span class="built_in">print</span>(layoutA_TV); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(layoutA_TV);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  LayoutB_TV (Thread x Value -&gt; 8x16 矩阵位置):\n"</span>);</span><br><span class="line">    <span class="keyword">auto</span> layoutB_TV = <span class="keyword">typename</span> mma_traits::BLayout{};</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    "</span>); <span class="built_in">print</span>(layoutB_TV); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(layoutB_TV);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印每个线程的 partition 视图（用 partition_A/B/C 而非 fragment） ----</span></span><br><span class="line">    <span class="comment">// partition_A/B/C 返回对原始 tensor 的分片视图，保留指针关系</span></span><br><span class="line">    <span class="keyword">auto</span> pA = thr.<span class="built_in">partition_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> pB = thr.<span class="built_in">partition_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> pC = thr.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 partition shapes (with pointer to original data):\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partA: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pA)); <span class="built_in">printf</span>(<span class="string">"  layout: "</span>); <span class="built_in">print</span>(pA.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partB: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pB)); <span class="built_in">printf</span>(<span class="string">"  layout: "</span>); <span class="built_in">print</span>(pB.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partC: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pC)); <span class="built_in">printf</span>(<span class="string">"  layout: "</span>); <span class="built_in">print</span>(pC.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印 fragC 的值（初始化为 0） ----</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  fragC values (thread 0, %d elements):\n    "</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(fragC)));</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">size</span>(fragC); ++i) {</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"%.1f "</span>, <span class="built_in">float</span>(<span class="built_in">fragC</span>(i)));</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印多个线程的 partition_C 来观察不同线程负责哪些位置 ----</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  各线程在 C(16x8) 矩阵中负责的位置 (offset):\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">4</span>; ++t) {  <span class="comment">// 只打印前 4 个线程</span></span><br><span class="line">      <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);</span><br><span class="line">      <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"    thread %d: "</span>, t);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">        <span class="comment">// 计算该元素相对于 test_C 起始地址的 offset</span></span><br><span class="line">        <span class="type">int</span> offset = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"%3d "</span>, offset);</span><br><span class="line">      }</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="2.png" alt="img"></p>
+<p><img lazyload="" src="/images/loading.svg" data-src="3.png" alt="img"></p>
+<p><img lazyload="" src="/images/loading.svg" data-src="4.png" alt="img"></p>
+<p><img lazyload="" src="/images/loading.svg" data-src="5.png" alt="img"></p>
+<p><img lazyload="" src="/images/loading.svg" data-src="6.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(mma_atom{});</span><br></pre></td></tr></table></figure></div>
+<p>不做任何扩展，32 个线程覆盖 (16, 8, 16)。</p>
+<h3 id="tiledmma-打印信息解读"><a class="markdownIt-Anchor" href="#tiledmma-打印信息解读"></a> TiledMMA 打印信息解读</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ThrLayoutVMNK:  (_32,_1,_1,_1):(_1,_0,_0,_0)</span><br><span class="line">PermutationMNK: (_,_,_)</span><br></pre></td></tr></table></figure></div>
+<p><strong>ThrLayoutVMNK</strong> 的四个维度是 (V, M, N, K)：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V=32</td>
+<td>一个 atom 需要 32 个线程</td>
+<td></td>
+</tr>
+<tr>
+<td>M=1</td>
+<td>M 方向没有复制</td>
+<td></td>
+</tr>
+<tr>
+<td>N=1</td>
+<td>N 方向没有复制</td>
+<td></td>
+</tr>
+<tr>
+<td>K=1</td>
+<td>K 方向没有复制</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>stride 中 <code>_0</code> 表示该维度不影响线程编号。</p>
+<p><strong>PermutationMNK</strong> 三个 <code>_</code> 表示没有第二层扩展（P Tile）。</p>
+<h3 id="layout_tv寄存器分配地图"><a class="markdownIt-Anchor" href="#layout_tv寄存器分配地图"></a> Layout_TV：寄存器分配地图</h3>
+<p><strong>TV = Thread × Value</strong>。它回答：<strong>矩阵中的每个元素，由哪个线程的第几个寄存器持有？</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Layout_TV: (thread_id, value_id) → 矩阵中的逻辑位置 (offset)</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T (Thread)</strong></td>
+<td>线程编号 0~31</td>
+</tr>
+<tr>
+<td><strong>V (Value)</strong></td>
+<td>该线程持有的第几个元素（寄存器编号）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>输出是矩阵的逻辑位置（offset），不是寄存器的物理位置。</strong></p>
+<h4 id="layoutc_tv"><a class="markdownIt-Anchor" href="#layoutc_tv"></a> LayoutC_TV</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">LayoutC_TV: ((_4,_8), (_2,_2)):((_32,_1), (_16,_8))</span><br><span class="line">              Thread     Value</span><br></pre></td></tr></table></figure></div>
+<p>C 矩阵 16×8 = 128 个元素，32 个线程 × 4 个 value = 128，刚好分完。</p>
+<p>Thread 0 那一行：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">value 0 → offset=0   → 矩阵位置 (row=0, col=0)</span><br><span class="line">value 1 → offset=16  → 矩阵位置 (row=2, col=0)   ← 不连续！</span><br><span class="line">value 2 → offset=8   → 矩阵位置 (row=1, col=0)</span><br><span class="line">value 3 → offset=24  → 矩阵位置 (row=3, col=0)</span><br></pre></td></tr></table></figure></div>
+<p><strong>每个线程的 4 个元素分散在矩阵中的 2×2 小块，这个模式由 NVIDIA 硬件决定，不能改。</strong></p>
+<h4 id="layouta_tv"><a class="markdownIt-Anchor" href="#layouta_tv"></a> LayoutA_TV</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">LayoutA_TV: ((_4,_8), (_2,_2,_2)):((_32,_1), (_16,_8,_128))</span><br></pre></td></tr></table></figure></div>
+<p>每个线程持有 <code>2×2×2 = 8</code> 个 A 元素。A 矩阵 16×16 = 256，<code>32 × 8 = 256</code> 刚好分完。</p>
+<h4 id="layoutb_tv"><a class="markdownIt-Anchor" href="#layoutb_tv"></a> LayoutB_TV</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">LayoutB_TV: ((_4,_8), (_2,_2)):((_16,_1), (_8,_64))</span><br></pre></td></tr></table></figure></div>
+<p>每个线程持有 <code>2×2 = 4</code> 个 B 元素。B 矩阵 8×16 = 128，<code>32 × 4 = 128</code> 刚好分完。</p>
+<h4 id="为什么-a-是-8-个而-bc-是-4-个"><a class="markdownIt-Anchor" href="#为什么-a-是-8-个而-bc-是-4-个"></a> 为什么 A 是 8 个而 B/C 是 4 个</h4>
+<p>MMA 指令的 shape 不对称：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">A: (M, K) = (16, 16) = 256 / 32 = 8 个/线程</span><br><span class="line">B: (N, K) = (8,  16) = 128 / 32 = 4 个/线程</span><br><span class="line">C: (M, N) = (16,  8) = 128 / 32 = 4 个/线程</span><br></pre></td></tr></table></figure></div>
+<p>N 维只有 8（不是 16），所以 B 和 C 比 A 少一半。</p>
+<h3 id="layout_tv-的作用"><a class="markdownIt-Anchor" href="#layout_tv-的作用"></a> Layout_TV 的作用</h3>
+<h4 id="1-加载数据时告诉线程去-smem-的哪个地址取"><a class="markdownIt-Anchor" href="#1-加载数据时告诉线程去-smem-的哪个地址取"></a> 1. 加载数据时告诉线程去 smem 的哪个地址取</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">LayoutA_TV(thread=0, value=0) = 0     ← thread 0 要去 smem[0] 取</span><br><span class="line">LayoutA_TV(thread=0, value=1) = 16    ← thread 0 要去 smem[16] 取</span><br></pre></td></tr></table></figure></div>
+<h4 id="2-存储数据时告诉线程往-smem-的哪个地址写"><a class="markdownIt-Anchor" href="#2-存储数据时告诉线程往-smem-的哪个地址写"></a> 2. 存储数据时告诉线程往 smem 的哪个地址写</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">LayoutC_TV(thread=0, value=0) = 0     ← 寄存器 0 写到 smem[0]</span><br><span class="line">LayoutC_TV(thread=0, value=1) = 16    ← 寄存器 1 写到 smem[16]</span><br></pre></td></tr></table></figure></div>
+<h4 id="3-坐标变换retile_d的基础"><a class="markdownIt-Anchor" href="#3-坐标变换retile_d的基础"></a> 3. 坐标变换（retile_D）的基础</h4>
+<p>MMA 和 Copy 用不同的 Layout_TV，同一个矩阵位置在两种 layout 下有不同的 value 编号：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">MMA:  LayoutC_TV(t0, value=2) = 矩阵位置 8</span><br><span class="line">Copy: LayoutA_TV(t0, value=1) = 矩阵位置 8</span><br><span class="line"></span><br><span class="line">同一个位置 8，MMA 放在寄存器 2，Copy 需要从寄存器 1 读</span><br><span class="line">→ inv + compose 做坐标变换</span><br></pre></td></tr></table></figure></div>
+<p><strong>注意</strong>：逻辑位置和 smem 物理地址之间还隔着 smem 的 layout（可能有 Swizzle），但 CuTe 的 partition 操作自动把这两层串起来，用户不需要手动换算。</p>
+<h3 id="fragment-shape-的含义"><a class="markdownIt-Anchor" href="#fragment-shape-的含义"></a> Fragment Shape 的含义</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fragA: ((_2,_2,_2), _1, _1)     = (MMA, MMA_M, MMA_K)</span><br><span class="line">fragB: ((_2,_2),    _1, _1)     = (MMA, MMA_N, MMA_K)</span><br><span class="line">fragC: ((_2,_2),    _1, _1)     = (MMA, MMA_M, MMA_N)</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>第一维 MMA</strong></td>
+<td>一次 mma 指令中该线程负责的元素数（= Layout_TV 的 Value 维大小）</td>
+</tr>
+<tr>
+<td><strong>第二维 MMA_M/MMA_N</strong></td>
+<td>M 或 N 方向要重复多少次。<code>_1</code> = 不需要重复</td>
+</tr>
+<tr>
+<td><strong>第三维 MMA_K/MMA_N</strong></td>
+<td>K 或 N 方向要重复多少次。<code>_1</code> = 不需要重复</td>
+</tr>
+</tbody>
+</table>
+<p>每个线程持有的寄存器数量 = 三个维度之积：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fragA：8 × 1 × 1 = 8 个 half 寄存器</span><br><span class="line">fragB：4 × 1 × 1 = 4 个 half 寄存器</span><br><span class="line">fragC：4 × 1 × 1 = 4 个 half 累加器</span><br></pre></td></tr></table></figure></div>
+<h3 id="partition_fragment-vs-partition-的区别"><a class="markdownIt-Anchor" href="#partition_fragment-vs-partition-的区别"></a> partition_fragment vs partition 的区别</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>partition_fragment_C</th>
+<th>partition_C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据在哪</td>
+<td>新创建的寄存器（栈上）</td>
+<td>指向原始 tensor 的视图</td>
+</tr>
+<tr>
+<td>有指针关系吗</td>
+<td>无，独立的数据</td>
+<td>有，和原始 tensor 共享内存</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>创建累加器/寄存器 fragment</td>
+<td>分析每个线程负责原始矩阵的哪些位置</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="第-3-节第一层扩展-eu-repeat-2-2-1"><a class="markdownIt-Anchor" href="#第-3-节第一层扩展-eu-repeat-2-2-1"></a> 第 3 节：第一层扩展 —— EU Repeat (2, 2, 1)</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 3. 第一层扩展：EU Repeat (2, 2, 1)</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 3. EU Repeat (2, 2, 1) ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line">    <span class="keyword">using</span> mma_atom = MMA_Atom&lt;MMA_Traits&lt;mma_op&gt;&gt;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// M 方向 2 个 warp, N 方向 2 个 warp =&gt; 4 个 warp = 128 线程</span></span><br><span class="line">    <span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(</span><br><span class="line">        mma_atom{},</span><br><span class="line">        <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})));</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  线程数: %d (= 32 x 2 x 2)\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(tiled_mma)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 覆盖范围：(16*2, 8*2, 16) = (32, 16, 16)</span></span><br><span class="line">    <span class="type">half_t</span> da[<span class="number">32</span>*<span class="number">16</span>]={}, db[<span class="number">16</span>*<span class="number">16</span>]={}, dc[<span class="number">32</span>*<span class="number">16</span>]={};</span><br><span class="line">    <span class="keyword">auto</span> test_A = <span class="built_in">make_tensor</span>(&amp;da[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">32</span>&gt;{}, Int&lt;<span class="number">16</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> test_B = <span class="built_in">make_tensor</span>(&amp;db[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">16</span>&gt;{}, Int&lt;<span class="number">16</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> test_C = <span class="built_in">make_tensor</span>(&amp;dc[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">32</span>&gt;{}, Int&lt;<span class="number">16</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> thr = tiled_mma.<span class="built_in">get_slice</span>(<span class="number">0</span>);</span><br><span class="line">    <span class="keyword">auto</span> fragA3 = thr.<span class="built_in">partition_fragment_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> fragB3 = thr.<span class="built_in">partition_fragment_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> fragC3 = thr.<span class="built_in">partition_fragment_C</span>(test_C);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 fragment shapes:\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragA: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragA3)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragB: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragB3)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragC: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragC3)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印 partition 的 layout 细节</span></span><br><span class="line">    <span class="keyword">auto</span> pA3 = thr.<span class="built_in">partition_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> pB3 = thr.<span class="built_in">partition_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> pC3 = thr.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 partition layouts:\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partA: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pA3)); <span class="built_in">printf</span>(<span class="string">"  layout="</span>); <span class="built_in">print</span>(pA<span class="number">3.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partB: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pB3)); <span class="built_in">printf</span>(<span class="string">"  layout="</span>); <span class="built_in">print</span>(pB<span class="number">3.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partC: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pC3)); <span class="built_in">printf</span>(<span class="string">"  layout="</span>); <span class="built_in">print</span>(pC<span class="number">3.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印 C(32x16) 矩阵的线程分配全景图 ----</span></span><br><span class="line">    <span class="comment">// 每个格子填写负责它的线程编号</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  C(32x16) 矩阵线程分配图 (每格=线程号):\n"</span>);</span><br><span class="line">    {</span><br><span class="line">      <span class="comment">// 建立 offset -&gt; thread_id 的反向映射</span></span><br><span class="line">      <span class="type">int</span> thr_map[<span class="number">32</span>*<span class="number">16</span>];</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">32</span>*<span class="number">16</span>; ++i) thr_map[i] = <span class="number">-1</span>;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">128</span>; ++t) {</span><br><span class="line">        <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);</span><br><span class="line">        <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">          <span class="type">int</span> off = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">          <span class="keyword">if</span> (off &gt;= <span class="number">0</span> &amp;&amp; off &lt; <span class="number">32</span>*<span class="number">16</span>) thr_map[off] = t;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">      <span class="comment">// 打印：行=M，列=N</span></span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"     "</span>);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; <span class="number">16</span>; ++n) <span class="built_in">printf</span>(<span class="string">" %3d"</span>, n);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> m = <span class="number">0</span>; m &lt; <span class="number">32</span>; ++m) {</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"  %2d:"</span>, m);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; <span class="number">16</span>; ++n) {</span><br><span class="line">          <span class="type">int</span> off = m * <span class="number">16</span> + n;  <span class="comment">// row-major in test_C (col-major default)</span></span><br><span class="line">          <span class="comment">// test_C 是 make_shape(32, 16) 默认 col-major: offset = m + 32*n</span></span><br><span class="line">          <span class="type">int</span> off_cm = m + <span class="number">32</span> * n;</span><br><span class="line">          <span class="built_in">printf</span>(<span class="string">" %3d"</span>, thr_map[off_cm]);</span><br><span class="line">        }</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="7.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(</span><br><span class="line">    mma_atom{},</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})));</span><br></pre></td></tr></table></figure></div>
+<p><strong>EU Repeat = 用更多 warp 覆盖更大面积，增加线程数。</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">AtomLayoutMNK = (2, 2, 1)</span><br><span class="line">→ M 方向 2 个 warp，N 方向 2 个 warp</span><br><span class="line">→ 4 个 warp = 32 × 4 = 128 个线程</span><br><span class="line">→ 覆盖范围：(16×2, 8×2, 16) = (32, 16, 16)</span><br></pre></td></tr></table></figure></div>
+<h3 id="fragment-shape"><a class="markdownIt-Anchor" href="#fragment-shape"></a> Fragment Shape</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fragA: ((_2,_2,_2), _1, _1)    每线程还是 8 个元素</span><br><span class="line">fragB: ((_2,_2),    _1, _1)    每线程还是 4 个元素</span><br><span class="line">fragC: ((_2,_2),    _1, _1)    每线程还是 4 个元素</span><br></pre></td></tr></table></figure></div>
+<p><strong>每个线程的工作量没变</strong>（还是一个 atom 的量），只是用了更多线程来覆盖更大的矩阵。</p>
+<h3 id="c3216-线程分配全景图"><a class="markdownIt-Anchor" href="#c3216-线程分配全景图"></a> C(32×16) 线程分配全景图</h3>
+<p>从程序输出可以清晰看到 4 个 warp 的分工：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">              N 方向</span><br><span class="line">         col 0-7         col 8-15</span><br><span class="line">        +---------------+---------------+</span><br><span class="line">row 0-7 | warp 0 (t0-31)| warp 2 (t64-95)|   M 方向</span><br><span class="line">        +---------------+---------------+   上半</span><br><span class="line">row 8-15| warp 0 重复    | warp 2 重复    |</span><br><span class="line">        +---------------+---------------+</span><br><span class="line">row16-23| warp 1 (t32-63)| warp 3 (t96-127)|  M 方向</span><br><span class="line">        +---------------+---------------+   下半</span><br><span class="line">row24-31| warp 1 重复    | warp 3 重复    |</span><br><span class="line">        +---------------+---------------+</span><br></pre></td></tr></table></figure></div>
+<p>每个线程负责 4 个元素（2×2 小块），每个格子出现两次是因为 MMA 指令的寄存器分配模式在 M 方向有 8 行的周期。</p>
+<h3 id="可视化代码原理"><a class="markdownIt-Anchor" href="#可视化代码原理"></a> 可视化代码原理</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 建反向映射表：offset → thread_id</span></span><br><span class="line"><span class="type">int</span> thr_map[<span class="number">32</span>*<span class="number">16</span>];</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">32</span>*<span class="number">16</span>; ++i) thr_map[i] = <span class="number">-1</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. 遍历所有 128 个线程</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">128</span>; ++t) {</span><br><span class="line">    <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);           <span class="comment">// 取线程 t</span></span><br><span class="line">    <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);          <span class="comment">// 该线程负责的元素</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {       <span class="comment">// 遍历 4 个 value</span></span><br><span class="line">        <span class="type">int</span> off = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));  <span class="comment">// 指针减法算 offset</span></span><br><span class="line">        thr_map[off] = t;                            <span class="comment">// 填表</span></span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. 按矩阵形状打印（注意 test_C 默认 col-major）</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> m = <span class="number">0</span>; m &lt; <span class="number">32</span>; ++m)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; <span class="number">16</span>; ++n)</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">" %3d"</span>, thr_map[m + <span class="number">32</span> * n]);  <span class="comment">// col-major: offset = row + num_rows × col</span></span><br></pre></td></tr></table></figure></div>
+<p>核心技巧是<strong>指针减法</strong>：<code>partition_C</code> 返回的 tensor 和原始 <code>test_C</code> 共享内存，<code>&amp;pC_t(v,0,0) - &amp;test_C(0,0)</code> 得到该元素在矩阵中的 offset。</p>
+<hr>
+<h2 id="第-4-节第二层扩展-permutation-tile"><a class="markdownIt-Anchor" href="#第-4-节第二层扩展-permutation-tile"></a> 第 4 节：第二层扩展 —— Permutation Tile</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 4. 第二层扩展：Permutation Tile</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 4. EU Repeat (2,2,1) + P Tile (32,32,16) ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line">    <span class="keyword">using</span> mma_atom = MMA_Atom&lt;MMA_Traits&lt;mma_op&gt;&gt;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// EU Repeat 后覆盖 (32, 16, 16)</span></span><br><span class="line">    <span class="comment">// P Tile 要求 (32, 32, 16) =&gt; N 方向每线程多算一倍</span></span><br><span class="line">    <span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(</span><br><span class="line">        mma_atom{},</span><br><span class="line">        <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),  <span class="comment">// EU Repeat</span></span><br><span class="line">        Tile&lt;Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">16</span>&gt;&gt;{});                      <span class="comment">// P Tile</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  线程数: %d (还是 128，P Tile 不增加线程)\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(tiled_mma)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 覆盖范围已是 (32, 32, 16)</span></span><br><span class="line">    <span class="comment">// 对 128x128 的 tile 做 partition</span></span><br><span class="line">    <span class="type">half_t</span> da4[<span class="number">128</span>*<span class="number">32</span>]={}, db4[<span class="number">128</span>*<span class="number">32</span>]={}, dc4[<span class="number">128</span>*<span class="number">128</span>]={};</span><br><span class="line">    <span class="keyword">auto</span> test_A = <span class="built_in">make_tensor</span>(&amp;da4[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">128</span>&gt;{}, Int&lt;<span class="number">32</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> test_B = <span class="built_in">make_tensor</span>(&amp;db4[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">128</span>&gt;{}, Int&lt;<span class="number">32</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> test_C = <span class="built_in">make_tensor</span>(&amp;dc4[<span class="number">0</span>], <span class="built_in">make_shape</span>(Int&lt;<span class="number">128</span>&gt;{}, Int&lt;<span class="number">128</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> thr = tiled_mma.<span class="built_in">get_slice</span>(<span class="number">0</span>);</span><br><span class="line">    <span class="keyword">auto</span> fragA = thr.<span class="built_in">partition_fragment_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> fragB = thr.<span class="built_in">partition_fragment_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> fragC = thr.<span class="built_in">partition_fragment_C</span>(test_C);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 fragment shapes (for 128x128x32 tile):\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragA (MMA, MMA_M, MMA_K): "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragA)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragB (MMA, MMA_N, MMA_K): "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragB)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    fragC (MMA, MMA_M, MMA_N): "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(fragC)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 解读 fragC shape: (MMA, MMA_M, MMA_N)</span></span><br><span class="line">    <span class="comment">//   MMA    = 一次 mma 指令中该线程负责的元素数</span></span><br><span class="line">    <span class="comment">//   MMA_M  = M 方向重复次数 = 128 / 32 = 4</span></span><br><span class="line">    <span class="comment">//   MMA_N  = N 方向重复次数 = 128 / 32 = 4</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  MMA_M = 128/32 = %d\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>&lt;<span class="number">1</span>&gt;(fragC)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  MMA_N = 128/32 = %d\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(fragC)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  MMA_K = 32/16  = %d\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(fragA)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  每个线程持有的累加器元素数: %d\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>(fragC)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印 partition 的 layout 细节</span></span><br><span class="line">    <span class="keyword">auto</span> pA4 = thr.<span class="built_in">partition_A</span>(test_A);</span><br><span class="line">    <span class="keyword">auto</span> pB4 = thr.<span class="built_in">partition_B</span>(test_B);</span><br><span class="line">    <span class="keyword">auto</span> pC4 = thr.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 partition layouts:\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partA: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pA4)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"           layout="</span>); <span class="built_in">print</span>(pA<span class="number">4.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partB: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pB4)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"           layout="</span>); <span class="built_in">print</span>(pB<span class="number">4.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    partC: shape="</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(pC4)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"           layout="</span>); <span class="built_in">print</span>(pC<span class="number">4.l</span>ayout()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印几个线程在 C(128x128) 中第一个 MMA_M, MMA_N 块的位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  各线程在 C(128x128) 中 MMA_M=0,MMA_N=0 时负责的位置:\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">4</span>; ++t) {</span><br><span class="line">      <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);</span><br><span class="line">      <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"    thread %3d: "</span>, t);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">        <span class="type">int</span> offset = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"%5d "</span>, offset);</span><br><span class="line">      }</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"    ...\n"</span>);</span><br><span class="line">    <span class="comment">// warp 2 的前两个线程 (thread 64-65)</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">64</span>; t &lt; <span class="number">66</span>; ++t) {</span><br><span class="line">      <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);</span><br><span class="line">      <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"    thread %3d: "</span>, t);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">        <span class="type">int</span> offset = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"%5d "</span>, offset);</span><br><span class="line">      }</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印 thread 0 在不同 MMA_M, MMA_N 块负责的首元素位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  Thread 0 在各 (MMA_M, MMA_N) 块的首元素 offset:\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> mm = <span class="number">0</span>; mm &lt; <span class="built_in">size</span>&lt;<span class="number">1</span>&gt;(pC4); ++mm) {</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> mn = <span class="number">0</span>; mn &lt; <span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(pC4); ++mn) {</span><br><span class="line">        <span class="type">int</span> offset = <span class="built_in">int</span>(&amp;<span class="built_in">pC4</span>(<span class="number">0</span>, mm, mn) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"    (MMA_M=%d, MMA_N=%d): offset=%d\n"</span>, mm, mn, offset);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ---- 打印 C(128x128) 左上角 32x32 子块的线程分配图 ----</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  C(128x128) 左上角 32x32 子块的线程分配图 (MMA_M=0, MMA_N=0):\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  (每格=线程号, 只显示 MMA_M=0,MMA_N=0 对应的第一个 atom 块)\n"</span>);</span><br><span class="line">    {</span><br><span class="line">      <span class="type">const</span> <span class="type">int</span> show_M = <span class="number">32</span>, show_N = <span class="number">32</span>;</span><br><span class="line">      <span class="type">int</span> thr_map4[show_M * show_N];</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; show_M * show_N; ++i) thr_map4[i] = <span class="number">-1</span>;</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">128</span>; ++t) {</span><br><span class="line">        <span class="keyword">auto</span> <span class="type">thr_t</span> = tiled_mma.<span class="built_in">get_slice</span>(t);</span><br><span class="line">        <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">        <span class="comment">// 只取 MMA_M=0, MMA_N=0 的 value</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">          <span class="type">int</span> off = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line">          <span class="comment">// test_C 是 (128, 128) col-major: offset = m + 128*n</span></span><br><span class="line">          <span class="type">int</span> m = off % <span class="number">128</span>;</span><br><span class="line">          <span class="type">int</span> n = off / <span class="number">128</span>;</span><br><span class="line">          <span class="keyword">if</span> (m &lt; show_M &amp;&amp; n &lt; show_N) {</span><br><span class="line">            thr_map4[m * show_N + n] = t;</span><br><span class="line">          }</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"     "</span>);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; show_N; ++n) <span class="built_in">printf</span>(<span class="string">" %3d"</span>, n);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> m = <span class="number">0</span>; m &lt; show_M; ++m) {</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"  %2d:"</span>, m);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> n = <span class="number">0</span>; n &lt; show_N; ++n) {</span><br><span class="line">          <span class="type">int</span> val = thr_map4[m * show_N + n];</span><br><span class="line">          <span class="keyword">if</span> (val &gt;= <span class="number">0</span>) <span class="built_in">printf</span>(<span class="string">" %3d"</span>, val);</span><br><span class="line">          <span class="keyword">else</span> <span class="built_in">printf</span>(<span class="string">"   ."</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="8.png" alt="img"></p>
+<p><img lazyload="" src="/images/loading.svg" data-src="9.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tiled_mma = <span class="built_in">make_tiled_mma</span>(</span><br><span class="line">    mma_atom{},</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),  <span class="comment">// EU Repeat</span></span><br><span class="line">    Tile&lt;Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">16</span>&gt;&gt;{});                      <span class="comment">// P Tile</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>P Tile = 让每个线程多执行几次 MMA，不增加线程数。</strong></p>
+<p>EU Repeat 后覆盖 <code>(32, 16, 16)</code>，P Tile 要求 <code>(32, 32, 16)</code>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">M: 32 = 32  → 刚好</span><br><span class="line">N: 32 / 16 = 2  → 每个线程在 N 方向多算一倍</span><br><span class="line">K: 16 = 16  → 刚好</span><br></pre></td></tr></table></figure></div>
+<p>线程数不变（还是 128），但每个线程做更多工作。</p>
+<h3 id="两层扩展的区别"><a class="markdownIt-Anchor" href="#两层扩展的区别"></a> 两层扩展的区别</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>EU Repeat</th>
+<th>P Tile</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>做什么</td>
+<td>用更多 warp 覆盖更大面积</td>
+<td>让每个线程多执行几次 MMA</td>
+</tr>
+<tr>
+<td>是否增加线程数</td>
+<td>是 (32→128)</td>
+<td>否 (还是 128)</td>
+</tr>
+<tr>
+<td>覆盖范围怎么变</td>
+<td>(16,8,16)→(32,16,16)</td>
+<td>(32,16,16)→(32,32,16)</td>
+</tr>
+<tr>
+<td>代价</td>
+<td>需要更多线程</td>
+<td>每个线程做更多工作</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fragment-shape对-12812832-tile"><a class="markdownIt-Anchor" href="#fragment-shape对-12812832-tile"></a> Fragment Shape（对 128×128×32 tile）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fragA: ((_2,_2,_2), _4, _2)    = (MMA=8, MMA_M=4, MMA_K=2)</span><br><span class="line">fragB: ((_2,_2),    _8, _2)    = (MMA=4, MMA_N=8, MMA_K=2)</span><br><span class="line">fragC: ((_2,_2),    _4, _8)    = (MMA=4, MMA_M=4, MMA_N=8)</span><br></pre></td></tr></table></figure></div>
+<p><strong>维度解读</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">MMA_M = 128 / 32 = 4    → M 方向要重复 4 次</span><br><span class="line">MMA_N = 128 / 32 = 8    → N 方向要重复 8 次（注意不是 128/16=8，而是 tile 被 P Tile 扩展到 32 后，128/16=8）</span><br><span class="line">MMA_K = 32 / 16 = 2     → K 方向要重复 2 次</span><br><span class="line"></span><br><span class="line">每线程累加器数 = 4 × 4 × 8 = 128 个 half 寄存器</span><br></pre></td></tr></table></figure></div>
+<p><strong>为什么 MMA_N=8 而不是 4？</strong></p>
+<p>P Tile 把 N 的"一次覆盖量"从 16 扩展到 32，但 P Tile 内部 N=32 中每个线程实际覆盖的是 16（分两轮算）。对 128 列来说需要 <code>128/16 = 8</code> 次重复。</p>
+<h3 id="thread-0-在各-mma_m-mma_n-块的首元素"><a class="markdownIt-Anchor" href="#thread-0-在各-mma_m-mma_n-块的首元素"></a> Thread 0 在各 (MMA_M, MMA_N) 块的首元素</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">(MMA_M=0, MMA_N=0): offset=0        ← 左上角</span><br><span class="line">(MMA_M=0, MMA_N=1): offset=2048     ← 128×16=2048，跳 16 列</span><br><span class="line">(MMA_M=1, MMA_N=0): offset=32       ← 往下跳 32 行（但是 col-major 所以 offset 差 32）</span><br></pre></td></tr></table></figure></div>
+<p>offset 差 2048 = 128×16，说明 MMA_N 每次覆盖 16 列。
+offset 差 32，说明 MMA_M 每次覆盖 32 行（col-major 下 32 行 = offset 差 32）。</p>
+<p>但这只是第一个 atom 块（MMA_M=0, MMA_N=0）的分配。</p>
+<h3 id="c128128-左上角-3232-的线程分配图"><a class="markdownIt-Anchor" href="#c128128-左上角-3232-的线程分配图"></a> C(128×128) 左上角 32×32 的线程分配图</h3>
+<p>输出中可以看到：</p>
+<ul>
+<li><strong>左半 16 列</strong> (col 0-15)：有线程号，pattern 和第 3 节完全一样</li>
+<li><strong>右半 16 列</strong> (col 16-31)：全是 <code>.</code>（空）</li>
+</ul>
+<p>这是因为只打印了 <code>MMA_M=0, MMA_N=0</code> 的分配。MMA_N=0 的一个 atom 块只覆盖前 16 列，col 16-31 属于 MMA_N=1 的下一轮。</p>
+<h3 id="可视化代码原理-2"><a class="markdownIt-Anchor" href="#可视化代码原理-2"></a> 可视化代码原理</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 和第 3 节相同思路，但需要处理 128×128 的 col-major tensor</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">128</span>; ++t) {</span><br><span class="line">    <span class="keyword">auto</span> pC_t = <span class="type">thr_t</span>.<span class="built_in">partition_C</span>(test_C);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> v = <span class="number">0</span>; v &lt; <span class="built_in">size</span>&lt;<span class="number">0</span>&gt;(pC_t); ++v) {</span><br><span class="line">        <span class="type">int</span> off = <span class="built_in">int</span>(&amp;<span class="built_in">pC_t</span>(v, <span class="number">0</span>, <span class="number">0</span>) - &amp;<span class="built_in">test_C</span>(<span class="number">0</span>, <span class="number">0</span>));  <span class="comment">// 只取 MMA_M=0, MMA_N=0</span></span><br><span class="line">        <span class="type">int</span> m = off % <span class="number">128</span>;    <span class="comment">// col-major 反算 row</span></span><br><span class="line">        <span class="type">int</span> n = off / <span class="number">128</span>;    <span class="comment">// col-major 反算 col</span></span><br><span class="line">        <span class="keyword">if</span> (m &lt; <span class="number">32</span> &amp;&amp; n &lt; <span class="number">32</span>) <span class="comment">// 只取左上角 32×32</span></span><br><span class="line">            thr_map4[m * <span class="number">32</span> + n] = t;</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>与第 3 节的区别：</p>
+<ol>
+<li><code>pC_t(v, 0, 0)</code> — 固定 MMA_M=0, MMA_N=0，只看第一个 atom 块</li>
+<li><code>off % 128</code> / <code>off / 128</code> — test_C 是 (128, 128) col-major，需要用 128 而不是 32 来反算坐标</li>
+<li>只显示左上角 32×32，因为 128×128 太大</li>
+</ol>
+<hr>
+<h2 id="完整扩展链路"><a class="markdownIt-Anchor" href="#完整扩展链路"></a> 完整扩展链路</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">atom:               (16,  8, 16)  ×  32 线程</span><br><span class="line">                         ↓ EU Repeat (2, 2, 1)</span><br><span class="line">第一层:             (32, 16, 16)  × 128 线程    ← 线程数增加</span><br><span class="line">                         ↓ P Tile (32, 32, 16)</span><br><span class="line">第二层:             (32, 32, 16)  × 128 线程    ← 线程数不变，每线程多算</span><br><span class="line"></span><br><span class="line">对 128×128×32 tile:</span><br><span class="line">  MMA_M = 128/32 = 4 次</span><br><span class="line">  MMA_N = 128/16 = 8 次    (P Tile 的 N=32 中每线程实际覆盖 16)</span><br><span class="line">  MMA_K = 32/16  = 2 次</span><br><span class="line">  每线程累加器 = 4 × 4 × 8 = 128 个</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="make_tiled_mma-参数详解"><a class="markdownIt-Anchor" href="#make_tiled_mma-参数详解"></a> make_tiled_mma 参数详解</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">make_tiled_mma</span>(MMA_Atom, AtomLayoutMNK, PermutationMNK)</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MMA_Atom</td>
+<td>基础 MMA 指令</td>
+<td><code>MMA_Atom&lt;MMA_Traits&lt;SM80_16x8x16_F16F16F16F16_TN&gt;&gt;</code></td>
+</tr>
+<tr>
+<td>AtomLayoutMNK</td>
+<td>EU Repeat：在 M/N/K 方向各复制几份</td>
+<td><code>Layout&lt;Shape&lt;_2, _2, _1&gt;&gt;</code></td>
+</tr>
+<tr>
+<td>PermutationMNK</td>
+<td>P Tile：最终期望的 tile 大小</td>
+<td><code>Tile&lt;Int&lt;32&gt;, Int&lt;32&gt;, Int&lt;16&gt;&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="api-速查"><a class="markdownIt-Anchor" href="#api-速查"></a> API 速查</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make_tiled_mma(atom, repeat, tile)</code></td>
+<td>创建 TiledMMA</td>
+</tr>
+<tr>
+<td><code>tiled_mma.get_slice(threadIdx.x)</code></td>
+<td>取当前线程的 MMA 切片</td>
+</tr>
+<tr>
+<td><code>thr.partition_fragment_A/B/C(tensor)</code></td>
+<td>在寄存器上创建 fragment（独立数据）</td>
+</tr>
+<tr>
+<td><code>thr.partition_A/B/C(tensor)</code></td>
+<td>对原始 tensor 分片（共享内存，保留指针）</td>
+</tr>
+<tr>
+<td><code>size(tiled_mma)</code></td>
+<td>总线程数</td>
+</tr>
+<tr>
+<td><code>size&lt;0&gt;(fragC)</code></td>
+<td>每线程每次 MMA 的元素数</td>
+</tr>
+<tr>
+<td><code>size&lt;1&gt;(fragC)</code></td>
+<td>MMA_M 重复次数</td>
+</tr>
+<tr>
+<td><code>size&lt;2&gt;(fragC)</code></td>
+<td>MMA_N 重复次数</td>
+</tr>
+</tbody>
+</table>
+<h2 id="易错点总结"><a class="markdownIt-Anchor" href="#易错点总结"></a> 易错点总结</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>原因</th>
+<th>解决方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>partition_fragment_A</code> 传 layout 报错</td>
+<td>需要传 tensor（有数据指针），不能传 layout</td>
+<td>创建 dummy 数组包装成 tensor</td>
+</tr>
+<tr>
+<td>fragment shape 的 MMA_N 比预期大</td>
+<td>P Tile 扩展了覆盖范围</td>
+<td>MMA_N = tile_N / (atom_N × 每线程覆盖的 N)</td>
+</tr>
+<tr>
+<td>可视化时 offset 换算错误</td>
+<td>tensor 默认 col-major，不是 row-major</td>
+<td><code>row = off % num_rows</code>, <code>col = off / num_rows</code></td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> cute（6）tiled_mma</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-13 22:13:32</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-12 17:15:23
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/13/cute(6)tiled_mma/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-cutlass-cute/">#cuda, cutlass,cute</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/10/cute(5)tiled_copy/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（5）tiled_copy</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">cute（6）tiled_mma</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E9%98%85%E8%AF%BB"><span class="nav-text"> 前置阅读</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-tiledmma"><span class="nav-text"> 6 TiledMMA</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text"> 核心概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-1-%E8%8A%82mma-atom-%E5%9F%BA%E7%A1%80%E4%BF%A1%E6%81%AF"><span class="nav-text"> 第 1 节：MMA Atom 基础信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-2-%E8%8A%82%E5%8F%AA%E7%94%A8%E4%B8%80%E4%B8%AA-atom%E4%B8%8D%E6%89%A9%E5%B1%95"><span class="nav-text"> 第 2 节：只用一个 Atom（不扩展）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#tiledmma-%E6%89%93%E5%8D%B0%E4%BF%A1%E6%81%AF%E8%A7%A3%E8%AF%BB"><span class="nav-text"> TiledMMA 打印信息解读</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#layout_tv%E5%AF%84%E5%AD%98%E5%99%A8%E5%88%86%E9%85%8D%E5%9C%B0%E5%9B%BE"><span class="nav-text"> Layout_TV：寄存器分配地图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#layout_tv-%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="nav-text"> Layout_TV 的作用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#fragment-shape-%E7%9A%84%E5%90%AB%E4%B9%89"><span class="nav-text"> Fragment Shape 的含义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#partition_fragment-vs-partition-%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-text"> partition_fragment vs partition 的区别</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-3-%E8%8A%82%E7%AC%AC%E4%B8%80%E5%B1%82%E6%89%A9%E5%B1%95-eu-repeat-2-2-1"><span class="nav-text"> 第 3 节：第一层扩展 —— EU Repeat (2, 2, 1)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#fragment-shape"><span class="nav-text"> Fragment Shape</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#c3216-%E7%BA%BF%E7%A8%8B%E5%88%86%E9%85%8D%E5%85%A8%E6%99%AF%E5%9B%BE"><span class="nav-text"> C(32×16) 线程分配全景图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E8%A7%86%E5%8C%96%E4%BB%A3%E7%A0%81%E5%8E%9F%E7%90%86"><span class="nav-text"> 可视化代码原理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-4-%E8%8A%82%E7%AC%AC%E4%BA%8C%E5%B1%82%E6%89%A9%E5%B1%95-permutation-tile"><span class="nav-text"> 第 4 节：第二层扩展 —— Permutation Tile</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%A4%E5%B1%82%E6%89%A9%E5%B1%95%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-text"> 两层扩展的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#fragment-shape%E5%AF%B9-12812832-tile"><span class="nav-text"> Fragment Shape（对 128×128×32 tile）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#thread-0-%E5%9C%A8%E5%90%84-mma_m-mma_n-%E5%9D%97%E7%9A%84%E9%A6%96%E5%85%83%E7%B4%A0"><span class="nav-text"> Thread 0 在各 (MMA_M, MMA_N) 块的首元素</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#c128128-%E5%B7%A6%E4%B8%8A%E8%A7%92-3232-%E7%9A%84%E7%BA%BF%E7%A8%8B%E5%88%86%E9%85%8D%E5%9B%BE"><span class="nav-text"> C(128×128) 左上角 32×32 的线程分配图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E8%A7%86%E5%8C%96%E4%BB%A3%E7%A0%81%E5%8E%9F%E7%90%86-2"><span class="nav-text"> 可视化代码原理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%8C%E6%95%B4%E6%89%A9%E5%B1%95%E9%93%BE%E8%B7%AF"><span class="nav-text"> 完整扩展链路</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#make_tiled_mma-%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3"><span class="nav-text"> make_tiled_mma 参数详解</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#api-%E9%80%9F%E6%9F%A5"><span class="nav-text"> API 速查</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%98%93%E9%94%99%E7%82%B9%E6%80%BB%E7%BB%93"><span class="nav-text"> 易错点总结</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 19 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

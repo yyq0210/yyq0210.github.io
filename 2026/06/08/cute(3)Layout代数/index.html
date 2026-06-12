@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="俞言骐">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/08/cute(3)layout代数/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cute（3）Layout代数">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/08/cute(3)Layout%E4%BB%A3%E6%95%B0/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-08T14:13:32.000Z">
+<meta property="article:modified_time" content="2026-06-12T09:15:19.531Z">
+<meta property="article:author" content="俞言骐">
+<meta property="article:tag" content="cuda, cutlass,cute">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            cute（3）Layout代数 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到俞言骐的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (俞言骐), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">19</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">cute（3）Layout代数</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">俞言骐</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-08 22:13:32</span>
+        <span class="mobile">2026-06-08 22:13:32</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-12 17:15:19</span>
+            <span class="mobile">2026-06-12 17:15:19</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="ref"><a class="markdownIt-Anchor" href="#ref"></a> Ref</h1>
+<ul>
+<li>
+<p>官方文档：<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cutlass/latest/media/docs/cpp/cute/index.html">CuTe — NVIDIA CUTLASS Documentation<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>reed博士：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/662089556">(4 封私信 / 14 条消息) cute Layout 的代数和几何解释 - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>竹佬：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/1962625273636845008">(4 封私信 / 14 条消息) 写给大家看的 CuTe 教程：Layout Compose &amp; Inverse - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+</ul>
+<h1 id="3-layout-代数"><a class="markdownIt-Anchor" href="#3-layout-代数"></a> 3 Layout 代数</h1>
+<blockquote>
+<p>对应代码：<code>03_layout_algebra.cu</code>
+纯 host 代码，不需要 GPU。</p>
+</blockquote>
+<h2 id="核心概念"><a class="markdownIt-Anchor" href="#核心概念"></a> 核心概念</h2>
+<p>Layout 不只是一个数据结构，它支持丰富的代数运算：composition（复合）、inverse（逆）、logical_divide（逻辑拆分）、coalesce（合并）等。这些运算是 CuTe 中 MMA partition、Copy partition、坐标变换的理论基础。</p>
+<hr>
+<h2 id="逐节解析"><a class="markdownIt-Anchor" href="#逐节解析"></a> 逐节解析</h2>
+<h3 id="第-1-节composition函数复合"><a class="markdownIt-Anchor" href="#第-1-节composition函数复合"></a> 第 1 节：Composition（函数复合）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"> <span class="comment">// 1. Composition（函数复合）</span></span><br><span class="line"> <span class="comment">// ============================================================</span></span><br><span class="line"> {</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"=== 1. Composition ===\n"</span>);</span><br><span class="line"></span><br><span class="line">   <span class="comment">// Layout A: (4, 2):(2, 1)  -- col-major 4x2</span></span><br><span class="line">   <span class="comment">// Layout B: (2, 2):(1, 2)  -- col-major 2x2</span></span><br><span class="line">   <span class="comment">//</span></span><br><span class="line">   <span class="comment">// composition(A, B) 的含义：</span></span><br><span class="line">   <span class="comment">//   先用 B 把坐标 (i, j) 映射到一维 index</span></span><br><span class="line">   <span class="comment">//   再用 A 把这个 index 当成一维坐标求 offset</span></span><br><span class="line">   <span class="comment">//   即 result(i, j) = A(B(i, j))</span></span><br><span class="line"></span><br><span class="line">   <span class="keyword">auto</span> A = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">   <span class="keyword">auto</span> B = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}));</span><br><span class="line">   <span class="keyword">auto</span> C = <span class="built_in">composition</span>(A, B);</span><br><span class="line"></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  A = "</span>); <span class="built_in">print</span>(A); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  B = "</span>); <span class="built_in">print</span>(B); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  composition(A, B) = "</span>); <span class="built_in">print</span>(C); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">print_layout</span>(C);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">   <span class="comment">// 验证：C(i,j) == A(B(i,j))</span></span><br><span class="line">   <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="number">2</span>; ++j) {</span><br><span class="line">     <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">2</span>; ++i) {</span><br><span class="line">       <span class="built_in">printf</span>(<span class="string">"  C(%d,%d) = %d, A(B(%d,%d)) = A(%d) = %d\n"</span>,</span><br><span class="line">              i, j, <span class="built_in">int</span>(<span class="built_in">C</span>(i, j)), i, j, <span class="built_in">int</span>(<span class="built_in">B</span>(i, j)), <span class="built_in">int</span>(<span class="built_in">A</span>(<span class="built_in">B</span>(i, j))));</span><br><span class="line">     }</span><br><span class="line">   }</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"> }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="1.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> A = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> B = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> C = <span class="built_in">composition</span>(A, B);</span><br></pre></td></tr></table></figure></div>
+<p><strong>含义</strong>：<code>C(i, j) = A(B(i, j))</code></p>
+<p>执行过程：</p>
+<ol>
+<li>先用 B 把二维坐标 <code>(i, j)</code> 映射到一维 index</li>
+<li>再用 A 把这个 index 当成一维坐标求 offset</li>
+</ol>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">B(0,0) = 0  → A(0) = 0   → C(0,0) = 0</span><br><span class="line">B(1,0) = 1  → A(1) = 2   → C(1,0) = 2</span><br><span class="line">B(0,1) = 2  → A(2) = 4   → C(0,1) = 4</span><br><span class="line">B(1,1) = 3  → A(3) = 6   → C(1,1) = 6</span><br></pre></td></tr></table></figure></div>
+<p><strong>用途</strong>：坐标变换的核心操作，inv + compose 实现不同 layout 之间的翻译。</p>
+<p>竹佬：事实上，很多初学者会在这里感到困惑，就是没注意到一个 CuTe 中有点反直觉的关键信息：即，<strong>对于任意维度的 layout 来说，其输入总是可以兼容 1D 坐标的，这个 1D 坐标会根据这个 layout 的 shape，按照 col-major 的方式来转换为多维坐标，并且这个转换和 stride 无关。</strong></p>
+<p>以 layoutA 为例，其 shape 为 (M, N)：</p>
+<p>1D 坐标 可通过如下公式转换为 2D 坐标： ， ；再将转换后的 (m, n) 传入 layoutA，计算得到 （其中 、 为 layoutA 的 stride）。</p>
+<p>整个 compose 的计算过程可以展示</p>
+<p><img lazyload="" src="/images/loading.svg" data-src="1.jpg" alt="img"></p>
+<h3 id="第-2-节with_shape本质是-composition"><a class="markdownIt-Anchor" href="#第-2-节with_shape本质是-composition"></a> 第 2 节：with_shape（本质是 composition）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 2. with_shape（本质是 composition）</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 2. with_shape ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// with_shape 把一个 layout 的输入空间重新解释为新的 shape</span></span><br><span class="line">    <span class="keyword">auto</span> A = <span class="built_in">make_layout</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{});  <span class="comment">// (8):(2)</span></span><br><span class="line">    <span class="keyword">auto</span> B = A.<span class="built_in">with_shape</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}));    <span class="comment">// 等价于 composition(A, make_layout(make_shape(2, 4)))</span></span><br><span class="line">    <span class="keyword">auto</span> C = <span class="built_in">composition</span>(A, <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">2</span>, <span class="number">4</span>)));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  A = "</span>); <span class="built_in">print</span>(A); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  A.with_shape(2, 4) = "</span>); <span class="built_in">print</span>(B); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(B);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  A composition(2, 4) = "</span>); <span class="built_in">print</span>(C); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(C);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// with_shape 等价于 composition(A, make_layout(shape))</span></span><br><span class="line">    <span class="comment">// 即 B(i,j) = A(make_layout(make_shape(2,4))(i,j))</span></span><br><span class="line">    <span class="comment">// make_layout(make_shape(2,4)) 是 col-major: (2,4):(1,2)</span></span><br><span class="line">    <span class="keyword">auto</span> inner = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">2</span>, <span class="number">4</span>));  <span class="comment">// col-major: (2,4):(1,2)</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  inner layout (col-major) = "</span>); <span class="built_in">print</span>(inner); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证：B(i,j) == A(inner(i,j))</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  验证 B(i,j) == A(inner(i,j)):\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; <span class="number">4</span>; ++j) {</span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">2</span>; ++i) {</span><br><span class="line">        <span class="type">int</span> inner_val = <span class="built_in">int</span>(<span class="built_in">inner</span>(i, j));   <span class="comment">// (i,j) -&gt; 一维 index</span></span><br><span class="line">        <span class="type">int</span> a_val = <span class="built_in">int</span>(<span class="built_in">A</span>(inner_val));       <span class="comment">// 一维 index -&gt; offset</span></span><br><span class="line">        <span class="type">int</span> b_val = <span class="built_in">int</span>(<span class="built_in">B</span>(i, j));            <span class="comment">// with_shape 的结果</span></span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"    B(%d,%d)=%d, A(inner(%d,%d))=A(%d)=%d %s\n"</span>,</span><br><span class="line">               i, j, b_val, i, j, inner_val, a_val,</span><br><span class="line">               b_val == a_val ? <span class="string">"OK"</span> : <span class="string">"FAIL"</span>);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="2.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> A = <span class="built_in">make_layout</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{});  <span class="comment">// (8):(2)</span></span><br><span class="line"><span class="keyword">auto</span> B = A.<span class="built_in">with_shape</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}));</span><br></pre></td></tr></table></figure></div>
+<p><code>with_shape</code> 等价于 <code>composition(A, make_layout(shape))</code>：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 等价写法</span></span><br><span class="line"><span class="keyword">auto</span> B = <span class="built_in">composition</span>(A, <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(<span class="number">2</span>, <span class="number">4</span>)));</span><br></pre></td></tr></table></figure></div>
+<p><strong>原理</strong>：<code>make_layout(make_shape(2, 4))</code> 创建 col-major layout <code>(2,4):(1,2)</code>，然后串联：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">B(i,j) = A(inner(i,j))</span><br><span class="line"></span><br><span class="line">inner = (2,4):(1,2)  col-major</span><br><span class="line">inner(0,0)=0 → A(0)=0</span><br><span class="line">inner(1,0)=1 → A(1)=2</span><br><span class="line">inner(0,1)=2 → A(2)=4</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<p><strong>用途</strong>：把一维 layout 重新解释为多维视图，不改变底层的 offset 映射规则。</p>
+<h3 id="第-3-节right-inverse"><a class="markdownIt-Anchor" href="#第-3-节right-inverse"></a> 第 3 节：Right Inverse</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 3. Right Inverse</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 3. Right Inverse ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 原始 layout: (2, 4):(4, 1) -- row-major</span></span><br><span class="line">    <span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> inv = <span class="built_in">right_inverse</span>(layout);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  layout = "</span>); <span class="built_in">print</span>(layout); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  right_inverse = "</span>); <span class="built_in">print</span>(inv); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(inv);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证：layout(inv(i)) == i</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  验证 layout(inv(i)) == i:\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">size</span>(inv); ++i) {</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"    inv(%d) = %d, layout(inv(%d)) = %d %s\n"</span>,</span><br><span class="line">             i, <span class="built_in">int</span>(<span class="built_in">inv</span>(i)), i, <span class="built_in">int</span>(<span class="built_in">layout</span>(<span class="built_in">inv</span>(i))),</span><br><span class="line">             <span class="built_in">int</span>(<span class="built_in">layout</span>(<span class="built_in">inv</span>(i))) == i ? <span class="string">"OK"</span> : <span class="string">"FAIL"</span>);</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="3.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> inv = <span class="built_in">right_inverse</span>(layout);</span><br></pre></td></tr></table></figure></div>
+<p><strong>定义</strong>：<code>layout(inv(i)) == i</code> 对所有 <code>i &lt; size(inv)</code> 成立。</p>
+<p><strong>Inverse 的本质</strong>：把 layout 的箭头反过来。Layout 是 <code>index → offset</code>，inverse 是 <code>offset → index</code>。</p>
+<p><strong>构造过程</strong>（以 <code>(2,4):(4,1)</code> 为例）：</p>
+<ol>
+<li>按 stride 升序排列维度：stride=1（shape=4）在前，stride=4（shape=2）在后</li>
+<li>排序后 shape = <code>(4, 2)</code></li>
+<li>inverse 的 stride 用 col-major 前缀积 = <code>(1, 4)</code></li>
+<li>最终结果 <code>(4, 2):(1, 4)</code></li>
+</ol>
+<p><strong>验证</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">inv(0)=0, layout(0)=0  ✓</span><br><span class="line">inv(1)=2, layout(2)=1  ✓</span><br><span class="line">inv(2)=4, layout(4)=2  ✓</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<h3 id="第-4-节left-inverse"><a class="markdownIt-Anchor" href="#第-4-节left-inverse"></a> 第 4 节：Left Inverse</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 4. Left Inverse</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 4. Left Inverse ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> linv = <span class="built_in">left_inverse</span>(layout);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  layout = "</span>); <span class="built_in">print</span>(layout); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  left_inverse = "</span>); <span class="built_in">print</span>(linv); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证：layout(linv(layout(i))) == layout(i)</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  验证 layout(linv(layout(i))) == layout(i):\n"</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">size</span>(layout); ++i) {</span><br><span class="line">      <span class="type">int</span> li = <span class="built_in">layout</span>(i);</span><br><span class="line">      <span class="type">int</span> linv_li = <span class="built_in">linv</span>(li);</span><br><span class="line">      <span class="type">int</span> result = <span class="built_in">layout</span>(linv_li);</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"    layout(%d)=%d, linv(%d)=%d, layout(%d)=%d %s\n"</span>,</span><br><span class="line">             i, li, li, linv_li, linv_li, result,</span><br><span class="line">             result == li ? <span class="string">"OK"</span> : <span class="string">"FAIL"</span>);</span><br><span class="line">    }</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="4.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> linv = <span class="built_in">left_inverse</span>(layout);</span><br></pre></td></tr></table></figure></div>
+<p><strong>定义</strong>：<code>layout(linv(layout(i))) == layout(i)</code> 对所有 <code>i &lt; size(layout)</code> 成立。</p>
+<p>比 right_inverse 更宽松——即使 layout 不是双射（有多对一的情况）也能用。</p>
+<p><strong>在坐标变换中的用途</strong>：用 left_inverse 更安全，因为 MMA/Copy 的 layout 可能不是完美双射。</p>
+<h3 id="第-5-节inverse-compose-实战-坐标变换"><a class="markdownIt-Anchor" href="#第-5-节inverse-compose-实战-坐标变换"></a> 第 5 节：Inverse + Compose 实战 —— 坐标变换</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"> <span class="comment">// 5. Inverse + Compose 实战：坐标变换</span></span><br><span class="line"> <span class="comment">// ============================================================</span></span><br><span class="line"> {</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"=== 5. Inverse + Compose: 坐标变换 ===\n"</span>);</span><br><span class="line"></span><br><span class="line">   <span class="comment">// 假设有两种 layout 映射同一块数据（24个元素）：</span></span><br><span class="line">   <span class="comment">// layoutC: col-major (3,8):(1,3)</span></span><br><span class="line">   <span class="comment">// layoutA: row-major (3,8):(8,1)</span></span><br><span class="line">   <span class="keyword">auto</span> layoutC = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">3</span>&gt;{}));</span><br><span class="line">   <span class="keyword">auto</span> layoutA = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"layoutC"</span>);</span><br><span class="line">   <span class="built_in">print_layout</span>(layoutC);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"layoutA"</span>);</span><br><span class="line">   <span class="built_in">print_layout</span>(layoutA);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="comment">// 目标：构造 A坐标 -&gt; C坐标 的映射</span></span><br><span class="line">   <span class="keyword">auto</span> C_inv = <span class="built_in">left_inverse</span>(layoutC);</span><br><span class="line">   <span class="keyword">auto</span> A_to_C = <span class="built_in">composition</span>(C_inv, layoutA);</span><br><span class="line"></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  layoutC (col-major) = "</span>); <span class="built_in">print</span>(layoutC); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  layoutA (row-major) = "</span>); <span class="built_in">print</span>(layoutA); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  C_inv = "</span>); <span class="built_in">print</span>(C_inv); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  A_to_C = C_inv . layoutA = "</span>); <span class="built_in">print</span>(A_to_C); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">   <span class="comment">// 验证：layoutC(A_to_C(i)) == layoutA(i)</span></span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"  验证 layoutC(A_to_C(i)) == layoutA(i):\n"</span>);</span><br><span class="line">   <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">size</span>(layoutA); ++i) {</span><br><span class="line">     <span class="built_in">printf</span>(<span class="string">"    layoutA(%d)=%d, A_to_C(%d)=%d, layoutC(A_to_C(%d))=%d %s\n"</span>,</span><br><span class="line">            i, <span class="built_in">int</span>(<span class="built_in">layoutA</span>(i)), i, <span class="built_in">int</span>(<span class="built_in">A_to_C</span>(i)), i, <span class="built_in">int</span>(<span class="built_in">layoutC</span>(<span class="built_in">A_to_C</span>(i))),</span><br><span class="line">            <span class="built_in">int</span>(<span class="built_in">layoutC</span>(<span class="built_in">A_to_C</span>(i))) == <span class="built_in">int</span>(<span class="built_in">layoutA</span>(i)) ? <span class="string">"OK"</span> : <span class="string">"FAIL"</span>);</span><br><span class="line">   }</span><br><span class="line">   <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"> }</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="5.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layoutC = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">3</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> layoutA = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">3</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> C_inv = <span class="built_in">left_inverse</span>(layoutC);</span><br><span class="line"><span class="keyword">auto</span> A_to_C = <span class="built_in">composition</span>(C_inv, layoutA);</span><br></pre></td></tr></table></figure></div>
+<p><strong>目标</strong>：给定 A 坐标系的 index，找到 C 坐标系的 index，使得两者指向同一个物理 offset。</p>
+<p><strong>原理</strong>：利用物理地址做桥梁，分两步走：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">index_A  --layoutA--&gt;  offset  --C_inv--&gt;  index_C</span><br></pre></td></tr></table></figure></div>
+<p>即 <code>A_to_C(i) = C_inv(layoutA(i))</code>，composition 自动完成这个串联。</p>
+<p><strong>具体数字</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">问：A 的 1 号在 C 里是几号？</span><br><span class="line"></span><br><span class="line">第一步：layoutA(1) = 8        ← A 的 1 号在物理地址 8</span><br><span class="line">第二步：C_inv(8)   = 8        ← 物理地址 8 在 C 里是 8 号</span><br><span class="line"></span><br><span class="line">验证：layoutC(8) = 8  ✓  同一个物理位置</span><br></pre></td></tr></table></figure></div>
+<p><strong>Shape 整除性要求</strong>：<code>composition(C_inv, layoutA)</code> 要求 layoutA 的 shape 因子和 C_inv 的 shape 因子之间有整除关系。如果不满足，编译报 “Shape Divisibility Condition” 错误。</p>
+<p><strong>实际用途</strong>：MMA 输出的 C-layout 寄存器 → Copy 需要的 A-layout 寄存器，就是用这个坐标变换实现的（<code>retile_D</code>）。</p>
+<p>竹佬：</p>
+<p>在笔者刚开始接触 CuTe 时，常常会困惑于一件事：这些 layout 代数究竟有什么用？大家对于 CuTe 官方文档吐槽也主要因为其完全没有前后联系的抛出一堆概念和代数运算，然后指望用户自己从庞大的代码库中理解其用法，人为制造出一条陡峭到天上的学习曲线。</p>
+<p>作为一篇写给大家看的教程，我们不急于输出更多的概念，先结合 Flash atten v2 中 A-layout 到 C-layout 转换这个例子，来感受一下 layout compose &amp; inverse 的用法和其蕴含的潜力。</p>
+<p>我们知道在 Flash atten v2 的实现中，核心是 P = Q @ K.T 以及 O = P @ V 两个矩阵连乘（为简化说明，我们先忽略 softmax 的运算），在这个过程中 P 即是 QK 矩阵乘的输出，此时其符合 <a class="link" target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=264390602&amp;content_type=Article&amp;match_order=1&amp;q=mma+accumulator+tensor&amp;zhida_source=entity">mma accumulator tensor<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 的 layout；也是 PV 矩阵乘的输入，此时其又需要符合 <a class="link" target="_blank" rel="noopener" href="https://zhida.zhihu.com/search?content_id=264390602&amp;content_type=Article&amp;match_order=1&amp;q=mma+A+tensor&amp;zhida_source=entity">mma A tensor<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 的 layout。我们知道，tiled mma 的 layout 要求 A 和 C tensor 的 layout 是不同的，直接将 C 作为 A tensor 输入到 cute::gemm 函数中会编译报错。那么需要怎么对 C 进行转换呢？</p>
+<p>我们从 C = A @ B.T 这样一个简单的例子，延伸出一个简化的矩阵连乘来说明。即，我们想完成 C = A @ B.T，D = C @ B.T 这样一个计算：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T, <span class="type">int</span> kTileM, <span class="type">int</span> kTileN, <span class="type">int</span> kTileK, <span class="keyword">typename</span> TiledMMA&gt;</span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">simple_kernel</span><span class="params">(T *Cptr, <span class="type">const</span> T *Aptr, <span class="type">const</span> T *Bptr, <span class="type">int</span> m,</span></span></span><br><span class="line"><span class="params"><span class="function">                              <span class="type">int</span> n, <span class="type">int</span> k)</span> </span>{</span><br><span class="line"></span><br><span class="line">  Tensor A = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Aptr), <span class="built_in">make_shape</span>(m, k),</span><br><span class="line">                         <span class="built_in">make_stride</span>(k, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">  Tensor B = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Bptr), <span class="built_in">make_shape</span>(n, k),</span><br><span class="line">                         <span class="built_in">make_stride</span>(k, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">  Tensor C = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Cptr), <span class="built_in">make_shape</span>(m, n),</span><br><span class="line">                         <span class="built_in">make_stride</span>(n, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> ix = blockIdx.x;</span><br><span class="line">  <span class="type">int</span> iy = blockIdx.y;</span><br><span class="line"></span><br><span class="line">  Tensor gA =</span><br><span class="line">      <span class="built_in">local_tile</span>(A, <span class="built_in">make_tile</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileK&gt;{}), <span class="built_in">make_coord</span>(iy, _));</span><br><span class="line">  Tensor gB =</span><br><span class="line">      <span class="built_in">local_tile</span>(B, <span class="built_in">make_tile</span>(Int&lt;kTileN&gt;{}, Int&lt;kTileK&gt;{}), <span class="built_in">make_coord</span>(ix, _));</span><br><span class="line">  Tensor gC = <span class="built_in">local_tile</span>(C, <span class="built_in">make_tile</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileN&gt;{}),</span><br><span class="line">                         <span class="built_in">make_coord</span>(iy, ix));</span><br><span class="line">  <span class="comment">//  gA(kTileM, kTileK, num_tile_k)</span></span><br><span class="line">  <span class="comment">//  gB(kTileN, kTileK, num_tile_k)</span></span><br><span class="line">  <span class="comment">//  gC(kTileM, kTileN)</span></span><br><span class="line"></span><br><span class="line">  TiledMMA tiled_mma;</span><br><span class="line">  <span class="keyword">auto</span> thr_mma = tiled_mma.<span class="built_in">get_slice</span>(threadIdx.x);</span><br><span class="line">  <span class="keyword">auto</span> tgA_g2r = thr_mma.<span class="built_in">partition_A</span>(gA); <span class="comment">// (MMA, MMA_M, MMA_K, num_tile_k)</span></span><br><span class="line">  <span class="keyword">auto</span> tgB_g2r = thr_mma.<span class="built_in">partition_B</span>(gB); <span class="comment">// (MMA, MMA_N, MMA_K, num_tile_k)</span></span><br><span class="line">  <span class="keyword">auto</span> tgC_g2r = thr_mma.<span class="built_in">partition_C</span>(gC); <span class="comment">// (MMA, MMA_M, MMA_N)</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> trA_mma = thr_mma.<span class="built_in">partition_fragment_A</span>(<span class="built_in">gA</span>(_, _, <span class="number">0</span>)); <span class="comment">// (MMA, MMA_M, MMA_K)</span></span><br><span class="line">  <span class="keyword">auto</span> trB_mma = thr_mma.<span class="built_in">partition_fragment_B</span>(<span class="built_in">gB</span>(_, _, <span class="number">0</span>)); <span class="comment">// (MMA, MMA_N, MMA_K)</span></span><br><span class="line">  <span class="keyword">auto</span> trC_mma = thr_mma.<span class="built_in">partition_fragment_C</span>(<span class="built_in">gC</span>(_, _));    <span class="comment">// (MMA, MMA_M, MMA_N)</span></span><br><span class="line">  <span class="keyword">auto</span> trD_mma = thr_mma.<span class="built_in">partition_fragment_C</span>(<span class="built_in">gC</span>(_, _));    <span class="comment">// (MMA, MMA_M, MMA_N)</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">clear</span>(trC_mma);</span><br><span class="line">  <span class="built_in">clear</span>(trD_mma);</span><br><span class="line">    </span><br><span class="line">  <span class="type">int</span> num_tile_k = <span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(gA);</span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> unroll 1</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> itile = <span class="number">0</span>; itile &lt; num_tile_k; ++itile) {</span><br><span class="line">    cute::<span class="built_in">copy</span>(<span class="built_in">tgA_g2r</span>(_, _, _, itile), trA_mma);</span><br><span class="line">    cute::<span class="built_in">copy</span>(<span class="built_in">tgB_g2r</span>(_, _, _, itile), trB_mma);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// first we compute C = A @ B.T, it's fine</span></span><br><span class="line">    cute::<span class="built_in">gemm</span>(tiled_mma, trC_mma, trA_mma, trB_mma, trC_mma);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">auto</span> trC_as_A_mma = trC_mma; </span><br><span class="line">    </span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> here we need to convert trC as trC_as_A,</span></span><br><span class="line">    <span class="comment">// because trC_mma has shape of ((2, 2), MMA_M, MMA_N)</span></span><br><span class="line">    <span class="comment">// while trA_mma needs shape of ((2, 2, 2), MMA_M, MMA_N / 2)</span></span><br><span class="line">    <span class="comment">// how to convert layout?</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// therefore, we got compile error: layout not acceptable for cute::gemm</span></span><br><span class="line">    cute::<span class="built_in">gemm</span>(tiled_mma, trD_mma, trC_as_A_mma, tBrB_mma, trD_mma);</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>以 16x8x16 fp16 mma atom 为例，trC 作为 accumulator layout 为 ((2, 2), MMA_M, MMA_N)，而下一次 gemm 所需要其作为 A-tensor，需要其 layout 为 ((2, 2, 2), MMA_M, MMA_N / 2)。</p>
+<p>二者的数据本身是完全一致的，因此我们需要对 trC layout 进行一次变换。熟悉 flash atten v2 的读者可能已经发现，Tri-dao 在其<a class="link" href="https://link.zhihu.com/?target=https%3A//github.com/Dao-AILab/flash-attention/blob/main/csrc/flash_attn/src/utils.h%23L200">实现中使用了 logical_divide<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 对 layout 在几何层面上进行了一次重排，我们将其过程拆解出来如下：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//...</span></span><br><span class="line"><span class="comment">// first we compute C = A @ B.T, it's fine</span></span><br><span class="line">cute::<span class="built_in">gemm</span>(tiled_mma, trC_mma, trA_mma, trB_mma, trC_mma);</span><br><span class="line"></span><br><span class="line"><span class="comment">// <span class="doctag">TODO:</span> here we need to convert trC as trC_as_A,</span></span><br><span class="line"><span class="comment">// because trC_mma has shape of ((2, 2), MMA_M, MMA_N)</span></span><br><span class="line"><span class="comment">// while trA_mma needs shape of ((2, 2, 2), MMA_M, MMA_N / 2)</span></span><br><span class="line"><span class="comment">// how to convert layout?</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// tri-dao method: logic-divide</span></span><br><span class="line"><span class="keyword">auto</span> acc_layout_div = <span class="built_in">logical_divide</span>(</span><br><span class="line">    trC_mma.<span class="built_in">layout</span>(),</span><br><span class="line">    Shape&lt;Underscore, Underscore, _2&gt;{}); <span class="comment">// ((2, 2), MMA_M, (2, MMA_N / 2)))</span></span><br><span class="line"><span class="keyword">auto</span> a_layout = <span class="built_in">make_layout</span>(</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">get</span>&lt;<span class="number">0</span>&gt;(acc_layout_div), <span class="built_in">get</span>&lt;<span class="number">2</span>, <span class="number">0</span>&gt;(acc_layout_div)),</span><br><span class="line">    <span class="built_in">get</span>&lt;<span class="number">1</span>&gt;(acc_layout_div), <span class="built_in">get</span>&lt;<span class="number">2</span>, <span class="number">1</span>&gt;(acc_layout_div));</span><br><span class="line"><span class="comment">// (((2, 2), 2), MMA_M, MMA_N / 2)</span></span><br><span class="line"><span class="keyword">auto</span> trC_as_A_mma = <span class="built_in">make_tensor</span>(trC_mma.<span class="built_in">data</span>(), a_layout);</span><br><span class="line"></span><br><span class="line"><span class="comment">// result correct</span></span><br><span class="line">cute::<span class="built_in">gemm</span>(tiled_mma, trD_mma, trC_as_A_mma, tBrB_mma, trD_mma);</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="8.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//...</span></span><br><span class="line"><span class="comment">// first we compute C = A @ B.T, it's fine</span></span><br><span class="line">cute::<span class="built_in">gemm</span>(tiled_mma, trC_mma, trA_mma, trB_mma, trC_mma);</span><br><span class="line"></span><br><span class="line"><span class="comment">// <span class="doctag">TODO:</span> here we need to convert trC as trC_as_A,</span></span><br><span class="line"><span class="comment">// because trC_mma has shape of ((2, 2), MMA_M, MMA_N)</span></span><br><span class="line"><span class="comment">// while trA_mma needs shape of ((2, 2, 2), MMA_M, MMA_N / 2)</span></span><br><span class="line"><span class="comment">// how to convert layout?</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// reed method: layout-algebra</span></span><br><span class="line"><span class="keyword">auto</span> C_tensor_for_partition = <span class="built_in">make_tensor_like</span>(<span class="built_in">gC</span>(_, _));</span><br><span class="line"><span class="keyword">auto</span> trC_as_A_layout = thr_mma.<span class="built_in">partition_A</span>(C_tensor_for_partition).<span class="built_in">layout</span>();</span><br><span class="line"><span class="keyword">auto</span> trC_as_C_layout = thr_mma.<span class="built_in">partition_C</span>(C_tensor_for_partition).<span class="built_in">layout</span>(); </span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> acc_layout_inv = <span class="built_in">left_inverse</span>(trC_as_C_layout);</span><br><span class="line"><span class="comment">// (x_acc, y_acc) -&gt; offset0 =&gt; (sorted) offset0 -&gt;  (x_acc, y_acc)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> a_layout_algebra = acc_layout_inv.<span class="built_in">compose</span>(trC_as_A_layout);</span><br><span class="line"><span class="comment">// (x_a, y_a) -&gt; offset0 -&gt; (x_acc, y_acc)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// trC: (x_acc, y_acc) -&gt; offset1, compose as B</span></span><br><span class="line"><span class="keyword">auto</span> trC_as_A_mma = trC_mma.<span class="built_in">compose</span>(a_layout_algebra);</span><br><span class="line"><span class="comment">// (x_a, y_a) -&gt; offset0 -&gt; (x_acc, y_acc) -&gt; offset1</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// result correct</span></span><br><span class="line">cute::<span class="built_in">gemm</span>(tiled_mma, trD_mma, trC_as_A_mma, tBrB_mma, trD_mma);</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br></pre></td></tr></table></figure></div>
+<p>我们建议感兴趣的读者可以尝试跑通这个例子，并验证一下 tri-dao 和 reed 两者方法的结果，并尝试在更多的 mma 规格上测试，来感受 layout 代数所带来的语义上的便利性。</p>
+<p>详细解析请见附录</p>
+<h3 id="第-6-节logical-divide"><a class="markdownIt-Anchor" href="#第-6-节logical-divide"></a> 第 6 节：Logical Divide</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 6. Logical Divide</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 6. Logical Divide ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// logical_divide 把一个维度拆成子维度</span></span><br><span class="line">    <span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{});  <span class="comment">// (8):(1)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 按 2 拆分：8 -&gt; (2, 4)</span></span><br><span class="line">    <span class="keyword">auto</span> divided = <span class="built_in">logical_divide</span>(layout, Int&lt;<span class="number">2</span>&gt;{});</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  layout = "</span>); <span class="built_in">print</span>(layout); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  logical_divide(layout, 2) = "</span>); <span class="built_in">print</span>(divided); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">print_layout</span>(divided);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 多维版本</span></span><br><span class="line">    <span class="keyword">auto</span> layout2d = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">6</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">6</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> div2d = <span class="built_in">logical_divide</span>(layout2d, <span class="built_in">make_tile</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">3</span>&gt;{}));</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  layout2d = "</span>); <span class="built_in">print</span>(layout2d); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  logical_divide by (2, 3) = "</span>); <span class="built_in">print</span>(div2d); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="comment">// shape 变成 ((2, 2), (3, 2))：每个维度被拆成 (tile_size, num_tiles)</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="6.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{});</span><br><span class="line"><span class="keyword">auto</span> divided = <span class="built_in">logical_divide</span>(layout, Int&lt;<span class="number">2</span>&gt;{});</span><br><span class="line"><span class="comment">// 结果：(2, 4):(1, 2)</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>含义</strong>：把一个维度拆成 <code>(tile_size, num_tiles)</code>。</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">8 个元素，按 2 拆：</span><br><span class="line">(2, 4):(1, 2)</span><br><span class="line"> |  |   |  |</span><br><span class="line"> |  |   |  └── num_tiles 的 stride = tile_size × 原始 stride = 2</span><br><span class="line"> |  |   └── tile 内的 stride = 原始 stride = 1</span><br><span class="line"> |  └── num_tiles = 8/2 = 4</span><br><span class="line"> └── tile_size = 2</span><br></pre></td></tr></table></figure></div>
+<p><strong>多维版本</strong>：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layout2d = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">6</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">6</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> div2d = <span class="built_in">logical_divide</span>(layout2d, <span class="built_in">make_tile</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">3</span>&gt;{}));</span><br><span class="line"><span class="comment">// shape = ((2, 2), (3, 2))：每个维度都被拆成 (tile_size, num_tiles)</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>用途</strong>：<code>local_tile</code> 内部就是用 <code>logical_divide</code> 实现的。在 MMA 中，logical_divide 用于把 fragment 的 MMA_N 维度拆成 <code>(2, MMA_N/2)</code> 来做 C→A layout 转换。</p>
+<h3 id="第-7-节coalesce"><a class="markdownIt-Anchor" href="#第-7-节coalesce"></a> 第 7 节：Coalesce</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 7. Coalesce</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"=== 7. Coalesce ===\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// coalesce 把可以合并的相邻维度合并</span></span><br><span class="line">    <span class="comment">// (2, 4):(1, 2) -&gt; (8):(1)   因为 stride 是连续的</span></span><br><span class="line">    <span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> coalesced = <span class="built_in">coalesce</span>(layout);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  layout = "</span>); <span class="built_in">print</span>(layout); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  coalesce = "</span>); <span class="built_in">print</span>(coalesced); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 不连续的不会合并</span></span><br><span class="line">    <span class="keyword">auto</span> sparse = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}));</span><br><span class="line">    <span class="keyword">auto</span> sparse_c = <span class="built_in">coalesce</span>(sparse);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  sparse = "</span>); <span class="built_in">print</span>(sparse); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  coalesce = "</span>); <span class="built_in">print</span>(sparse_c); <span class="built_in">printf</span>(<span class="string">"  (不变，因为 stride 不连续)\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  }</span><br></pre></td></tr></table></figure></div>
+<p><img lazyload="" src="/images/loading.svg" data-src="7.png" alt="img"></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> layout = <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}));</span><br><span class="line"><span class="keyword">auto</span> coalesced = <span class="built_in">coalesce</span>(layout);</span><br><span class="line"><span class="comment">// 结果：(8):(1)</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>含义</strong>：把可以合并的相邻维度合并成一个。</p>
+<p><strong>合并条件</strong>：<code>stride[i+1] == stride[i] × shape[i]</code>（即两个维度在内存中是连续的）。</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(2, 4):(1, 2) → stride[1]=2 == stride[0]×shape[0]=1×2  ✓ → 合并为 (8):(1)</span><br><span class="line">(2, 4):(1, 4) → stride[1]=4 != stride[0]×shape[0]=1×2  ✗ → 不合并，保持原样</span><br></pre></td></tr></table></figure></div>
+<p><strong>用途</strong>：简化 layout，去掉多余维度，有时能让后续操作更高效。</p>
+<hr>
+<h2 id="完整函数关系图"><a class="markdownIt-Anchor" href="#完整函数关系图"></a> 完整函数关系图</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">composition(A, B)     → C(i,j) = A(B(i,j))          函数复合</span><br><span class="line">with_shape(shape)     → composition(self, col_major)  重塑输入空间</span><br><span class="line">right_inverse(L)      → inv, 满足 L(inv(i)) = i      编号→offset 的反函数</span><br><span class="line">left_inverse(L)       → inv, 满足 L(inv(L(i))) = L(i) 更宽松的反函数</span><br><span class="line">logical_divide(L, T)  → 把维度拆成 (tile, num_tiles)  切 tile 的基础</span><br><span class="line">coalesce(L)           → 合并连续维度                   简化 layout</span><br></pre></td></tr></table></figure></div>
+<h2 id="附录"><a class="markdownIt-Anchor" href="#附录"></a> 附录：</h2>
+<h2 id="layout-compose-inverse-实战c-layout-到-a-layout-转换"><a class="markdownIt-Anchor" href="#layout-compose-inverse-实战c-layout-到-a-layout-转换"></a> Layout Compose &amp; Inverse 实战：C-layout 到 A-layout 转换</h2>
+<h3 id="1-坐标变换的含义与用途"><a class="markdownIt-Anchor" href="#1-坐标变换的含义与用途"></a> 1 坐标变换的含义与用途</h3>
+<p><strong>同一块数据</strong>，两种不同的 layout 给出不同的"坐标系"。坐标变换就是<strong>从一种坐标系转换到另一种坐标系</strong>，使得两个坐标指向同一个物理位置。</p>
+<p>例如同一块 24 个元素的数据：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">layoutC = (3,8):(1,3)   col-major  →  layoutC(i) = offset</span><br><span class="line">layoutA = (3,8):(8,1)   row-major  →  layoutA(i) = offset</span><br></pre></td></tr></table></figure></div>
+<p>物理位置 offset=8 的元素，在两种坐标系里的 index 不同：</p>
+<ul>
+<li>layoutC 眼里：index=8 → <code>layoutC(8) = 8</code></li>
+<li>layoutA 眼里：index=1 → <code>layoutA(1) = 8</code></li>
+</ul>
+<p><strong>同一个元素，A 叫它 “1号”，C 叫它 “8号”。</strong></p>
+<p><code>A_to_C = composition(C_inv, layoutA)</code> 就是翻译表：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A_to_C(1) = 8  →  A 坐标系的 1 号 = C 坐标系的 8 号</span><br><span class="line">验证：layoutC(A_to_C(1)) = layoutC(8) = 8 = layoutA(1)  ✓  同一个 offset</span><br></pre></td></tr></table></figure></div>
+<p><strong>实际用途</strong>：MMA 指令算完的结果在寄存器里，以 C-layout 编号；写回 smem/gmem 时 Copy 操作需要 A-layout 编号。坐标变换让同一组寄存器在 MMA 和 Copy 两种视角之间正确切换，这就是 <code>retile_D</code> 做的事。不做这个变换，MMA 的结果就会写错位置。</p>
+<h3 id="2-inverse-的本质与-invcompose-的原理"><a class="markdownIt-Anchor" href="#2-inverse-的本质与-invcompose-的原理"></a> 2 Inverse 的本质与 inv+compose 的原理</h3>
+<p><strong>Inverse 的本质：把 layout 的箭头方向反过来。</strong></p>
+<p>Layout 是一个函数：编号 → 物理地址。Inverse 就是反过来：物理地址 → 编号。</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">layoutC:  index_C  →  offset      （查号簿：名字→电话）</span><br><span class="line">C_inv:    offset   →  index_C     （反查号簿：电话→名字）</span><br></pre></td></tr></table></figure></div>
+<p><strong>为什么 inv + compose 能算出坐标变换？</strong></p>
+<p>我们要的是：给一个 A 的编号，找到 C 的编号，使得它们指向同一个物理地址。分两步走：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">第一步：layoutA 把 A 编号翻译成物理地址    index_A  → offset</span><br><span class="line">第二步：C_inv 把物理地址翻译成 C 编号      offset   → index_C</span><br></pre></td></tr></table></figure></div>
+<p>串起来（composition）就是：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">index_A  --layoutA--&gt;  offset  --C_inv--&gt;  index_C</span><br></pre></td></tr></table></figure></div>
+<p><strong>两种 layout 虽然编号方式不同，但底层共享同一个物理地址空间，物理地址就是天然的中转站。</strong></p>
+<p>用具体数字走一遍（<code>layoutA = (3,8):(8,1)</code>, <code>layoutC = (3,8):(1,3)</code>）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">问：A 的 1 号元素，在 C 里是几号？</span><br><span class="line"></span><br><span class="line">第一步：layoutA(1) = 8        ← A 的 1 号在物理地址 8</span><br><span class="line">第二步：C_inv(8)   = 8        ← 物理地址 8 在 C 里是 8 号</span><br><span class="line"></span><br><span class="line">结论：A 的 1 号 = C 的 8 号</span><br><span class="line"></span><br><span class="line">验证：layoutC(8) = 8  ✓  确实指向同一个物理地址</span><br></pre></td></tr></table></figure></div>
+<p>图示：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">         layoutA                C_inv</span><br><span class="line">index_A ---------&gt; offset -----------&gt; index_C</span><br><span class="line">  1     ----------&gt;   8   -----------&gt;    8</span><br><span class="line"></span><br><span class="line">         layoutC</span><br><span class="line">index_C ---------&gt; offset</span><br><span class="line">  8     ----------&gt;   8     ✓ 同一个物理位置</span><br></pre></td></tr></table></figure></div>
+<h3 id="3-问题背景"><a class="markdownIt-Anchor" href="#3-问题背景"></a> 3 问题背景</h3>
+<p>以 Flash Attention 为例，计算 <code>P = Q @ K.T</code>，然后 <code>D = P @ V</code>：</p>
+<ul>
+<li>第一个 GEMM 的输出 P 存在累加器寄存器里，其 layout 是 C-layout：<code>((2,2), MMA_M, MMA_N)</code></li>
+<li>第二个 GEMM 需要 P 作为输入 A，要求 A-layout：<code>((2,2,2), MMA_M, MMA_N/2)</code></li>
+<li>数据完全一样，只是同一组寄存器需要用不同的 layout 去解读</li>
+</ul>
+<h3 id="4-方法一tri-dao-的手动拆分法"><a class="markdownIt-Anchor" href="#4-方法一tri-dao-的手动拆分法"></a> 4 方法一：Tri-Dao 的手动拆分法</h3>
+<p>用 <code>logical_divide</code> 手动把 MMA_N 维度拆成 <code>(2, MMA_N/2)</code>，然后手动重组：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> acc_layout_div = <span class="built_in">logical_divide</span>(</span><br><span class="line">    trC_mma.<span class="built_in">layout</span>(),</span><br><span class="line">    Shape&lt;Underscore, Underscore, _2&gt;{});  <span class="comment">// ((2, 2), MMA_M, (2, MMA_N / 2)))</span></span><br><span class="line"><span class="keyword">auto</span> a_layout = <span class="built_in">make_layout</span>(</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">get</span>&lt;<span class="number">0</span>&gt;(acc_layout_div), <span class="built_in">get</span>&lt;<span class="number">2</span>, <span class="number">0</span>&gt;(acc_layout_div)),</span><br><span class="line">    <span class="built_in">get</span>&lt;<span class="number">1</span>&gt;(acc_layout_div), <span class="built_in">get</span>&lt;<span class="number">2</span>, <span class="number">1</span>&gt;(acc_layout_div));</span><br><span class="line"><span class="comment">// (((2, 2), 2), MMA_M, MMA_N / 2)</span></span><br><span class="line"><span class="keyword">auto</span> trC_as_A_mma = <span class="built_in">make_tensor</span>(trC_mma.<span class="built_in">data</span>(), a_layout);</span><br></pre></td></tr></table></figure></div>
+<p>需要手动理解两种 layout 的结构差异，换 MMA 规格就得重写。</p>
+<h3 id="5-方法二reed-的-layout-代数法"><a class="markdownIt-Anchor" href="#5-方法二reed-的-layout-代数法"></a> 5 方法二：Reed 的 layout 代数法</h3>
+<p>利用 inverse + compose 自动推导坐标变换：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 构造参考 layout（不参与计算，只为获取 layout 信息）</span></span><br><span class="line"><span class="keyword">auto</span> C_tensor_for_partition = <span class="built_in">make_tensor_like</span>(<span class="built_in">gC</span>(_, _));</span><br><span class="line"><span class="keyword">auto</span> trC_as_A_layout = thr_mma.<span class="built_in">partition_A</span>(C_tensor_for_partition).<span class="built_in">layout</span>();</span><br><span class="line"><span class="keyword">auto</span> trC_as_C_layout = thr_mma.<span class="built_in">partition_C</span>(C_tensor_for_partition).<span class="built_in">layout</span>();</span><br></pre></td></tr></table></figure></div>
+<p>对同一块 <code>(kTileM, kTileN)</code> 数据，分别用 partition_A 和 partition_C 切，得到两种 layout。
+两者映射到的 offset 空间是同一个（同一块数据的元素编号），只是坐标系不同。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 第一步：对 C-layout 求 inverse</span></span><br><span class="line"><span class="keyword">auto</span> acc_layout_inv = <span class="built_in">left_inverse</span>(trC_as_C_layout);</span><br><span class="line"><span class="comment">// (x_c, y_c) -&gt; offset  变成  offset -&gt; (x_c, y_c)</span></span><br></pre></td></tr></table></figure></div>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 第二步：compose A-layout，得到坐标变换</span></span><br><span class="line"><span class="keyword">auto</span> a_layout_algebra = acc_layout_inv.<span class="built_in">compose</span>(trC_as_A_layout);</span><br><span class="line"><span class="comment">// compose 是函数复合，内层先算：</span></span><br><span class="line"><span class="comment">// trC_as_A_layout:    (x_a, y_a) -&gt; offset</span></span><br><span class="line"><span class="comment">// acc_layout_inv:     offset -&gt; (x_c, y_c)</span></span><br><span class="line"><span class="comment">// compose 后:         (x_a, y_a) -&gt; offset -&gt; (x_c, y_c)</span></span><br></pre></td></tr></table></figure></div>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 第三步：应用到实际的 trC tensor</span></span><br><span class="line"><span class="keyword">auto</span> trC_as_A_mma = trC_mma.<span class="built_in">compose</span>(a_layout_algebra);</span><br><span class="line"><span class="comment">// a_layout_algebra:   (x_a, y_a) -&gt; (x_c, y_c)</span></span><br><span class="line"><span class="comment">// trC_mma.layout():   (x_c, y_c) -&gt; 寄存器位置</span></span><br><span class="line"><span class="comment">// compose 后:         (x_a, y_a) -&gt; (x_c, y_c) -&gt; 寄存器位置</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="6-compose-不搬运数据"><a class="markdownIt-Anchor" href="#6-compose-不搬运数据"></a> 6 compose 不搬运数据</h3>
+<p>Tensor 的 compose 实现（<code>tensor_impl.hpp:284</code>）：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">auto</span> <span class="title">compose</span><span class="params">(Layouts <span class="type">const</span>&amp;... layouts)</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">make_tensor</span>(<span class="built_in">data</span>(), <span class="built_in">layout</span>().<span class="built_in">compose</span>(layouts...));</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><code>data()</code> 原封不动传过去（同一个指针/同一组寄存器），只对 layout 做了 compose 变换。
+数据没变，变的是"门牌号"——同一组寄存器用新的坐标映射去索引。</p>
+<h3 id="7-全链路总结"><a class="markdownIt-Anchor" href="#7-全链路总结"></a> 7 全链路总结</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">partition_C 得到:  (x_c, y_c) -&gt; offset    ... (1)</span><br><span class="line">left_inverse:      offset -&gt; (x_c, y_c)    ... (1)^{-1}</span><br><span class="line">partition_A 得到:  (x_a, y_a) -&gt; offset    ... (2)</span><br><span class="line"></span><br><span class="line">compose (1)^{-1} . (2):  (x_a, y_a) -&gt; (x_c, y_c)  ... 坐标变换</span><br><span class="line"></span><br><span class="line">trC_mma 的 layout: (x_c, y_c) -&gt; 寄存器     ... (3)</span><br><span class="line"></span><br><span class="line">最终 compose (3) . (1)^{-1} . (2):</span><br><span class="line">                   (x_a, y_a) -&gt; 寄存器      ... 目标达成</span><br></pre></td></tr></table></figure></div>
+<h3 id="8-两种方法对比"><a class="markdownIt-Anchor" href="#8-两种方法对比"></a> 8 两种方法对比</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Tri-Dao</th>
+<th>Reed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>思路</td>
+<td>手动拆维度、重组</td>
+<td>代数变换：inverse + compose</td>
+</tr>
+<tr>
+<td>是否需要了解具体 layout 结构</td>
+<td>需要</td>
+<td>不需要，自动推导</td>
+</tr>
+<tr>
+<td>换 MMA 规格</td>
+<td>可能要改代码</td>
+<td>通用，不用改</td>
+</tr>
+</tbody>
+</table>
+<hr>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> cute（3）Layout代数</li>
+        <li><strong>作者:</strong> 俞言骐</li>
+        <li><strong>创建于
+                :</strong> 2026-06-08 22:13:32</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-12 17:15:19
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/08/cute(3)Layout代数/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-cutlass-cute/">#cuda, cutlass,cute</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/09/cute(4)%E7%AC%AC%E4%B8%80%E4%B8%AAKernel/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（4）第一个Kernel</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/07/cute(2)Tensor%E5%9F%BA%E7%A1%80/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（2）Tensor基础</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">cute（3）Layout代数</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ref"><span class="nav-text"> Ref</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-layout-%E4%BB%A3%E6%95%B0"><span class="nav-text"> 3 Layout 代数</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text"> 核心概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%90%E8%8A%82%E8%A7%A3%E6%9E%90"><span class="nav-text"> 逐节解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-1-%E8%8A%82composition%E5%87%BD%E6%95%B0%E5%A4%8D%E5%90%88"><span class="nav-text"> 第 1 节：Composition（函数复合）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-2-%E8%8A%82with_shape%E6%9C%AC%E8%B4%A8%E6%98%AF-composition"><span class="nav-text"> 第 2 节：with_shape（本质是 composition）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-3-%E8%8A%82right-inverse"><span class="nav-text"> 第 3 节：Right Inverse</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-4-%E8%8A%82left-inverse"><span class="nav-text"> 第 4 节：Left Inverse</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-5-%E8%8A%82inverse-compose-%E5%AE%9E%E6%88%98-%E5%9D%90%E6%A0%87%E5%8F%98%E6%8D%A2"><span class="nav-text"> 第 5 节：Inverse + Compose 实战 —— 坐标变换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-6-%E8%8A%82logical-divide"><span class="nav-text"> 第 6 节：Logical Divide</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC-7-%E8%8A%82coalesce"><span class="nav-text"> 第 7 节：Coalesce</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%8C%E6%95%B4%E5%87%BD%E6%95%B0%E5%85%B3%E7%B3%BB%E5%9B%BE"><span class="nav-text"> 完整函数关系图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E5%BD%95"><span class="nav-text"> 附录：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#layout-compose-inverse-%E5%AE%9E%E6%88%98c-layout-%E5%88%B0-a-layout-%E8%BD%AC%E6%8D%A2"><span class="nav-text"> Layout Compose &amp; Inverse 实战：C-layout 到 A-layout 转换</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E5%9D%90%E6%A0%87%E5%8F%98%E6%8D%A2%E7%9A%84%E5%90%AB%E4%B9%89%E4%B8%8E%E7%94%A8%E9%80%94"><span class="nav-text"> 1 坐标变换的含义与用途</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-inverse-%E7%9A%84%E6%9C%AC%E8%B4%A8%E4%B8%8E-invcompose-%E7%9A%84%E5%8E%9F%E7%90%86"><span class="nav-text"> 2 Inverse 的本质与 inv+compose 的原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E9%97%AE%E9%A2%98%E8%83%8C%E6%99%AF"><span class="nav-text"> 3 问题背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%96%B9%E6%B3%95%E4%B8%80tri-dao-%E7%9A%84%E6%89%8B%E5%8A%A8%E6%8B%86%E5%88%86%E6%B3%95"><span class="nav-text"> 4 方法一：Tri-Dao 的手动拆分法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-%E6%96%B9%E6%B3%95%E4%BA%8Creed-%E7%9A%84-layout-%E4%BB%A3%E6%95%B0%E6%B3%95"><span class="nav-text"> 5 方法二：Reed 的 layout 代数法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-compose-%E4%B8%8D%E6%90%AC%E8%BF%90%E6%95%B0%E6%8D%AE"><span class="nav-text"> 6 compose 不搬运数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-%E5%85%A8%E9%93%BE%E8%B7%AF%E6%80%BB%E7%BB%93"><span class="nav-text"> 7 全链路总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-%E4%B8%A4%E7%A7%8D%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94"><span class="nav-text"> 8 两种方法对比</span></a></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">俞言骐</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 19 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
