@@ -170,6 +170,18 @@
 .home-banner-container .description .home-banner-intro strong {
   font-weight: 600;
 }
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
 </style>
 
                 
