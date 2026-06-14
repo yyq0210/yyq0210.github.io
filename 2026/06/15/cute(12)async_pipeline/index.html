@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/15/cute(12)async_pipeline/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cute（10）hopper之mbarrier">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/15/cute(12)async_pipeline/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-15T14:13:32.000Z">
+<meta property="article:modified_time" content="2026-06-14T14:10:16.271Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="cuda, cutlass,cute">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            cute（10）hopper之mbarrier | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">26</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">cute（10）hopper之mbarrier</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-15 22:13:32</span>
+        <span class="mobile">2026-06-15 22:13:32</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-14 22:10:16</span>
+            <span class="mobile">2026-06-14 22:10:16</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="前置阅读"><a class="markdownIt-Anchor" href="#前置阅读"></a> 前置阅读</h1>
+<ul>
+<li>
+<p>reed博士：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/1962636004235153810">(4 封私信 / 2 条消息) cute 之 Hopper MBarrier - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>竹佬：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/2024832248386528275">(4 封私信 / 2 条消息) 写给大家看的 CuTe 教程：async pipeline - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+</ul>
+<h1 id="第-12-课async-pipeline"><a class="markdownIt-Anchor" href="#第-12-课async-pipeline"></a> 第 12 课：Async Pipeline</h1>
+<blockquote>
+<p>对应代码：<code>12_async_pipeline.cu</code>
+<strong>需要 GPU</strong>（SM90 / Hopper）。</p>
+</blockquote>
+<h2 id="核心概念"><a class="markdownIt-Anchor" href="#核心概念"></a> 核心概念</h2>
+<p><strong>PipelineTmaAsync</strong> 是 CUTLASS 对 Hopper 多阶段异步流水线的封装：</p>
+<ul>
+<li>每个 stage 有一对 mbarrier：<code>full_barrier</code>（数据就绪）+ <code>empty_barrier</code>（buffer 空闲）</li>
+<li><strong>PipelineState</strong> 管理 <code>(index_, phase_, count_)</code> 三元组，自动翻转 phase</li>
+<li>Producer/Consumer 角色分工：Producer 发 TMA，Consumer 消费数据</li>
+<li>用 <code>make_producer_start_state()</code> 初始化 producer 的 phase=1（因为 buffer 初始为空）</li>
+</ul>
+<hr>
+<h2 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 第 12 课：Async Pipeline —— 多阶段异步流水线</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 学习目标：</span></span><br><span class="line"><span class="comment"> *   - PipelineTmaAsync：full_barrier + empty_barrier 每 stage 一对</span></span><br><span class="line"><span class="comment"> *   - PipelineState：index_、phase_、count_ 的状态转移</span></span><br><span class="line"><span class="comment"> *   - Producer / Consumer 分工：</span></span><br><span class="line"><span class="comment"> *     Producer：producer_acquire → TMA copy → ++pipe_write</span></span><br><span class="line"><span class="comment"> *     Consumer：consumer_wait → 使用数据 → consumer_release → ++pipe_read</span></span><br><span class="line"><span class="comment"> *   - make_producer_start_state()：producer 的 phase 初始化为 1 的原因</span></span><br><span class="line"><span class="comment"> *   - 实验：3-stage TMA 搬运流水线，producer 搬多个 tile，consumer 验证</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 核心概念：</span></span><br><span class="line"><span class="comment"> *   full_barrier[stage]  — producer 搬运完成后翻转，consumer 等待</span></span><br><span class="line"><span class="comment"> *   empty_barrier[stage] — consumer 用完数据后翻转，producer 等待</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *   producer phase 从 1 开始：因为 buffer 一开始是空的（empty），</span></span><br><span class="line"><span class="comment"> *   empty_barrier 初始 phase=0，producer 等 phase=0 翻转</span></span><br><span class="line"><span class="comment"> *   → 但 buffer 本来就是空的 → empty_barrier 等效已经是 "可写" 状态</span></span><br><span class="line"><span class="comment"> *   → 所以 producer 用 phase=1 来跳过第一轮等待</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cute/tensor.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cute/atom/copy_traits_sm90_tma.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cute/atom/mma_traits_sm90_gmma.hpp&gt;</span>  <span class="comment">// GMMA::Layout_K_SW128_Atom</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cute/arch/copy_sm90_desc.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cutlass/pipeline/sm90_pipeline.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cutlass/cutlass.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstdio&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstdlib&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> cute;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"><span class="comment">// Pipeline 配置</span></span><br><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> kTileM = <span class="number">128</span>;</span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> kTileN = <span class="number">64</span>;</span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> kStage = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> kNumTiles = <span class="number">8</span>;   <span class="comment">// K 方向的 tile 数</span></span><br><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> kBlockThreads = <span class="number">128</span>;  <span class="comment">// 1 warp group = 4 warps</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Smem Layout（带 Swizzle，TMA 兼容）</span></span><br><span class="line"><span class="comment">// 数据 row-major (M, N) stride (N, 1) → stride-1 沿第二维 → K-major atom</span></span><br><span class="line"><span class="keyword">using</span> SmemLayoutAtom = GMMA::Layout_K_SW128_Atom&lt;<span class="type">half_t</span>&gt;;</span><br><span class="line"><span class="keyword">using</span> SmemLayout = <span class="keyword">decltype</span>(<span class="built_in">tile_to_shape</span>(</span><br><span class="line">    SmemLayoutAtom{},</span><br><span class="line">    <span class="built_in">make_shape</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileN&gt;{}, Int&lt;kStage&gt;{})));</span><br><span class="line"></span><br><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"><span class="comment">// Async Pipeline Kernel</span></span><br><span class="line"><span class="comment">// ============================================================</span></span><br><span class="line"><span class="comment">// Warp-specialized：</span></span><br><span class="line"><span class="comment">//   warp 0 (threads 0-31)   = Producer（发起 TMA）</span></span><br><span class="line"><span class="comment">//   warp 1-3 (threads 32-127) = Consumer（验证数据）</span></span><br><span class="line"><span class="comment">// Shared memory structure (pipeline barriers first for alignment)</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">SharedStorage</span> {</span><br><span class="line">  <span class="keyword">using</span> Pipeline = cutlass::PipelineTmaAsync&lt;kStage&gt;;</span><br><span class="line">  <span class="keyword">typename</span> Pipeline::SharedStorage pipeline;</span><br><span class="line">  <span class="built_in">alignas</span>(<span class="number">128</span>) <span class="type">half_t</span> data[<span class="built_in">cosize</span>(SmemLayout{})];</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">class</span> <span class="title class_">TmaLoad</span>&gt;</span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">async_pipeline_kernel</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    __grid_constant__ <span class="type">const</span> TmaLoad tma_load,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">half_t</span> <span class="type">const</span>* gmem_ptr,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span>* error_count,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> M, <span class="type">int</span> N)</span> </span>{</span><br><span class="line"></span><br><span class="line">  <span class="keyword">using</span> T = <span class="type">half_t</span>;</span><br><span class="line">  <span class="keyword">using</span> Pipeline = cutlass::PipelineTmaAsync&lt;kStage&gt;;</span><br><span class="line">  <span class="keyword">using</span> PipelineState = <span class="keyword">typename</span> Pipeline::PipelineState;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// Shared Memory 布局</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="keyword">extern</span> __shared__ <span class="type">char</span> smem_buf[];</span><br><span class="line">  <span class="keyword">auto</span>&amp; shared_storage = *<span class="built_in">reinterpret_cast</span>&lt;SharedStorage*&gt;(smem_buf);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> sA = <span class="built_in">make_tensor</span>(<span class="built_in">make_smem_ptr</span>(shared_storage.data), SmemLayout{});  <span class="comment">// (kTileM, kTileN, kStage)</span></span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> tid = threadIdx.x;</span><br><span class="line">  <span class="type">int</span> warp_idx = tid / <span class="number">32</span>;</span><br><span class="line">  <span class="type">int</span> lane_idx = tid % <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 确定角色：Producer or Consumer</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="type">bool</span> is_producer = (warp_idx == <span class="number">0</span>);</span><br><span class="line">  <span class="keyword">auto</span> role = is_producer</span><br><span class="line">      ? Pipeline::ThreadCategory::Producer</span><br><span class="line">      : Pipeline::ThreadCategory::Consumer;</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> num_consumers = kBlockThreads - <span class="number">32</span>;  <span class="comment">// 96 个 consumer 线程</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">typename</span> Pipeline::Params pipeline_params;</span><br><span class="line">  pipeline_params.role = role;</span><br><span class="line">  pipeline_params.is_leader = is_producer &amp;&amp; (lane_idx == <span class="number">0</span>);  <span class="comment">// warp 0 的 lane 0</span></span><br><span class="line">  pipeline_params.num_consumers = num_consumers;</span><br><span class="line">  pipeline_params.num_producers = <span class="number">1</span>;  <span class="comment">// 只有 leader (1个线程) 做 arrive_and_expect_tx</span></span><br><span class="line">  pipeline_params.transaction_bytes = kTileM * kTileN * <span class="built_in">sizeof</span>(T);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// 初始化 Pipeline</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="function">Pipeline <span class="title">pipeline</span><span class="params">(shared_storage.pipeline, pipeline_params, Shape&lt;_1, _1&gt;{})</span></span>;</span><br><span class="line">  __syncthreads();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// TMA 坐标准备</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="keyword">auto</span> coord_tensor = tma_load.<span class="built_in">get_tma_tensor</span>(<span class="built_in">make_shape</span>(M, N));</span><br><span class="line">  <span class="keyword">auto</span> coord_col = <span class="built_in">local_tile</span>(</span><br><span class="line">      coord_tensor,</span><br><span class="line">      <span class="built_in">make_tile</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileN&gt;{}),</span><br><span class="line">      <span class="built_in">make_coord</span>(<span class="number">0</span>, <span class="number">0</span>));  <span class="comment">// 固定在 (0,0) block</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> tma_thr = tma_load.<span class="built_in">get_slice</span>(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// Producer 逻辑</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="keyword">if</span> (is_producer) {</span><br><span class="line">    <span class="comment">// Producer 的初始状态：phase=1</span></span><br><span class="line">    PipelineState pipe_write = cutlass::<span class="built_in">make_producer_start_state</span>&lt;Pipeline&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (lane_idx == <span class="number">0</span> &amp;&amp; blockIdx.x == <span class="number">0</span>) {</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"[Pipeline] Producer 初始状态: index=%d, phase=%d, count=%d\n"</span>,</span><br><span class="line">             pipe_write.<span class="built_in">index</span>(), pipe_write.<span class="built_in">phase</span>(), pipe_write.<span class="built_in">count</span>());</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"  ★ phase=1 的原因：buffer 初始为空, producer 可以直接写入\n"</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> tile = <span class="number">0</span>; tile &lt; kNumTiles; ++tile) {</span><br><span class="line">      <span class="comment">// producer_acquire：等 empty_barrier → buffer 可写</span></span><br><span class="line">      pipeline.<span class="built_in">producer_acquire</span>(pipe_write);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 发起 TMA copy</span></span><br><span class="line">      <span class="keyword">if</span> (lane_idx == <span class="number">0</span>) {</span><br><span class="line">        <span class="comment">// 模拟 K 方向不同 tile 的坐标（这里简化为搬同一个 tile）</span></span><br><span class="line">        <span class="keyword">auto</span> tSgS = tma_thr.<span class="built_in">partition_S</span>(coord_col);</span><br><span class="line">        <span class="keyword">auto</span> tSsS = tma_thr.<span class="built_in">partition_D</span>(<span class="built_in">sA</span>(_, _, pipe_write.<span class="built_in">index</span>()));</span><br><span class="line">        <span class="built_in">copy</span>(tma_load.<span class="built_in">with</span>(</span><br><span class="line">            *pipeline.<span class="built_in">producer_get_barrier</span>(pipe_write)), tSgS, tSsS);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (blockIdx.x == <span class="number">0</span> &amp;&amp; tile &lt; <span class="number">4</span>) {</span><br><span class="line">          <span class="built_in">printf</span>(<span class="string">"  Producer: tile %d → stage %d (phase=%d)\n"</span>,</span><br><span class="line">                 tile, pipe_write.<span class="built_in">index</span>(), pipe_write.<span class="built_in">phase</span>());</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 推进 write 状态</span></span><br><span class="line">      ++pipe_write;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// Consumer 逻辑</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="keyword">if</span> (!is_producer) {</span><br><span class="line">    PipelineState pipe_read;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (warp_idx == <span class="number">1</span> &amp;&amp; lane_idx == <span class="number">0</span> &amp;&amp; blockIdx.x == <span class="number">0</span>) {</span><br><span class="line">      <span class="built_in">printf</span>(<span class="string">"[Pipeline] Consumer 初始状态: index=%d, phase=%d, count=%d\n"</span>,</span><br><span class="line">             pipe_read.<span class="built_in">index</span>(), pipe_read.<span class="built_in">phase</span>(), pipe_read.<span class="built_in">count</span>());</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> tile = <span class="number">0</span>; tile &lt; kNumTiles; ++tile) {</span><br><span class="line">      <span class="comment">// consumer_wait：等 full_barrier → 数据已就绪</span></span><br><span class="line">      pipeline.<span class="built_in">consumer_wait</span>(pipe_read);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 使用数据：验证 smem 中的值</span></span><br><span class="line">      <span class="type">int</span> stage = pipe_read.<span class="built_in">index</span>();</span><br><span class="line">      <span class="type">int</span> local_errors = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 每个 consumer 线程验证一部分数据</span></span><br><span class="line">      <span class="type">int</span> consumer_tid = tid - <span class="number">32</span>;  <span class="comment">// consumer 从 0 开始编号</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> i = consumer_tid; i &lt; kTileM * kTileN; i += num_consumers) {</span><br><span class="line">        <span class="type">int</span> row = i / kTileN;</span><br><span class="line">        <span class="type">int</span> col = i % kTileN;</span><br><span class="line">        T expected = <span class="built_in">T</span>(<span class="built_in">float</span>((row * N + col) % <span class="number">100</span>) * <span class="number">0.01f</span>);</span><br><span class="line">        T got = <span class="built_in">sA</span>(row, col, stage);</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">float</span>(expected) != <span class="built_in">float</span>(got)) {</span><br><span class="line">          local_errors++;</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (local_errors &gt; <span class="number">0</span>) {</span><br><span class="line">        <span class="built_in">atomicAdd</span>(error_count, local_errors);</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (warp_idx == <span class="number">1</span> &amp;&amp; lane_idx == <span class="number">0</span> &amp;&amp; blockIdx.x == <span class="number">0</span> &amp;&amp; tile &lt; <span class="number">4</span>) {</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"  Consumer: tile %d from stage %d (phase=%d) — verified\n"</span>,</span><br><span class="line">               tile, stage, pipe_read.<span class="built_in">phase</span>());</span><br><span class="line">      }</span><br><span class="line"></span><br><span class="line">      <span class="comment">// consumer_release：通知 producer 这个 stage 的 buffer 可以覆盖了</span></span><br><span class="line">      pipeline.<span class="built_in">consumer_release</span>(pipe_read);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 推进 read 状态</span></span><br><span class="line">      ++pipe_read;</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>{</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"=== 第 12 课：Async Pipeline ===\n\n"</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">using</span> T = <span class="type">half_t</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 虚拟矩阵（只搬运第一个 tile 来演示 pipeline 机制）</span></span><br><span class="line">  <span class="type">int</span> M = kTileM;</span><br><span class="line">  <span class="type">int</span> N = kTileN;</span><br><span class="line"></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"Tile: %d x %d, Stages: %d, Tiles to process: %d\n"</span>,</span><br><span class="line">         kTileM, kTileN, kStage, kNumTiles);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"Threads: %d (warp0=producer, warp1-3=consumer)\n\n"</span>, kBlockThreads);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 分配数据</span></span><br><span class="line">  T* h_data = (T*)<span class="built_in">malloc</span>(M * N * <span class="built_in">sizeof</span>(T));</span><br><span class="line">  T* d_data;</span><br><span class="line">  <span class="type">int</span>* d_errors;</span><br><span class="line">  <span class="type">int</span> h_errors = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; M * N; ++i) {</span><br><span class="line">    h_data[i] = <span class="built_in">T</span>(<span class="built_in">float</span>(i % <span class="number">100</span>) * <span class="number">0.01f</span>);</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="built_in">cudaMalloc</span>(&amp;d_data, M * N * <span class="built_in">sizeof</span>(T));</span><br><span class="line">  <span class="built_in">cudaMalloc</span>(&amp;d_errors, <span class="built_in">sizeof</span>(<span class="type">int</span>));</span><br><span class="line">  <span class="built_in">cudaMemcpy</span>(d_data, h_data, M * N * <span class="built_in">sizeof</span>(T), cudaMemcpyHostToDevice);</span><br><span class="line">  <span class="built_in">cudaMemset</span>(d_errors, <span class="number">0</span>, <span class="built_in">sizeof</span>(<span class="type">int</span>));</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 构造 gmem tensor &amp; TMA descriptor</span></span><br><span class="line">  <span class="keyword">auto</span> gmem_tensor = <span class="built_in">make_tensor</span>(</span><br><span class="line">      <span class="built_in">make_gmem_ptr</span>(d_data),</span><br><span class="line">      <span class="built_in">make_shape</span>(M, N),</span><br><span class="line">      <span class="built_in">make_stride</span>(N, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 单 stage 的 smem layout（给 TMA descriptor 用）</span></span><br><span class="line">  <span class="keyword">using</span> SmemLayoutSingle = <span class="keyword">decltype</span>(<span class="built_in">tile_to_shape</span>(</span><br><span class="line">      SmemLayoutAtom{},</span><br><span class="line">      <span class="built_in">make_shape</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileN&gt;{})));</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> tma_load = <span class="built_in">make_tma_copy</span>(SM90_TMA_LOAD{}, gmem_tensor, SmemLayoutSingle{});</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 计算 smem 大小</span></span><br><span class="line">  <span class="type">int</span> smem_size = <span class="built_in">sizeof</span>(SharedStorage);</span><br><span class="line">  smem_size = (smem_size + <span class="number">127</span>) &amp; ~<span class="number">127</span>;  <span class="comment">// 128字节对齐</span></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> data_smem_size = <span class="built_in">cosize</span>(SmemLayout{}) * <span class="built_in">sizeof</span>(T);</span><br><span class="line"></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"Shared memory: %d bytes (data=%d, pipeline=%d)\n\n"</span>,</span><br><span class="line">         smem_size, data_smem_size,</span><br><span class="line">         (<span class="type">int</span>)<span class="built_in">sizeof</span>(<span class="keyword">typename</span> cutlass::PipelineTmaAsync&lt;kStage&gt;::SharedStorage));</span><br><span class="line"></span><br><span class="line">  <span class="built_in">cudaFuncSetAttribute</span>(</span><br><span class="line">      async_pipeline_kernel&lt;<span class="keyword">decltype</span>(tma_load)&gt;,</span><br><span class="line">      cudaFuncAttributeMaxDynamicSharedMemorySize,</span><br><span class="line">      smem_size);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// PipelineState 状态转移说明</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"========================================\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"PipelineState 状态转移（3-stage 示例）\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"========================================\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  操作   │ index │ phase │ 说明\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ───────┼───────┼───────┼────────────────\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  初始   │   0   │   0   │ consumer 从 stage 0 开始\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   1   │   0   │ 移到 stage 1\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   2   │   0   │ 移到 stage 2\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   0   │   1   │ 回到 stage 0, phase 翻转!\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   1   │   1   │\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   2   │   1   │\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ++     │   0   │   0   │ 回到 stage 0, phase 再翻转!\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n  Producer 初始 phase=1（因为 buffer 空 → 可直接写）\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  Consumer 初始 phase=0（等待 producer 填充数据）\n\n"</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 启动 kernel</span></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"========================================\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"运行 Pipeline Kernel\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"========================================\n"</span>);</span><br><span class="line"></span><br><span class="line">  async_pipeline_kernel&lt;<span class="keyword">decltype</span>(tma_load)&gt;</span><br><span class="line">      &lt;&lt;&lt;<span class="number">1</span>, kBlockThreads, smem_size&gt;&gt;&gt;(tma_load, d_data, d_errors, M, N);</span><br><span class="line">  <span class="built_in">cudaDeviceSynchronize</span>();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> err = <span class="built_in">cudaGetLastError</span>();</span><br><span class="line">  <span class="keyword">if</span> (err != cudaSuccess) {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"CUDA error: %s\n"</span>, <span class="built_in">cudaGetErrorString</span>(err));</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="built_in">cudaMemcpy</span>(&amp;h_errors, d_errors, <span class="built_in">sizeof</span>(<span class="type">int</span>), cudaMemcpyDeviceToHost);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n验证: %s (%d errors)\n"</span>, h_errors == <span class="number">0</span> ? <span class="string">"PASS"</span> : <span class="string">"FAIL"</span>, h_errors);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="comment">// Pipeline 架构图</span></span><br><span class="line">  <span class="comment">// ============================================================</span></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n========================================\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"Pipeline 流程图\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"========================================\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  Producer (warp 0)           Consumer (warp 1-3)\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ─────────────────           ──────────────────\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  producer_acquire(S0)        \n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"    ↓ TMA copy → S0          \n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  producer_acquire(S1)        consumer_wait(S0)\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"    ↓ TMA copy → S1            ↓ use data in S0\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  producer_acquire(S2)        consumer_release(S0)\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"    ↓ TMA copy → S2          consumer_wait(S1)\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  producer_acquire(S0) ←wait    ↓ use data in S1\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"    ↓ TMA copy → S0          consumer_release(S1)\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  ...                         ...\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  full_barrier[s]:  producer 写完 → consumer 可读\n"</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"  empty_barrier[s]: consumer 用完 → producer 可写\n"</span>);</span><br><span class="line"></span><br><span class="line">  <span class="built_in">free</span>(h_data);</span><br><span class="line">  <span class="built_in">cudaFree</span>(d_data);</span><br><span class="line">  <span class="built_in">cudaFree</span>(d_errors);</span><br><span class="line"></span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">"\n=== 练习完成 ===\n"</span>);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>打印信息如下</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">[yuyanqi@set-hldy-mlp-codelab-pc75 build]$ ./<span class="number">12</span>_async_pipeline </span><br><span class="line">=== 第 <span class="number">12</span> 课：Async Pipeline ===</span><br><span class="line"></span><br><span class="line">Tile: <span class="number">128</span> x <span class="number">64</span>, Stages: <span class="number">3</span>, Tiles to process: <span class="number">8</span></span><br><span class="line">Threads: <span class="number">128</span> (warp0=producer, warp1<span class="number">-3</span>=consumer)</span><br><span class="line"></span><br><span class="line">Shared memory: <span class="number">49280</span> <span class="built_in">bytes</span> (data=<span class="number">49152</span>, pipeline=<span class="number">48</span>)</span><br><span class="line"></span><br><span class="line">========================================</span><br><span class="line">PipelineState 状态转移（<span class="number">3</span>-stage 示例）</span><br><span class="line">========================================</span><br><span class="line">  操作   │ index │ phase │ 说明</span><br><span class="line">  ───────┼───────┼───────┼────────────────</span><br><span class="line">  初始   │   <span class="number">0</span>   │   <span class="number">0</span>   │ consumer 从 stage <span class="number">0</span> 开始</span><br><span class="line">  ++     │   <span class="number">1</span>   │   <span class="number">0</span>   │ 移到 stage <span class="number">1</span></span><br><span class="line">  ++     │   <span class="number">2</span>   │   <span class="number">0</span>   │ 移到 stage <span class="number">2</span></span><br><span class="line">  ++     │   <span class="number">0</span>   │   <span class="number">1</span>   │ 回到 stage <span class="number">0</span>, phase 翻转!</span><br><span class="line">  ++     │   <span class="number">1</span>   │   <span class="number">1</span>   │</span><br><span class="line">  ++     │   <span class="number">2</span>   │   <span class="number">1</span>   │</span><br><span class="line">  ++     │   <span class="number">0</span>   │   <span class="number">0</span>   │ 回到 stage <span class="number">0</span>, phase 再翻转!</span><br><span class="line"></span><br><span class="line">  Producer 初始 phase=<span class="number">1</span>（因为 buffer 空 → 可直接写）</span><br><span class="line">  Consumer 初始 phase=<span class="number">0</span>（等待 producer 填充数据）</span><br><span class="line"></span><br><span class="line">========================================</span><br><span class="line">运行 Pipeline Kernel</span><br><span class="line">========================================</span><br><span class="line">[Pipeline] Consumer 初始状态: index=<span class="number">0</span>, phase=<span class="number">0</span>, count=<span class="number">0</span></span><br><span class="line">[Pipeline] Producer 初始状态: index=<span class="number">0</span>, phase=<span class="number">1</span>, count=<span class="number">0</span></span><br><span class="line">  ★ phase=<span class="number">1</span> 的原因：buffer 初始为空, producer 可以直接写入</span><br><span class="line">  Producer: tile <span class="number">0</span> → stage <span class="number">0</span> (phase=<span class="number">1</span>)</span><br><span class="line">  Consumer: tile <span class="number">0</span> from stage <span class="number">0</span> (phase=<span class="number">0</span>) — verified</span><br><span class="line">  Producer: tile <span class="number">1</span> → stage <span class="number">1</span> (phase=<span class="number">1</span>)</span><br><span class="line">  Consumer: tile <span class="number">1</span> from stage <span class="number">1</span> (phase=<span class="number">0</span>) — verified</span><br><span class="line">  Producer: tile <span class="number">2</span> → stage <span class="number">2</span> (phase=<span class="number">1</span>)</span><br><span class="line">  Consumer: tile <span class="number">2</span> from stage <span class="number">2</span> (phase=<span class="number">0</span>) — verified</span><br><span class="line">  Producer: tile <span class="number">3</span> → stage <span class="number">0</span> (phase=<span class="number">0</span>)</span><br><span class="line">  Consumer: tile <span class="number">3</span> from stage <span class="number">0</span> (phase=<span class="number">1</span>) — verified</span><br><span class="line"></span><br><span class="line">验证: <span class="built_in">PASS</span> (<span class="number">0</span> errors)</span><br><span class="line"></span><br><span class="line">========================================</span><br><span class="line">Pipeline 流程图</span><br><span class="line">========================================</span><br><span class="line"></span><br><span class="line">  <span class="built_in">Producer</span> (warp <span class="number">0</span>)           <span class="built_in">Consumer</span> (warp <span class="number">1</span><span class="number">-3</span>)</span><br><span class="line">  ─────────────────           ──────────────────</span><br><span class="line">  <span class="built_in">producer_acquire</span>(S0)        </span><br><span class="line">    ↓ TMA copy → S0          </span><br><span class="line">  <span class="built_in">producer_acquire</span>(S1)        <span class="built_in">consumer_wait</span>(S0)</span><br><span class="line">    ↓ TMA copy → S1            ↓ use data in S0</span><br><span class="line">  <span class="built_in">producer_acquire</span>(S2)        <span class="built_in">consumer_release</span>(S0)</span><br><span class="line">    ↓ TMA copy → S2          <span class="built_in">consumer_wait</span>(S1)</span><br><span class="line">  <span class="built_in">producer_acquire</span>(S0) ←wait    ↓ use data in S1</span><br><span class="line">    ↓ TMA copy → S0          <span class="built_in">consumer_release</span>(S1)</span><br><span class="line">  ...                         ...</span><br><span class="line"></span><br><span class="line">  full_barrier[s]:  producer 写完 → consumer 可读</span><br><span class="line">  empty_barrier[s]: consumer 用完 → producer 可写</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="1-pipeline-的双-barrier-机制"><a class="markdownIt-Anchor" href="#1-pipeline-的双-barrier-机制"></a> 1. Pipeline 的双 Barrier 机制</h2>
+<h3 id="11-为什么需要两个-barrier"><a class="markdownIt-Anchor" href="#11-为什么需要两个-barrier"></a> 1.1 为什么需要两个 Barrier</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">问题：Producer 写 buffer 的同时 Consumer 在读同一 buffer → 数据竞争</span><br><span class="line"></span><br><span class="line">解决：每个 stage 两个 barrier，形成"请求-释放"协议</span><br><span class="line"></span><br><span class="line">  full_barrier[s]:</span><br><span class="line">    Producer 写完数据 → arrive</span><br><span class="line">    Consumer wait → 确认数据就绪，可以读</span><br><span class="line"></span><br><span class="line">  empty_barrier[s]:</span><br><span class="line">    Consumer 读完数据 → arrive</span><br><span class="line">    Producer wait → 确认 buffer 空闲，可以写</span><br></pre></td></tr></table></figure></div>
+<h3 id="12-3-stage-pipeline-流程"><a class="markdownIt-Anchor" href="#12-3-stage-pipeline-流程"></a> 1.2 3-Stage Pipeline 流程</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">时间 →</span><br><span class="line">                  Stage 0      Stage 1      Stage 2</span><br><span class="line">Producer:</span><br><span class="line">  tile 0 →        写入                                   pipe_write: S0→S1</span><br><span class="line">  tile 1 →                     写入                      pipe_write: S1→S2</span><br><span class="line">  tile 2 →                                  写入         pipe_write: S2→S0 (环绕)</span><br><span class="line">  tile 3 →        写入 (等S0空)                          pipe_write: S0→S1</span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">Consumer:</span><br><span class="line">  tile 0 ←        读取                                   pipe_read: S0→S1</span><br><span class="line">  tile 1 ←                     读取                      pipe_read: S1→S2</span><br><span class="line">  tile 2 ←                                  读取         pipe_read: S2→S0 (环绕)</span><br><span class="line">  tile 3 ←        读取                                   pipe_read: S0→S1</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure></div>
+<p>Producer 领先 Consumer 最多 kStage 步。当 Producer 写到第 4 个 tile 时，需要等 Consumer 释放 Stage 0。</p>
+<hr>
+<h2 id="2-pipelinestate-状态转移"><a class="markdownIt-Anchor" href="#2-pipelinestate-状态转移"></a> 2. PipelineState 状态转移</h2>
+<h3 id="21-三元组-index-phase-count"><a class="markdownIt-Anchor" href="#21-三元组-index-phase-count"></a> 2.1 三元组 (index, phase, count)</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">PipelineState</span> {</span><br><span class="line">    <span class="type">int</span> index_;  <span class="comment">// 当前 stage 编号 (0 ~ kStage-1)</span></span><br><span class="line">    <span class="type">int</span> phase_;  <span class="comment">// 当前 phase (0 或 1)</span></span><br><span class="line">    <span class="type">int</span> count_;  <span class="comment">// 已处理的总步数</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="22-operator-的行为"><a class="markdownIt-Anchor" href="#22-operator-的行为"></a> 2.2 operator++ 的行为</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">初始:    index=0, phase=0, count=0</span><br><span class="line">++:      index=1, phase=0, count=1</span><br><span class="line">++:      index=2, phase=0, count=2</span><br><span class="line">++:      index=0, phase=1, count=3  ← 回到 stage 0, phase 翻转！</span><br><span class="line">++:      index=1, phase=1, count=4</span><br><span class="line">++:      index=2, phase=1, count=5</span><br><span class="line">++:      index=0, phase=0, count=6  ← 回到 stage 0, phase 再翻转！</span><br></pre></td></tr></table></figure></div>
+<p><strong>Phase 翻转时机</strong>：当 index 从 kStage-1 回绕到 0 时，phase 翻转。这与 mbarrier 的 phase 自动翻转一致。</p>
+<h3 id="23-make_producer_start_state"><a class="markdownIt-Anchor" href="#23-make_producer_start_state"></a> 2.3 make_producer_start_state</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">PipelineState pipe_write = cutlass::<span class="built_in">make_producer_start_state</span>&lt;Pipeline&gt;();</span><br><span class="line"><span class="comment">// 返回: index=0, phase=1, count=0</span></span><br></pre></td></tr></table></figure></div>
+<p><strong>为什么 Producer phase 从 1 开始？</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">初始化时：</span><br><span class="line">  empty_barrier 每个 stage 的初始 phase = 0</span><br><span class="line">  buffer 一开始是空的 → 逻辑上已经"释放"了</span><br><span class="line"></span><br><span class="line">如果 producer phase=0:</span><br><span class="line">  producer_acquire 会 wait empty_barrier(phase=0)</span><br><span class="line">  但 phase 确实是 0 → 需要等 consumer 先 arrive → 死锁！</span><br><span class="line"></span><br><span class="line">如果 producer phase=1:</span><br><span class="line">  producer_acquire 会 wait empty_barrier(phase=1)</span><br><span class="line">  初始 phase=0 ≠ 1 → 条件已满足 → 不等待 → 直接写入 ✓</span><br></pre></td></tr></table></figure></div>
+<p><strong>一句话：buffer 初始为空 = empty_barrier 已经"翻转过"了 = producer 直接用 phase=1 跳过等待。</strong></p>
+<hr>
+<h2 id="3-producer-consumer-api"><a class="markdownIt-Anchor" href="#3-producer-consumer-api"></a> 3. Producer / Consumer API</h2>
+<h3 id="31-producer-流程"><a class="markdownIt-Anchor" href="#31-producer-流程"></a> 3.1 Producer 流程</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">PipelineState pipe_write = cutlass::<span class="built_in">make_producer_start_state</span>&lt;Pipeline&gt;();</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> tile = <span class="number">0</span>; tile &lt; num_tiles; ++tile) {</span><br><span class="line">    <span class="comment">// 1. 等待 buffer 空闲（empty_barrier）</span></span><br><span class="line">    pipeline.<span class="built_in">producer_acquire</span>(pipe_write);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 发起 TMA copy（只有 leader 线程）</span></span><br><span class="line">    <span class="keyword">if</span> (lane_idx == <span class="number">0</span>) {</span><br><span class="line">        <span class="keyword">auto</span> barrier = pipeline.<span class="built_in">producer_get_barrier</span>(pipe_write);</span><br><span class="line">        <span class="built_in">copy</span>(tma_load.<span class="built_in">with</span>(*barrier), src, dst);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 推进状态</span></span><br><span class="line">    ++pipe_write;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// 4. 收尾（通知 consumer 不再有更多数据）</span></span><br><span class="line">pipeline.<span class="built_in">producer_tail</span>(pipe_write);</span><br></pre></td></tr></table></figure></div>
+<h3 id="32-consumer-流程"><a class="markdownIt-Anchor" href="#32-consumer-流程"></a> 3.2 Consumer 流程</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">PipelineState pipe_read;  <span class="comment">// index=0, phase=0, count=0</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> tile = <span class="number">0</span>; tile &lt; num_tiles; ++tile) {</span><br><span class="line">    <span class="comment">// 1. 等待数据就绪（full_barrier）</span></span><br><span class="line">    pipeline.<span class="built_in">consumer_wait</span>(pipe_read);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 使用数据</span></span><br><span class="line">    <span class="type">int</span> stage = pipe_read.<span class="built_in">index</span>();</span><br><span class="line">    <span class="comment">// ... 读 sA(_, _, stage) ...</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 释放 buffer（通知 producer 可以覆盖）</span></span><br><span class="line">    pipeline.<span class="built_in">consumer_release</span>(pipe_read);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 4. 推进状态</span></span><br><span class="line">    ++pipe_read;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="33-api-含义总结"><a class="markdownIt-Anchor" href="#33-api-含义总结"></a> 3.3 API 含义总结</h3>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>操作的 Barrier</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>producer_acquire</code></td>
+<td>wait empty_barrier</td>
+<td>等 buffer 空闲</td>
+</tr>
+<tr>
+<td><code>producer_get_barrier</code></td>
+<td>返回 full_barrier</td>
+<td>给 TMA 绑定，搬完自动 arrive</td>
+</tr>
+<tr>
+<td><code>producer_tail</code></td>
+<td>—</td>
+<td>通知 consumer：数据全部发完</td>
+</tr>
+<tr>
+<td><code>consumer_wait</code></td>
+<td>wait full_barrier</td>
+<td>等数据就绪</td>
+</tr>
+<tr>
+<td><code>consumer_release</code></td>
+<td>arrive empty_barrier</td>
+<td>通知 producer：buffer 可覆盖</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="4-pipeline-参数配置"><a class="markdownIt-Anchor" href="#4-pipeline-参数配置"></a> 4. Pipeline 参数配置</h2>
+<h3 id="41-pipelineparams"><a class="markdownIt-Anchor" href="#41-pipelineparams"></a> 4.1 Pipeline::Params</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typename</span> Pipeline::Params pipeline_params;</span><br><span class="line">pipeline_params.role = role;              <span class="comment">// Producer 或 Consumer</span></span><br><span class="line">pipeline_params.is_leader = is_producer &amp;&amp; (lane_idx == <span class="number">0</span>);</span><br><span class="line">pipeline_params.num_consumers = <span class="number">96</span>;       <span class="comment">// consumer 线程数</span></span><br><span class="line">pipeline_params.num_producers = <span class="number">1</span>;        <span class="comment">// 只有 leader 做 arrive_and_expect_tx</span></span><br><span class="line">pipeline_params.transaction_bytes = kTileM * kTileN * <span class="built_in">sizeof</span>(T);</span><br></pre></td></tr></table></figure></div>
+<h3 id="42-关键参数说明"><a class="markdownIt-Anchor" href="#42-关键参数说明"></a> 4.2 关键参数说明</h3>
+<p><strong>num_producers = 1</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pipeline 构造函数内部用 num_producers 初始化 full_barrier：</span><br><span class="line">  full_barrier.init(num_producers)  → 期望 num_producers 个 arrive</span><br><span class="line"></span><br><span class="line">如果设 num_producers=32（整个 warp）：</span><br><span class="line">  full_barrier 期望 32 个 arrive</span><br><span class="line">  但只有 leader（1 个线程）做 arrive_and_expect_tx</span><br><span class="line">  → 永远收不到 32 个 arrive → 死锁！</span><br><span class="line"></span><br><span class="line">正确做法：num_producers=1，只有 leader arrive</span><br></pre></td></tr></table></figure></div>
+<p><strong>is_leader</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">is_leader = is_producer &amp;&amp; (lane_idx == 0)</span><br><span class="line"></span><br><span class="line">只有 leader 做：</span><br><span class="line">  - arrive_and_expect_tx（设置期望搬运字节数）</span><br><span class="line">  - 发起 TMA copy</span><br><span class="line"></span><br><span class="line">其他 producer 线程只做 arrive（不设 tx bytes）</span><br></pre></td></tr></table></figure></div>
+<p><strong>cluster_shape = Shape&lt;_1, _1&gt;{}</strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Pipeline <span class="title">pipeline</span><span class="params">(shared_storage.pipeline, pipeline_params, Shape&lt;_1, _1&gt;{})</span></span>;</span><br></pre></td></tr></table></figure></div>
+<p>PipelineTmaAsync 构造函数访问 <code>size&lt;0&gt;</code> 和 <code>size&lt;1&gt;</code>，必须是至少 2D。即使单 block cluster，也要写 <code>Shape&lt;_1, _1&gt;</code> 而非 <code>Shape&lt;_1&gt;</code>。</p>
+<hr>
+<h2 id="5-sharedstorage-结构"><a class="markdownIt-Anchor" href="#5-sharedstorage-结构"></a> 5. SharedStorage 结构</h2>
+<h3 id="51-为什么用-struct"><a class="markdownIt-Anchor" href="#51-为什么用-struct"></a> 5.1 为什么用 struct</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">SharedStorage</span> {</span><br><span class="line">  <span class="keyword">using</span> Pipeline = cutlass::PipelineTmaAsync&lt;kStage&gt;;</span><br><span class="line">  <span class="keyword">typename</span> Pipeline::SharedStorage pipeline;   <span class="comment">// mbarrier 数组（必须先声明！）</span></span><br><span class="line">  <span class="built_in">alignas</span>(<span class="number">128</span>) <span class="type">half_t</span> data[<span class="built_in">cosize</span>(SmemLayout{})];  <span class="comment">// 数据 buffer</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p><strong>Pipeline barriers 必须放在 struct 最前面：</strong></p>
+<ul>
+<li>mbarrier 要求 8 字节对齐</li>
+<li>Pipeline::SharedStorage 内部是 mbarrier 数组（每 stage 2 个 barrier = kStage × 2 × 8 bytes）</li>
+<li>放在 struct 最前面自然满足对齐</li>
+<li>如果用手动 offset 计算，很容易对齐出错导致死锁</li>
+</ul>
+<h3 id="52-alignas128"><a class="markdownIt-Anchor" href="#52-alignas128"></a> 5.2 alignas(128)</h3>
+<p>数据数组 <code>alignas(128)</code> 确保 TMA 搬运的目标地址满足 128 字节对齐要求。</p>
+<hr>
+<h2 id="6-源码解析数据结构与方法"><a class="markdownIt-Anchor" href="#6-源码解析数据结构与方法"></a> 6. 源码解析：数据结构与方法</h2>
+<h3 id="61-pipelinestate-环形游标不是-barrier"><a class="markdownIt-Anchor" href="#61-pipelinestate-环形游标不是-barrier"></a> 6.1 PipelineState — 环形游标（不是 barrier）</h3>
+<p>源码位置：<code>cutlass/pipeline/sm90_pipeline.hpp:170-250</code></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="type">uint32_t</span> Stages_&gt;   <span class="comment">// Stages_ = 3</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">PipelineState</span> {</span><br><span class="line">    <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">uint32_t</span> Stages = Stages_;</span><br><span class="line">    <span class="type">int</span> index_ = <span class="number">0</span>;           <span class="comment">// 当前 stage 编号 (0 ~ Stages-1)</span></span><br><span class="line">    <span class="type">uint32_t</span> phase_ = <span class="number">0</span>;      <span class="comment">// 当前 phase (0 或 1)</span></span><br><span class="line">    <span class="type">uint32_t</span> count_ = <span class="number">0</span>;      <span class="comment">// 已推进的总步数（仅统计用）</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>PipelineState 本身<strong>不是 barrier</strong>，它只是一个<strong>游标</strong>，告诉 producer/consumer 当前该操作第几个 stage、用哪个 phase 去 wait。</p>
+<p><strong>operator++ 源码：</strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="keyword">operator</span>++() {</span><br><span class="line">    <span class="function"><span class="keyword">if</span> <span class="title">constexpr</span> <span class="params">(Stages &gt; <span class="number">0</span>)</span> </span>{</span><br><span class="line">        ++index_;</span><br><span class="line">        ++count_;</span><br><span class="line">        <span class="keyword">if</span> (index_ == Stages) {   <span class="comment">// 走完一圈</span></span><br><span class="line">            index_ = <span class="number">0</span>;           <span class="comment">// 回绕到 stage 0</span></span><br><span class="line">            phase_ ^= <span class="number">1</span>;          <span class="comment">// phase XOR 翻转</span></span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>为什么每圈翻转 phase？</strong> mbarrier 的 phase 也是每轮所有 arrive 完成后自动翻转。PipelineState 的 phase 必须与 mbarrier 保持同步，这样 <code>wait(phase)</code> 才能正确工作。</p>
+<p><strong>advance 源码 — 批量前进：</strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">PipelineState&amp; <span class="title">advance</span><span class="params">(<span class="type">uint32_t</span> num_iterations)</span> </span>{</span><br><span class="line">    <span class="comment">// 情况 1：前进不到一圈，但跨过了 stage 边界 → 翻转一次</span></span><br><span class="line">    <span class="keyword">if</span> ((num_iterations &lt; Stages) &amp;&amp; (index_ + num_iterations) &gt;= Stages)</span><br><span class="line">        phase_ ^= <span class="number">1</span>;</span><br><span class="line">    <span class="comment">// 情况 2：前进超过一圈，跨越奇数次边界 → 翻转一次</span></span><br><span class="line">    <span class="keyword">if</span> ((num_iterations &gt;= Stages) &amp;&amp; (((index_ + num_iterations) / Stages) % <span class="number">2</span>) == <span class="number">1</span>)</span><br><span class="line">        phase_ ^= <span class="number">1</span>;</span><br><span class="line">    index_ = (index_ + num_iterations) % Stages;</span><br><span class="line">    count_ += num_iterations;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><code>operator++</code> 的批量版本。<code>producer_tail</code> 中用到它（等待 Stages 轮）。</p>
+<p><strong>make_producer_start_state 源码：</strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="keyword">class</span> Pipeline&gt;</span></span><br><span class="line"><span class="function">PipelineState&lt;Pipeline::Stages&gt; <span class="title">make_producer_start_state</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="comment">// Producer starts with an opposite phase as the buffers are initially empty</span></span><br><span class="line">    <span class="keyword">constexpr</span> <span class="type">int</span> InitialProducerStage = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">constexpr</span> <span class="type">uint32_t</span> InitialProducerPhase = <span class="number">1</span>;   <span class="comment">// ← 关键！</span></span><br><span class="line">    <span class="keyword">constexpr</span> <span class="type">uint32_t</span> InitialProducerCount = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">return</span> {InitialProducerStage, InitialProducerPhase, InitialProducerCount};</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>注释说得很清楚：<strong>“opposite phase because buffers are initially empty”</strong>。</p>
+<h3 id="62-clusterbarrier-empty_barrier-的类型"><a class="markdownIt-Anchor" href="#62-clusterbarrier-empty_barrier-的类型"></a> 6.2 ClusterBarrier — empty_barrier 的类型</h3>
+<p>源码位置：<code>cutlass/arch/barrier.h:341-539</code></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">ClusterBarrier</span> {</span><br><span class="line">    <span class="type">uint64_t</span> barrier_;   <span class="comment">// 64-bit mbarrier，必须在 smem 中</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>用于 <strong>empty_barrier</strong>——追踪 consumer 是否释放了 buffer。只基于 arrive count 同步，不涉及 transaction bytes。</p>
+<p><strong>init — PTX: <code>mbarrier.init</code></strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">init</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr, <span class="type">uint32_t</span> arrive_count)</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(<span class="string">"mbarrier.init.shared::cta.b64 [%1], %0;"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        : : <span class="string">"r"</span>(arrive_count), <span class="string">"r"</span>(smem_addr))</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>初始化 barrier：phase=0，arrive_count=参数值。对于 empty_barrier，<code>arrive_count = num_consumers = 96</code>。</p>
+<p><strong>wait — PTX: <code>mbarrier.try_wait.parity</code> 忙等循环</strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">wait</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr, <span class="type">uint32_t</span> phase)</span> </span>{</span><br><span class="line">    <span class="type">uint32_t</span> ticks = <span class="number">0x989680</span>;    <span class="comment">// ~10M 次超时重试</span></span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"LAB_WAIT: \n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], %1, %2; \n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"@P1 bra DONE; \n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"bra     LAB_WAIT; \n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"DONE: \n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        : : <span class="string">"r"</span>(smem_addr), <span class="string">"r"</span>(phase), <span class="string">"r"</span>(ticks))</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>语义：<code>wait(phase)</code> = <strong>“等到 barrier 当前 phase ≠ phase”</strong>。注意不是"等 phase 变成某个值"，而是"等 phase <strong>不再是</strong>传入的值"。</p>
+<p><strong>arrive — PTX: <code>mbarrier.arrive</code></strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 本地 arrive（consumer_release 在 cluster_size=1 时使用）</span></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">arrive</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr)</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(<span class="string">"mbarrier.arrive.shared::cta.b64 _, [%0];"</span> : : <span class="string">"r"</span>(smem_addr))</span></span>;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// 带 cta_id 的 arrive（支持 cluster 跨 block）</span></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">arrive</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr, <span class="type">uint32_t</span> cta_id, <span class="type">uint32_t</span> pred)</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"mapa.shared::cluster.u32  remAddr32, %0, %1;\n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="string">"mbarrier.arrive.shared::cluster.b64  _, [remAddr32];\n\t"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        : : <span class="string">"r"</span>(smem_addr), <span class="string">"r"</span>(cta_id))</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>arrive_count 减 1。当减到 0 时，phase 自动翻转，barrier 自动重置 arrive_count。</p>
+<h3 id="63-clustertransactionbarrier-full_barrier-的类型"><a class="markdownIt-Anchor" href="#63-clustertransactionbarrier-full_barrier-的类型"></a> 6.3 ClusterTransactionBarrier — full_barrier 的类型</h3>
+<p>源码位置：<code>cutlass/arch/barrier.h:545-663</code></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">ClusterTransactionBarrier</span> : <span class="keyword">public</span> ClusterBarrier {</span><br><span class="line">    <span class="comment">// 继承了 ClusterBarrier 的 init/wait/arrive</span></span><br><span class="line">    <span class="comment">// 新增 transaction bytes 相关方法</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>用于 <strong>full_barrier</strong>——追踪 TMA 搬运是否完成。翻转条件比 ClusterBarrier 更严格：<code>arrive_count == 0 &amp;&amp; transaction_count == 0</code>。</p>
+<p><strong>arrive_and_expect_tx — PTX: <code>mbarrier.arrive.expect_tx</code></strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">arrive_and_expect_tx</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr, <span class="type">uint32_t</span> transaction_bytes)</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(<span class="string">"mbarrier.arrive.expect_tx.shared::cta.b64 _, [%1], %0;"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        : : <span class="string">"r"</span>(transaction_bytes), <span class="string">"r"</span>(smem_addr))</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>一条 PTX 指令做两件事：</strong></p>
+<ol>
+<li>arrive_count 减 1</li>
+<li>transaction_count 加 <code>transaction_bytes</code></li>
+</ol>
+<p>TMA 搬运完成后硬件自动调用 <code>complete_tx</code> 减 transaction_count。当 arrive_count 和 transaction_count 都归零 → phase 翻转。</p>
+<p><strong>complete_transaction — PTX: <code>mbarrier.complete_tx</code></strong></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">complete_transaction</span><span class="params">(ValueType <span class="type">const</span>* smem_ptr, <span class="type">uint32_t</span> dst_cta_id,</span></span></span><br><span class="line"><span class="params"><span class="function">                                  <span class="type">uint32_t</span> transaction_bytes, <span class="type">uint32_t</span> pred)</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(<span class="string">"@p mbarrier.complete_tx.shared::cluster.relaxed.cluster.b64 [%1], %0;"</span></span></span></span><br><span class="line"><span class="params"><span class="function">        : : <span class="string">"r"</span>(transaction_bytes), <span class="string">"r"</span>(smem_addr), <span class="string">"r"</span>(pred))</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>正常 TMA 场景不需要手动调用——<code>copy(tma_load.with(*barrier), ...)</code> 绑定 barrier 后，TMA 硬件搬运完自动 complete_tx。</p>
+<h3 id="64-pipelinesharedstorage-每-stage-一对-barrier"><a class="markdownIt-Anchor" href="#64-pipelinesharedstorage-每-stage-一对-barrier"></a> 6.4 Pipeline::SharedStorage — 每 stage 一对 barrier</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// PipelineTmaAsync 内部定义</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">SharedStorage</span> {</span><br><span class="line">    FullBarrier  full_barrier_[Stages];    <span class="comment">// ClusterTransactionBarrier[3]</span></span><br><span class="line">    EmptyBarrier empty_barrier_[Stages];   <span class="comment">// ClusterBarrier[3]</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p>smem 中的布局：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">偏移 0:   [full_barrier[0]]  [full_barrier[1]]  [full_barrier[2]]    ← 3 × 8 bytes</span><br><span class="line">偏移 24:  [empty_barrier[0]] [empty_barrier[1]] [empty_barrier[2]]   ← 3 × 8 bytes</span><br><span class="line">共 48 bytes barrier 数据</span><br></pre></td></tr></table></figure></div>
+<p>初始化（<code>init_barriers</code> 内部）：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; Stages; i++) {</span><br><span class="line">    full_barrier[i].<span class="built_in">init</span>(num_producers);     <span class="comment">// init(1) → arrive_count=1, phase=0</span></span><br><span class="line">    empty_barrier[i].<span class="built_in">init</span>(num_consumers);    <span class="comment">// init(96) → arrive_count=96, phase=0</span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="65-pipelinetmaasync-pipeline-类"><a class="markdownIt-Anchor" href="#65-pipelinetmaasync-pipeline-类"></a> 6.5 PipelineTmaAsync — Pipeline 类</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">PipelineTmaAsync</span> {</span><br><span class="line">    FullBarrier  *full_barrier_ptr_;    <span class="comment">// 指向 SharedStorage 中的 full_barrier 数组</span></span><br><span class="line">    EmptyBarrier *empty_barrier_ptr_;   <span class="comment">// 指向 SharedStorage 中的 empty_barrier 数组</span></span><br><span class="line">    Params params_;                     <span class="comment">// 角色、leader、线程数、tx_bytes</span></span><br><span class="line">    <span class="type">uint32_t</span> dst_blockid_;             <span class="comment">// cluster 中的目标 block id</span></span><br><span class="line">    <span class="type">uint32_t</span> is_signaling_thread_;     <span class="comment">// 是否负责 cluster arrive</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<p><strong>Producer 和 Consumer 共享同一对 barrier 数组。</strong> 构造函数传入同一个 <code>shared_storage</code> 引用：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 12 课代码：所有线程（producer + consumer）构造同一个 pipeline</span></span><br><span class="line"><span class="function">Pipeline <span class="title">pipeline</span><span class="params">(shared_storage.pipeline, pipeline_params, Shape&lt;_1, _1&gt;{})</span></span>;</span><br></pre></td></tr></table></figure></div>
+<p>内部：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">PipelineTmaAsync</span>(SharedStorage&amp; storage, Params params, ...)</span><br><span class="line">    : <span class="built_in">full_barrier_ptr_</span>(&amp;storage.full_barrier_[<span class="number">0</span>])      <span class="comment">// 共享</span></span><br><span class="line">    , <span class="built_in">empty_barrier_ptr_</span>(&amp;storage.empty_barrier_[<span class="number">0</span>]) {  <span class="comment">// 共享</span></span><br><span class="line">    <span class="built_in">init_barriers</span>(storage, params_, cluster_shape);      <span class="comment">// 初始化所有 barrier</span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="66-producer_acquire-源码"><a class="markdownIt-Anchor" href="#66-producer_acquire-源码"></a> 6.6 producer_acquire 源码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">producer_acquire</span><span class="params">(<span class="type">uint32_t</span> stage, <span class="type">uint32_t</span> phase)</span> </span>{</span><br><span class="line">    <span class="comment">// ① 等 empty_barrier：consumer 是否释放了这个 stage</span></span><br><span class="line">    empty_barrier_ptr_[stage].<span class="built_in">wait</span>(phase);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ② leader arrive full_barrier + 设置 tx_bytes</span></span><br><span class="line">    <span class="keyword">if</span> (params_.is_leader) {</span><br><span class="line">        full_barrier_ptr_[stage].<span class="built_in">arrive_and_expect_tx</span>(params_.transaction_bytes);</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p><strong>做了两件事，顺序很关键：</strong></p>
+<ol>
+<li><strong>先</strong>确认 buffer 空闲（wait empty_barrier）</li>
+<li><strong>然后</strong>告诉 full_barrier “我要开始搬了，预期搬 N 字节”</li>
+</ol>
+<p>为什么 arrive 在 TMA copy <strong>之前</strong>？因为 <code>arrive_and_expect_tx</code> 同时做了 arrive（arrive_count 1→0）和 expect_tx（设 transaction_count=16KB）。此时 arrive_count=0 但 transaction_count=16KB → 不翻转。等 TMA 搬运完成后硬件 complete_tx → transaction_count 归零 → 两个都是 0 → phase 翻转 → consumer 的 wait 通过。</p>
+<h3 id="67-consumer_wait-源码"><a class="markdownIt-Anchor" href="#67-consumer_wait-源码"></a> 6.7 consumer_wait 源码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">consumer_wait</span><span class="params">(<span class="type">uint32_t</span> stage, <span class="type">uint32_t</span> phase)</span> </span>{</span><br><span class="line">    full_barrier_ptr_[stage].<span class="built_in">wait</span>(phase);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>就一行：等 full_barrier[stage] 的 phase 翻转。翻转 = arrive_count 和 transaction_count 都归零 = TMA 搬运完成。</p>
+<h3 id="68-consumer_release-源码"><a class="markdownIt-Anchor" href="#68-consumer_release-源码"></a> 6.8 consumer_release 源码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">consumer_release</span><span class="params">(<span class="type">uint32_t</span> stage, <span class="type">uint32_t</span> skip = <span class="literal">false</span>)</span> </span>{</span><br><span class="line">    empty_barrier_ptr_[stage].<span class="built_in">arrive</span>(dst_blockid_, is_signaling_thread_ &amp; (!skip));</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>所有 consumer 线程都调用，但内部通过 <code>is_signaling_thread_</code> 控制实际只有部分线程执行 PTX arrive 指令。当 96 个 consumer 全部 arrive → empty_barrier 的 arrive_count 归零 → phase 翻转 → producer 的 <code>empty_barrier.wait</code> 通过。</p>
+<h3 id="69-producer_tail-源码"><a class="markdownIt-Anchor" href="#69-producer_tail-源码"></a> 6.9 producer_tail 源码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">producer_tail</span><span class="params">(PipelineState state)</span> </span>{</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> count = <span class="number">0</span>; count &lt; Stages; ++count) {</span><br><span class="line">        empty_barrier_ptr_[state.<span class="built_in">index</span>()].<span class="built_in">wait</span>(state.<span class="built_in">phase</span>());</span><br><span class="line">        ++state;</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>Producer 搬完所有 tile 后调用。等待所有 Stages 个 stage 的 empty_barrier 翻转，确保 consumer 消费完所有数据。如果不等，producer 提前退出，consumer 可能还在消费最后几个 stage。</p>
+<h3 id="610-producer_get_barrier-源码"><a class="markdownIt-Anchor" href="#610-producer_get_barrier-源码"></a> 6.10 producer_get_barrier 源码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">ProducerBarrierType* <span class="title">producer_get_barrier</span><span class="params">(<span class="type">uint32_t</span> stage)</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">reinterpret_cast</span>&lt;ProducerBarrierType*&gt;(&amp;full_barrier_ptr_[stage]);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>返回 <code>full_barrier[stage]</code> 的指针。在 <code>copy(tma_load.with(*barrier), ...)</code> 中绑定给 TMA，搬运完成后 TMA 硬件自动对这个 barrier 执行 complete_tx。</p>
+<hr>
+<h2 id="7-完整-barrier-变化时间线3-stage-8-tiles"><a class="markdownIt-Anchor" href="#7-完整-barrier-变化时间线3-stage-8-tiles"></a> 7. 完整 Barrier 变化时间线（3 stage, 8 tiles）</h2>
+<h3 id="71-初始状态"><a class="markdownIt-Anchor" href="#71-初始状态"></a> 7.1 初始状态</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">初始化后（所有 barrier phase=0）：</span><br><span class="line"></span><br><span class="line">full_barrier[0]:  phase=0, arrive_count=1 (等 producer arrive)</span><br><span class="line">full_barrier[1]:  phase=0, arrive_count=1</span><br><span class="line">full_barrier[2]:  phase=0, arrive_count=1</span><br><span class="line"></span><br><span class="line">empty_barrier[0]: phase=0, arrive_count=96 (等 consumer arrive)</span><br><span class="line">empty_barrier[1]: phase=0, arrive_count=96</span><br><span class="line">empty_barrier[2]: phase=0, arrive_count=96</span><br><span class="line"></span><br><span class="line">pipe_write = (index=0, phase=1)    ← producer 从 phase=1 开始</span><br><span class="line">pipe_read  = (index=0, phase=0)    ← consumer 从 phase=0 开始</span><br></pre></td></tr></table></figure></div>
+<h3 id="72-tile-0-pipe_write0-phase1"><a class="markdownIt-Anchor" href="#72-tile-0-pipe_write0-phase1"></a> 7.2 Tile 0 — pipe_write=(0, phase=1)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">Producer: producer_acquire(index=0, phase=1)</span><br><span class="line">  ① empty_barrier[0].wait(phase=1)</span><br><span class="line">    empty_barrier[0] 当前 phase=0, 0≠1 → 条件已满足 → 不等待！</span><br><span class="line">    （buffer 初始为空 = "已释放"，这就是 producer phase=1 的作用）</span><br><span class="line">  ② full_barrier[0].arrive_and_expect_tx(16KB)</span><br><span class="line">    full_barrier[0]: arrive_count 1→0, transaction_count 0→16KB</span><br><span class="line">    (arrive_count=0 但 tx_count≠0 → 不翻转)</span><br><span class="line"></span><br><span class="line">  TMA copy → stage 0（TMA 引擎异步搬运）</span><br><span class="line">  TMA 完成后硬件自动 complete_tx → transaction_count 16KB→0</span><br><span class="line">  → arrive_count=0 &amp;&amp; transaction_count=0</span><br><span class="line">  → full_barrier[0] phase 翻转: 0→1</span><br><span class="line"></span><br><span class="line">  ++pipe_write → (1, phase=1)</span><br><span class="line"></span><br><span class="line">Consumer: consumer_wait(index=0, phase=0)</span><br><span class="line">  ③ full_barrier[0].wait(phase=0)</span><br><span class="line">    等待中... TMA 完成后 phase 翻转为 1 → 1≠0 → wait 通过 ✓</span><br><span class="line"></span><br><span class="line">  验证 stage 0 数据...</span><br><span class="line"></span><br><span class="line">  consumer_release(index=0)</span><br><span class="line">  ④ empty_barrier[0]: 96 个 consumer arrive → arrive_count 96→0</span><br><span class="line">    → phase 翻转: 0→1</span><br><span class="line"></span><br><span class="line">  ++pipe_read → (1, phase=0)</span><br></pre></td></tr></table></figure></div>
+<h3 id="73-tile-1-pipe_write1-phase1"><a class="markdownIt-Anchor" href="#73-tile-1-pipe_write1-phase1"></a> 7.3 Tile 1 — pipe_write=(1, phase=1)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Producer: producer_acquire(index=1, phase=1)</span><br><span class="line">  empty_barrier[1].wait(1): phase=0, 0≠1 → 不等待</span><br><span class="line">  full_barrier[1].arrive_and_expect_tx(16KB)</span><br><span class="line">  TMA copy → stage 1</span><br><span class="line">  TMA 完成 → full_barrier[1] phase: 0→1</span><br><span class="line">  ++pipe_write → (2, phase=1)</span><br><span class="line"></span><br><span class="line">Consumer: consumer_wait(index=1, phase=0)</span><br><span class="line">  full_barrier[1].wait(0) → TMA 完成 → phase=1, 1≠0 → 通过</span><br><span class="line">  consumer_release(1) → empty_barrier[1] phase: 0→1</span><br><span class="line">  ++pipe_read → (2, phase=0)</span><br></pre></td></tr></table></figure></div>
+<h3 id="74-tile-2-pipe_write2-phase1"><a class="markdownIt-Anchor" href="#74-tile-2-pipe_write2-phase1"></a> 7.4 Tile 2 — pipe_write=(2, phase=1)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Producer: producer_acquire(index=2, phase=1)</span><br><span class="line">  empty_barrier[2].wait(1): phase=0, 不等待</span><br><span class="line">  full_barrier[2].arrive_and_expect_tx</span><br><span class="line">  TMA copy → stage 2</span><br><span class="line">  TMA 完成 → full_barrier[2] phase: 0→1</span><br><span class="line">  ++pipe_write → (0, phase=0)  ← index 回绕, phase 翻转！</span><br><span class="line"></span><br><span class="line">Consumer: consumer_wait(index=2, phase=0)</span><br><span class="line">  full_barrier[2].wait(0) → TMA 完成 → 通过</span><br><span class="line">  consumer_release(2) → empty_barrier[2] phase: 0→1</span><br><span class="line">  ++pipe_read → (0, phase=1)  ← index 回绕, phase 翻转！</span><br></pre></td></tr></table></figure></div>
+<h3 id="75-tile-3-pipe_write0-phase0-第一次可能等待"><a class="markdownIt-Anchor" href="#75-tile-3-pipe_write0-phase0-第一次可能等待"></a> 7.5 Tile 3 — pipe_write=(0, phase=0) — 第一次可能等待！</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Producer: producer_acquire(index=0, phase=0)</span><br><span class="line">  empty_barrier[0].wait(phase=0)</span><br><span class="line">    empty_barrier[0] 当前 phase：</span><br><span class="line">      tile 0 的 consumer_release 已将 phase 翻转到 1</span><br><span class="line">      → 1≠0 → 不等待 ✓ （consumer 已经释放了 stage 0）</span><br><span class="line"></span><br><span class="line">      如果 consumer 还没来得及 release → phase 仍是 0 → 等待！</span><br><span class="line">      → 这就是反压机制：producer 不会覆盖 consumer 正在读的数据</span><br><span class="line"></span><br><span class="line">  full_barrier[0].arrive_and_expect_tx</span><br><span class="line">    full_barrier[0] 上一轮翻转后 phase=1</span><br><span class="line">    arrive → arrive_count 1→0, transaction_count += 16KB</span><br><span class="line">  TMA copy → stage 0（覆盖旧数据）</span><br><span class="line">  TMA 完成 → full_barrier[0] phase: 1→0</span><br><span class="line">  ++pipe_write → (1, phase=0)</span><br><span class="line"></span><br><span class="line">Consumer: consumer_wait(index=0, phase=1)</span><br><span class="line">  full_barrier[0].wait(phase=1)</span><br><span class="line">    等 TMA 完成 → phase 1→0 → 0≠1 → 通过 ✓</span><br><span class="line">  consumer_release(0) → empty_barrier[0] phase: 1→0</span><br><span class="line">  ++pipe_read → (1, phase=1)</span><br></pre></td></tr></table></figure></div>
+<h3 id="76-完整总结表"><a class="markdownIt-Anchor" href="#76-完整总结表"></a> 7.6 完整总结表</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">         pipe_write        empty_barrier[s]       full_barrier[s]          pipe_read</span><br><span class="line">Tile  (idx,phase)    wait(phase) 是否等待   arrive+expect_tx→TMA完成   wait(phase)→通过   release→arrive   (idx,phase)</span><br><span class="line">───── ──────────── ──────────────────────── ──────────────────────── ──────────────────── ──────────────── ────────────</span><br><span class="line">  0   (0, ph=1)    wait(1): ph=0≠1 不等    full[0]: ph 0→1          wait(0): ph=1 通过  empty[0]: 0→1    (0, ph=0)</span><br><span class="line">  1   (1, ph=1)    wait(1): ph=0≠1 不等    full[1]: ph 0→1          wait(0): ph=1 通过  empty[1]: 0→1    (1, ph=0)</span><br><span class="line">  2   (2, ph=1)    wait(1): ph=0≠1 不等    full[2]: ph 0→1          wait(0): ph=1 通过  empty[2]: 0→1    (2, ph=0)</span><br><span class="line">───── 回绕 ───────────────────────────────────────────────────────────────────────────────────── 回绕 ────────────</span><br><span class="line">  3   (0, ph=0)    wait(0): ph=1≠0 不等*   full[0]: ph 1→0          wait(1): ph=0 通过  empty[0]: 1→0    (0, ph=1)</span><br><span class="line">  4   (1, ph=0)    wait(0): ph=1≠0 不等*   full[1]: ph 1→0          wait(1): ph=0 通过  empty[1]: 1→0    (1, ph=1)</span><br><span class="line">  5   (2, ph=0)    wait(0): ph=1≠0 不等*   full[2]: ph 1→0          wait(1): ph=0 通过  empty[2]: 1→0    (2, ph=1)</span><br><span class="line">───── 回绕 ───────────────────────────────────────────────────────────────────────────────────── 回绕 ────────────</span><br><span class="line">  6   (0, ph=1)    wait(1): ph=0≠1 不等*   full[0]: ph 0→1          wait(0): ph=1 通过  empty[0]: 0→1    (0, ph=0)</span><br><span class="line">  7   (1, ph=1)    wait(1): ph=0≠1 不等*   full[1]: ph 0→1          wait(0): ph=1 通过  empty[1]: 0→1    (1, ph=0)</span><br><span class="line"></span><br><span class="line">* "不等" 的前提是 consumer 已经 release，否则 producer 会被阻塞（反压）</span><br></pre></td></tr></table></figure></div>
+<p><strong>核心规律：</strong></p>
+<ul>
+<li>Tile 0-2（第一圈）：producer 的 <code>empty_barrier.wait(phase=1)</code> 全不等待，因为 buffer 初始为空（phase=0 ≠ 1）</li>
+<li>Tile 3 开始：producer 可能需要等 consumer release，这是<strong>反压机制</strong></li>
+<li>每走完一圈 3 个 stage，pipe_write 和 pipe_read 的 <strong>phase 各翻转一次</strong>，与 barrier 的 phase 翻转保持同步</li>
+</ul>
+<h3 id="77-整体调用链图"><a class="markdownIt-Anchor" href="#77-整体调用链图"></a> 7.7 整体调用链图</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">Producer 线程                              Consumer 线程</span><br><span class="line">    │                                          │</span><br><span class="line">    ▼                                          │</span><br><span class="line">producer_acquire(pipe_write)                   │</span><br><span class="line">  │ empty_barrier[s].wait(phase)  ←── 等 ──── consumer_release 的 arrive</span><br><span class="line">  │ full_barrier[s].arrive_and_expect_tx       │</span><br><span class="line">  ▼                                            │</span><br><span class="line">copy(tma.with(*full_barrier[s]), ...)          │</span><br><span class="line">  │ TMA 引擎异步搬运                            │</span><br><span class="line">  │ 完成后硬件 complete_tx                       │</span><br><span class="line">  │ → full_barrier[s] phase 翻转 ────→  consumer_wait(pipe_read)</span><br><span class="line">  ▼                                     │ full_barrier[s].wait(phase) 通过</span><br><span class="line">++pipe_write                            ▼</span><br><span class="line">                                   使用 stage s 数据</span><br><span class="line">                                        │</span><br><span class="line">                                        ▼</span><br><span class="line">                                   consumer_release(pipe_read)</span><br><span class="line">                                     │ empty_barrier[s].arrive</span><br><span class="line">                                     │ → 所有 consumer arrive 后 phase 翻转</span><br><span class="line">                                     │ → producer 下一次 empty_barrier.wait 通过</span><br><span class="line">                                     ▼</span><br><span class="line">                                   ++pipe_read</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="8-实验设计"><a class="markdownIt-Anchor" href="#8-实验设计"></a> 8. 实验设计</h2>
+<h3 id="61-配置"><a class="markdownIt-Anchor" href="#61-配置"></a> 6.1 配置</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Tile:    128 × 64</span><br><span class="line">Stages:  3</span><br><span class="line">Tiles:   8（同一个 tile 重复搬运，演示 pipeline 多轮行为）</span><br><span class="line">Threads: 128（warp 0 = producer, warp 1-3 = consumer）</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-producer-行为"><a class="markdownIt-Anchor" href="#62-producer-行为"></a> 6.2 Producer 行为</h3>
+<p>Producer 搬运 8 个 tile 到 3-stage 环形 buffer：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">tile 0 → stage 0     pipe_write: (0, phase=1)</span><br><span class="line">tile 1 → stage 1     pipe_write: (1, phase=1)</span><br><span class="line">tile 2 → stage 2     pipe_write: (2, phase=1)</span><br><span class="line">tile 3 → stage 0     pipe_write: (0, phase=0)  ← 需等 consumer 释放 S0</span><br><span class="line">tile 4 → stage 1     pipe_write: (1, phase=0)</span><br><span class="line">tile 5 → stage 2     pipe_write: (2, phase=0)</span><br><span class="line">tile 6 → stage 0     pipe_write: (0, phase=1)</span><br><span class="line">tile 7 → stage 1     pipe_write: (1, phase=1)</span><br></pre></td></tr></table></figure></div>
+<h3 id="63-consumer-行为"><a class="markdownIt-Anchor" href="#63-consumer-行为"></a> 6.3 Consumer 行为</h3>
+<p>Consumer 从每个 stage 读取数据并验证正确性：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">tile 0 ← stage 0     pipe_read: (0, phase=0)</span><br><span class="line">tile 1 ← stage 1     pipe_read: (1, phase=0)</span><br><span class="line">tile 2 ← stage 2     pipe_read: (2, phase=0)</span><br><span class="line">tile 3 ← stage 0     pipe_read: (0, phase=1)  ← phase 翻转</span><br><span class="line">tile 4 ← stage 1     pipe_read: (1, phase=1)</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="7-与-09-课-cpasync-流水线对比"><a class="markdownIt-Anchor" href="#7-与-09-课-cpasync-流水线对比"></a> 7. 与 09 课 cp.async 流水线对比</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>09 课 (cp.async)</th>
+<th>12 课 (PipelineTmaAsync)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>搬运方式</td>
+<td>全线程 cp.async</td>
+<td>单线程 TMA</td>
+</tr>
+<tr>
+<td>同步机制</td>
+<td>cp_async_fence / wait<n></n></td>
+<td>mbarrier (full + empty)</td>
+</tr>
+<tr>
+<td>流水线管理</td>
+<td>手动 index/fence/wait</td>
+<td>PipelineState 自动管理</td>
+</tr>
+<tr>
+<td>Warp 专用化</td>
+<td>无（所有线程同一代码路径）</td>
+<td>有（producer / consumer 分离）</td>
+</tr>
+<tr>
+<td>Phase 管理</td>
+<td>无需</td>
+<td>PipelineState 自动翻转</td>
+</tr>
+<tr>
+<td>Stage 状态</td>
+<td>ismem_read / ismem_write</td>
+<td>pipe_read / pipe_write</td>
+</tr>
+<tr>
+<td>Producer 初始</td>
+<td>无需特殊处理</td>
+<td>phase=1（跳过首轮等待）</td>
+</tr>
+<tr>
+<td>Consumer 释放</td>
+<td>不需要（没有 empty_barrier）</td>
+<td>consumer_release</td>
+</tr>
+</tbody>
+</table>
+<p><strong>09 课的简洁性</strong>：所有线程都参与搬运和计算，用 <code>cp_async_fence/wait</code> 全局控制批次。</p>
+<p><strong>12 课的灵活性</strong>：Producer/Consumer 完全分离，Producer 不参与计算，Consumer 不参与搬运。这样 producer warp 可以做其他工作（如 TMA store），consumer warp 专注计算。</p>
+<hr>
+<h2 id="8-api-总结"><a class="markdownIt-Anchor" href="#8-api-总结"></a> 8. API 总结</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+<th>使用者</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PipelineTmaAsync&lt;kStage&gt;</code></td>
+<td>管理 kStage 对 barrier 的 pipeline</td>
+<td>构造函数</td>
+</tr>
+<tr>
+<td><code>make_producer_start_state&lt;Pipeline&gt;()</code></td>
+<td>返回 (0, phase=1, 0)</td>
+<td>Producer</td>
+</tr>
+<tr>
+<td><code>pipeline.producer_acquire(state)</code></td>
+<td>等 buffer 空闲</td>
+<td>Producer</td>
+</tr>
+<tr>
+<td><code>pipeline.producer_get_barrier(state)</code></td>
+<td>获取 full_barrier 指针</td>
+<td>Producer</td>
+</tr>
+<tr>
+<td><code>pipeline.producer_tail(state)</code></td>
+<td>收尾通知</td>
+<td>Producer</td>
+</tr>
+<tr>
+<td><code>pipeline.consumer_wait(state)</code></td>
+<td>等数据就绪</td>
+<td>Consumer</td>
+</tr>
+<tr>
+<td><code>pipeline.consumer_release(state)</code></td>
+<td>释放 buffer</td>
+<td>Consumer</td>
+</tr>
+<tr>
+<td><code>PipelineState::operator++()</code></td>
+<td>推进 (index, phase, count)</td>
+<td>两者</td>
+</tr>
+<tr>
+<td><code>PipelineState::index()</code></td>
+<td>当前 stage 编号</td>
+<td>两者</td>
+</tr>
+<tr>
+<td><code>PipelineState::phase()</code></td>
+<td>当前 phase (0/1)</td>
+<td>两者</td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> cute（10）hopper之mbarrier</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-06-15 22:13:32</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-14 22:10:16
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/15/cute(12)async_pipeline/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-cutlass-cute/">#cuda, cutlass,cute</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/16/cute(9)multistage_gemm/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（9）multistage_gemm</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/15/cute(8)smem_gemm/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（8）smem_gemm</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">cute（10）hopper之mbarrier</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E9%98%85%E8%AF%BB"><span class="nav-text"> 前置阅读</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AC%AC-12-%E8%AF%BEasync-pipeline"><span class="nav-text"> 第 12 课：Async Pipeline</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text"> 核心概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 代码实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-pipeline-%E7%9A%84%E5%8F%8C-barrier-%E6%9C%BA%E5%88%B6"><span class="nav-text"> 1. Pipeline 的双 Barrier 机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E4%B8%A4%E4%B8%AA-barrier"><span class="nav-text"> 1.1 为什么需要两个 Barrier</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-3-stage-pipeline-%E6%B5%81%E7%A8%8B"><span class="nav-text"> 1.2 3-Stage Pipeline 流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-pipelinestate-%E7%8A%B6%E6%80%81%E8%BD%AC%E7%A7%BB"><span class="nav-text"> 2. PipelineState 状态转移</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E4%B8%89%E5%85%83%E7%BB%84-index-phase-count"><span class="nav-text"> 2.1 三元组 (index, phase, count)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-operator-%E7%9A%84%E8%A1%8C%E4%B8%BA"><span class="nav-text"> 2.2 operator++ 的行为</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-make_producer_start_state"><span class="nav-text"> 2.3 make_producer_start_state</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-producer-consumer-api"><span class="nav-text"> 3. Producer &#x2F; Consumer API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-producer-%E6%B5%81%E7%A8%8B"><span class="nav-text"> 3.1 Producer 流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-consumer-%E6%B5%81%E7%A8%8B"><span class="nav-text"> 3.2 Consumer 流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-api-%E5%90%AB%E4%B9%89%E6%80%BB%E7%BB%93"><span class="nav-text"> 3.3 API 含义总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-pipeline-%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE"><span class="nav-text"> 4. Pipeline 参数配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-pipelineparams"><span class="nav-text"> 4.1 Pipeline::Params</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-%E5%85%B3%E9%94%AE%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E"><span class="nav-text"> 4.2 关键参数说明</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-sharedstorage-%E7%BB%93%E6%9E%84"><span class="nav-text"> 5. SharedStorage 结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E4%B8%BA%E4%BB%80%E4%B9%88%E7%94%A8-struct"><span class="nav-text"> 5.1 为什么用 struct</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-alignas128"><span class="nav-text"> 5.2 alignas(128)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E6%96%B9%E6%B3%95"><span class="nav-text"> 6. 源码解析：数据结构与方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-pipelinestate-%E7%8E%AF%E5%BD%A2%E6%B8%B8%E6%A0%87%E4%B8%8D%E6%98%AF-barrier"><span class="nav-text"> 6.1 PipelineState — 环形游标（不是 barrier）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-clusterbarrier-empty_barrier-%E7%9A%84%E7%B1%BB%E5%9E%8B"><span class="nav-text"> 6.2 ClusterBarrier — empty_barrier 的类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-clustertransactionbarrier-full_barrier-%E7%9A%84%E7%B1%BB%E5%9E%8B"><span class="nav-text"> 6.3 ClusterTransactionBarrier — full_barrier 的类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-pipelinesharedstorage-%E6%AF%8F-stage-%E4%B8%80%E5%AF%B9-barrier"><span class="nav-text"> 6.4 Pipeline::SharedStorage — 每 stage 一对 barrier</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#65-pipelinetmaasync-pipeline-%E7%B1%BB"><span class="nav-text"> 6.5 PipelineTmaAsync — Pipeline 类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#66-producer_acquire-%E6%BA%90%E7%A0%81"><span class="nav-text"> 6.6 producer_acquire 源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#67-consumer_wait-%E6%BA%90%E7%A0%81"><span class="nav-text"> 6.7 consumer_wait 源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#68-consumer_release-%E6%BA%90%E7%A0%81"><span class="nav-text"> 6.8 consumer_release 源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#69-producer_tail-%E6%BA%90%E7%A0%81"><span class="nav-text"> 6.9 producer_tail 源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#610-producer_get_barrier-%E6%BA%90%E7%A0%81"><span class="nav-text"> 6.10 producer_get_barrier 源码</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E5%AE%8C%E6%95%B4-barrier-%E5%8F%98%E5%8C%96%E6%97%B6%E9%97%B4%E7%BA%BF3-stage-8-tiles"><span class="nav-text"> 7. 完整 Barrier 变化时间线（3 stage, 8 tiles）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-%E5%88%9D%E5%A7%8B%E7%8A%B6%E6%80%81"><span class="nav-text"> 7.1 初始状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-tile-0-pipe_write0-phase1"><span class="nav-text"> 7.2 Tile 0 — pipe_write&#x3D;(0, phase&#x3D;1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-tile-1-pipe_write1-phase1"><span class="nav-text"> 7.3 Tile 1 — pipe_write&#x3D;(1, phase&#x3D;1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#74-tile-2-pipe_write2-phase1"><span class="nav-text"> 7.4 Tile 2 — pipe_write&#x3D;(2, phase&#x3D;1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#75-tile-3-pipe_write0-phase0-%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%8F%AF%E8%83%BD%E7%AD%89%E5%BE%85"><span class="nav-text"> 7.5 Tile 3 — pipe_write&#x3D;(0, phase&#x3D;0) — 第一次可能等待！</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#76-%E5%AE%8C%E6%95%B4%E6%80%BB%E7%BB%93%E8%A1%A8"><span class="nav-text"> 7.6 完整总结表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#77-%E6%95%B4%E4%BD%93%E8%B0%83%E7%94%A8%E9%93%BE%E5%9B%BE"><span class="nav-text"> 7.7 整体调用链图</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-%E5%AE%9E%E9%AA%8C%E8%AE%BE%E8%AE%A1"><span class="nav-text"> 8. 实验设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-%E9%85%8D%E7%BD%AE"><span class="nav-text"> 6.1 配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-producer-%E8%A1%8C%E4%B8%BA"><span class="nav-text"> 6.2 Producer 行为</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-consumer-%E8%A1%8C%E4%B8%BA"><span class="nav-text"> 6.3 Consumer 行为</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E4%B8%8E-09-%E8%AF%BE-cpasync-%E6%B5%81%E6%B0%B4%E7%BA%BF%E5%AF%B9%E6%AF%94"><span class="nav-text"> 7. 与 09 课 cp.async 流水线对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-api-%E6%80%BB%E7%BB%93"><span class="nav-text"> 8. API 总结</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 26 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
