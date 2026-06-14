@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/05/29/sglang之mambaradixcache机制解析/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SGLang之MambaRadixCache机制">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/05/29/SGLang%E4%B9%8BMambaRadixCache%E6%9C%BA%E5%88%B6%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-05-29T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-14T14:47:27.031Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM infra">
+<meta property="article:tag" content="SGLang">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            SGLang之MambaRadixCache机制 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">SGLang之MambaRadixCache机制</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-05-29 23:50</span>
+        <span class="mobile">2026-05-29 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-14 22:47:27</span>
+            <span class="mobile">2026-06-14 22:47:27</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM-infra/">LLM infra</a>&nbsp;
+                        </li>
+                    
+                    
+                
+                    
+                        
+                            <li>></li>
+                        
+                        <li>
+                            <a href="/categories/LLM-infra/SGLang/">SGLang</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM-infra/">LLM infra</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/SGLang/">SGLang</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>本文详细解析 SGLang 中 MambaRadixCache 的内存空间布局、KV Cache 与 SSM Cache 的缓存机制原理、Prefill 和 Decode 的完整流程，并通过端到端的例子串联所有概念。</p>
+<h2 id="1-内存空间布局"><a class="markdownIt-Anchor" href="#1-内存空间布局"></a> 1. 内存空间布局</h2>
+<h3 id="11-三大内存池"><a class="markdownIt-Anchor" href="#11-三大内存池"></a> 1.1 三大内存池</h3>
+<p>MambaRadixCache 管理三块独立的 GPU 显存池：每 256 token 做一次 track（不是为了 tree 缓存，而是为了）：</p>
+<p>Chunked prefill 被抢占: scheduler 打断后，需要从 checkpoint 恢复</p>
+<p>Speculative decoding 回滚: draft 被 reject 后回退到最近 checkpoint</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                              GPU 显存                                         │</span><br><span class="line">│                                                                              │</span><br><span class="line">│  ┌────────────────────────────────┐  ┌────────────────────────────────────┐  │</span><br><span class="line">│  │  KV Pool (MHATokenToKVPool)    │  │  SSM Pool (MambaPool)              │  │</span><br><span class="line">│  │                                │  │                                    │  │</span><br><span class="line">│  │  k_buffer[layer][slot][H][D]   │  │  conv[layer][slot][D][K-1]         │  │</span><br><span class="line">│  │  v_buffer[layer][slot][H][D]   │  │  temporal[layer][slot][HV][K][V]   │  │</span><br><span class="line">│  │                                │  │                                    │  │</span><br><span class="line">│  │  共 kv_size 个 slot            │  │  共 mamba_size 个 slot             │  │</span><br><span class="line">│  │  按 token 粒度分配             │  │  按 状态(checkpoint) 粒度分配       │  │</span><br><span class="line">│  └────────────────────────────────┘  └────────────────────────────────────┘  │</span><br><span class="line">│                                                                              │</span><br><span class="line">│  ┌──────────────────────────────────────────────────────────────────────────┐│</span><br><span class="line">│  │  ReqToTokenPool (映射表)                                                  ││</span><br><span class="line">│  │  req_to_token[req_pool_idx, pos] → KV Pool slot index                    ││</span><br><span class="line">│  │  req_index_to_mamba_index_mapping[req_pool_idx] → SSM Pool slot index    ││</span><br><span class="line">│  └──────────────────────────────────────────────────────────────────────────┘│</span><br><span class="line">└──────────────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="12-kv-pool-空间"><a class="markdownIt-Anchor" href="#12-kv-pool-空间"></a> 1.2 KV Pool 空间</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># memory_pool.py: MHATokenToKVPool._create_buffers</span></span><br><span class="line">k_buffer = [torch.zeros((size, head_num, head_dim)) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(layer_num)]</span><br><span class="line">v_buffer = [torch.zeros((size, head_num, v_head_dim)) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(layer_num)]</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>分配粒度</strong>: 1 slot = 1 个 token 在所有 Full Attention 层的 K 和 V</li>
+<li><strong>容量</strong>: <code>size</code> 个 slot（例如 100,000）</li>
+<li><strong>一个 request 占用</strong>: <code>seq_len</code> 个 slot（随序列长度线性增长）</li>
+<li><strong>管理方式</strong>: <code>TokenToKVPoolAllocator</code> 维护 free list</li>
+</ul>
+<h3 id="13-ssm-pool-空间"><a class="markdownIt-Anchor" href="#13-ssm-pool-空间"></a> 1.3 SSM Pool 空间</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># memory_pool.py: MambaPool.__init__</span></span><br><span class="line">conv_state  = [torch.zeros((num_mamba_layers, size+<span class="number">1</span>, D, K-<span class="number">1</span>))]   <span class="comment"># 卷积状态</span></span><br><span class="line">temporal    = torch.zeros((num_mamba_layers, size+<span class="number">1</span>, HV, K, V))    <span class="comment"># SSM 递归状态</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>分配粒度</strong>: 1 slot = 所有 Mamba 层的完整隐状态（conv + temporal）</li>
+<li><strong>容量</strong>: <code>mamba_size</code> 个 slot（例如 2,000）</li>
+<li><strong>单个 slot 大小</strong>: 固定，与序列长度无关（例如 ~112MB for Kimi-K2）</li>
+<li><strong>一个 request 占用</strong>: 1 个工作 slot + 2 个 ping-pong track slot = 共 3 个</li>
+<li><strong>管理方式</strong>: <code>MambaPool</code> 维护 free_slots tensor</li>
+</ul>
+<h3 id="14-reqtotokenpool-映射表"><a class="markdownIt-Anchor" href="#14-reqtotokenpool-映射表"></a> 1.4 ReqToTokenPool 映射表</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># memory_pool.py: ReqToTokenPool</span></span><br><span class="line">req_to_token = torch.zeros((req_pool_size, max_context_len), dtype=torch.int32)</span><br></pre></td></tr></table></figure></div>
+<p>每个 request 分配一行，记录：</p>
+<ul>
+<li><code>req_to_token[req_pool_idx, pos]</code> = token 在 KV Pool 中的 slot index</li>
+<li><code>req_index_to_mamba_index_mapping[req_pool_idx]</code> = SSM Pool 的 slot index</li>
+</ul>
+<h3 id="15-空间对比"><a class="markdownIt-Anchor" href="#15-空间对比"></a> 1.5 空间对比</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>KV Pool</th>
+<th>SSM Pool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每 slot 存什么</td>
+<td>1 token 的 K、V（所有 full-attn 层）</td>
+<td>完整 SSM state（所有 mamba 层的 conv + temporal）</td>
+</tr>
+<tr>
+<td>slot 大小</td>
+<td>小（~KB 级）</td>
+<td>大（~百 MB 级）</td>
+</tr>
+<tr>
+<td>每 request 占用</td>
+<td>O(seq_len) 个</td>
+<td>固定 1~3 个</td>
+</tr>
+<tr>
+<td>总容量决定</td>
+<td>能同时服务多少 token</td>
+<td>能缓存多少个前缀 checkpoint</td>
+</tr>
+<tr>
+<td>淘汰 LRU</td>
+<td>full_lru_list</td>
+<td>mamba_lru_list（独立）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-radix-tree-数据结构"><a class="markdownIt-Anchor" href="#2-radix-tree-数据结构"></a> 2. Radix Tree 数据结构</h2>
+<h3 id="21-treenode-定义"><a class="markdownIt-Anchor" href="#21-treenode-定义"></a> 2.1 TreeNode 定义</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">TreeNode</span>:</span><br><span class="line">    key: RadixKey                     <span class="comment"># 该节点对应的 token 子序列</span></span><br><span class="line">    value: <span class="type">Optional</span>[torch.Tensor]     <span class="comment"># KV Pool indices（每 token 一个）</span></span><br><span class="line">    mamba_value: <span class="type">Optional</span>[torch.Tensor]  <span class="comment"># SSM Pool index（就 1 个整数）</span></span><br><span class="line">    children: <span class="built_in">dict</span>                    <span class="comment"># 子节点</span></span><br><span class="line">    parent: TreeNode                  <span class="comment"># 父节点</span></span><br><span class="line">    full_lock_ref: <span class="built_in">int</span>                <span class="comment"># KV 引用计数（被多少 request 共享）</span></span><br><span class="line">    mamba_lock_ref: <span class="built_in">int</span>               <span class="comment"># SSM 引用计数</span></span><br></pre></td></tr></table></figure></div>
+<p>关键点：<code>value</code> <strong>和</strong> <code>mamba_value</code> <strong>存的都是 Pool 的 slot index（指针），不是数据本身。</strong></p>
+<h3 id="22-radix-tree-如何存储前缀"><a class="markdownIt-Anchor" href="#22-radix-tree-如何存储前缀"></a> 2.2 Radix Tree 如何存储前缀</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">示例：3 个 request 分别处理过以下 prompt:</span><br><span class="line">  R1: "You are a helpful assistant."</span><br><span class="line">  R2: "You are a helpful assistant. Write code."</span><br><span class="line">  R3: "You are a coding expert."</span><br><span class="line"></span><br><span class="line">Tree 结构:</span><br><span class="line">  root</span><br><span class="line">   ├── ["You are a "]</span><br><span class="line">   │     ├── ["helpful assistant."]  → KV=[10..39], SSM=[slot 5]</span><br><span class="line">   │     │     └── [" Write code."]  → KV=[40..50], SSM=[slot 8]</span><br><span class="line">   │     └── ["coding expert."]      → KV=[51..65], SSM=[slot 12]</span><br></pre></td></tr></table></figure></div>
+<h3 id="23-tombstone-机制"><a class="markdownIt-Anchor" href="#23-tombstone-机制"></a> 2.3 Tombstone 机制</h3>
+<p>当 SSM Pool 不够时，<code>mamba_lru_list</code> 淘汰最久未用的节点的 SSM state：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">淘汰前: node.mamba_value = tensor([5])  ← SSM 有效</span><br><span class="line">淘汰后: node.mamba_value = None          ← Tombstone（KV 还在，SSM 没了）</span><br></pre></td></tr></table></figure></div>
+<p>Tombstone 节点：</p>
+<ul>
+<li>KV 仍可用（Full Attention 前缀匹配仍有效）</li>
+<li>但不能作为 Mamba 的有效匹配点（没有 SSM state 就无法从此继续）</li>
+</ul>
+<h2 id="3-缓存机制原理"><a class="markdownIt-Anchor" href="#3-缓存机制原理"></a> 3. 缓存机制原理</h2>
+<h3 id="31-前缀共享不-copy-数据只共享-index"><a class="markdownIt-Anchor" href="#31-前缀共享不-copy-数据只共享-index"></a> 3.1 前缀共享——不 copy 数据，只共享 index</h3>
+<p>核心设计：多个 request 可以通过 radix tree <strong>共享同一批 KV Pool slot</strong>，而不是各自持有副本。</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Request A 和 B 共享前缀 "You are a helpful assistant.":</span><br><span class="line"></span><br><span class="line">KV Pool:    [... slot 10 ...] [... slot 11 ...] ... [... slot 39 ...]</span><br><span class="line">                  ↑                  ↑                     ↑</span><br><span class="line">Tree node.value: [10, 11, ..., 39]   ← 只有一份</span><br><span class="line">                  ↑                  ↑                     ↑</span><br><span class="line">req_to_token[A]: [10, 11, ..., 39, 新token...]  ← 共享前缀</span><br><span class="line">req_to_token[B]: [10, 11, ..., 39, 新token...]  ← 共享前缀</span><br></pre></td></tr></table></figure></div>
+<p>通过 <code>lock_ref</code> 保护共享节点不被淘汰。</p>
+<h3 id="32-ssm-copy-on-write-cow"><a class="markdownIt-Anchor" href="#32-ssm-copy-on-write-cow"></a> 3.2 SSM Copy-on-Write (COW)</h3>
+<p>SSM state 不能直接共享（因为后续 forward 会修改它），所以用 COW：</p>
+<ol>
+<li><code>match_prefix</code> 命中带 <code>mamba_value</code> 的节点</li>
+<li>分配一个新的 SSM Pool slot 给 request</li>
+<li>记录 <code>req.mamba_cow_src_index = node.mamba_value</code>（延迟 copy）</li>
+<li>Forward 开始时执行真正的 copy：</li>
+</ol>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># MambaPool.copy_from:</span></span><br><span class="line">mamba_cache.conv[:, dst_slot]     = mamba_cache.conv[:, src_slot]</span><br><span class="line">mamba_cache.temporal[:, dst_slot] = mamba_cache.temporal[:, src_slot]</span><br></pre></td></tr></table></figure></div>
+<p>之后 request 在自己的 slot 上独立更新，tree 中的原始 slot 不受影响。</p>
+<h3 id="33-双-lru-独立淘汰"><a class="markdownIt-Anchor" href="#33-双-lru-独立淘汰"></a> 3.3 双 LRU 独立淘汰</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">full_lru_list:  管理 KV Pool slot 的淘汰</span><br><span class="line">mamba_lru_list: 管理 SSM Pool slot 的淘汰</span><br><span class="line"></span><br><span class="line">两者独立运行：</span><br><span class="line">- 内存紧张时可以只淘汰 SSM（节点变 tombstone），KV 保留</span><br><span class="line">- 也可以只淘汰 KV（节点从 tree 删除）</span><br><span class="line">- 淘汰 SSM 比淘汰 KV 更常见（SSM slot 更少更贵）</span><br></pre></td></tr></table></figure></div>
+<h3 id="34-ping-pong-track-buffer"><a class="markdownIt-Anchor" href="#34-ping-pong-track-buffer"></a> 3.4 Ping-Pong Track Buffer</h3>
+<p>解决 overlap schedule 下的读写竞争问题：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">每个 request (extra_buffer 模式) 的 SSM 资源:</span><br><span class="line">├── mamba_pool_idx          (1 slot) → forward 的工作 state</span><br><span class="line">└── ping_pong_track_buffer  (2 slots) → checkpoint 暂存</span><br><span class="line">     ├── slot A (ping)</span><br><span class="line">     └── slot B (pong)</span><br></pre></td></tr></table></figure></div>
+<p>Overlap schedule 下，batch N+1 的 forward 和 batch N 的 cache 操作并行执行：</p>
+<ul>
+<li>Forward 写入 slot A</li>
+<li>同时 cache_unfinished_req 读取 slot B（上次写完的）</li>
+<li>读写分离，互不干扰</li>
+</ul>
+<p>每隔 <code>mamba_track_interval</code>（默认 256）token 做一次 checkpoint，交替使用 A/B。</p>
+<h2 id="4-prefill-流程"><a class="markdownIt-Anchor" href="#4-prefill-流程"></a> 4. Prefill 流程</h2>
+<h3 id="41-非-chunked-prefill短-prompt-一次处理完"><a class="markdownIt-Anchor" href="#41-非-chunked-prefill短-prompt-一次处理完"></a> 4.1 非 Chunked Prefill（短 prompt 一次处理完）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">Request: "You are a helpful assistant."</span><br><span class="line"></span><br><span class="line">1. match_prefix:</span><br><span class="line">   └── 从 tree root 查找最长匹配前缀</span><br><span class="line">   └── 假设找到 "You are a " 有 SSM state</span><br><span class="line">   └── 返回: prefix_indices=[10..19], last_node=匹配节点</span><br><span class="line">   └── COW: alloc 新 SSM slot, 记录 cow_src_index</span><br><span class="line"></span><br><span class="line">2. alloc:</span><br><span class="line">   └── 分配 KV Pool slot 给剩余 token "helpful assistant."</span><br><span class="line">   └── req_to_token[req, 0:10] = [10..19]  (来自 tree)</span><br><span class="line">   └── req_to_token[req, 10:30] = [新分配的 slot]</span><br><span class="line"></span><br><span class="line">3. forward_extend (prefill):</span><br><span class="line">   └── _execute_deferred_mamba_cow_and_clear:</span><br><span class="line">       └── copy SSM state 从 tree 的 slot 到 request 的新 slot</span><br><span class="line">   └── Full Attention: 只计算 "helpful assistant." 的 KV（前缀的 KV 直接从 pool 读）</span><br><span class="line">   └── Mamba: 从 COW 的 state 继续递归计算</span><br><span class="line">   └── Track: 在 chunk 对齐位置保存 SSM checkpoint 到 ping-pong buffer</span><br><span class="line"></span><br><span class="line">4. cache_finished_req:</span><br><span class="line">   └── 把 ping-pong buffer 中最后的 SSM slot "捐赠"给 tree</span><br><span class="line">   └── insert(key=完整token序列, value=KV indices, mamba_value=SSM slot)</span><br><span class="line">   └── Tree 创建新节点（或复用已有节点）</span><br><span class="line">   └── dec_lock_ref: 解锁旧节点</span><br></pre></td></tr></table></figure></div>
+<h3 id="42-chunked-prefill长-prompt-分多次处理"><a class="markdownIt-Anchor" href="#42-chunked-prefill长-prompt-分多次处理"></a> 4.2 Chunked Prefill（长 prompt 分多次处理）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">Request: "ABCDEFGH" (8 tokens, chunk_size=4)</span><br><span class="line"></span><br><span class="line">═══ Chunk 1: [A,B,C,D] ═══</span><br><span class="line"></span><br><span class="line">1. match_prefix → 假设未命中，从 root 开始</span><br><span class="line">   prefix_indices=[], cache_protected_len=0</span><br><span class="line"></span><br><span class="line">2. alloc KV slot [10,11,12,13] for tokens [A,B,C,D]</span><br><span class="line">   req_to_token = [10, 11, 12, 13, ?, ?, ?, ?]</span><br><span class="line"></span><br><span class="line">3. forward_extend:</span><br><span class="line">   Mamba: 从零开始递归计算</span><br><span class="line">   Track: 保存 SSM state 到 ping-pong buffer (假设 slot A = pool slot 100)</span><br><span class="line"></span><br><span class="line">4. cache_unfinished_req:</span><br><span class="line">   token_ids = [A,B,C,D]  (fill_ids，累积所有已处理的 token)</span><br><span class="line">   kv_indices = [10,11,12,13]</span><br><span class="line"></span><br><span class="line">   insert(key=[A,B,C,D], value=[10,11,12,13], mamba_value=slot 100,</span><br><span class="line">          prev_prefix_len=0)</span><br><span class="line">   → 创建 tree 节点: key=[A,B,C,D], value=[10,11,12,13], mamba_value=[100]</span><br><span class="line"></span><br><span class="line">   match_prefix 回来 → new_indices=[10,11,12,13]</span><br><span class="line">   req_to_token[req, 0:4] = [10,11,12,13]  (写回 tree 的 indices)</span><br><span class="line">   cache_protected_len = 4</span><br><span class="line">   lock 新节点</span><br><span class="line"></span><br><span class="line">═══ Chunk 2: [E,F,G,H] ═══</span><br><span class="line"></span><br><span class="line">1. match_prefix → 命中 [A,B,C,D] 节点（有 SSM state）</span><br><span class="line">   prefix_indices=[10,11,12,13], 不需要 COW（自己的 state 还在工作 slot 里）</span><br><span class="line"></span><br><span class="line">2. alloc KV slot [20,21,22,23] for tokens [E,F,G,H]</span><br><span class="line">   req_to_token = [10, 11, 12, 13, 20, 21, 22, 23]</span><br><span class="line"></span><br><span class="line">3. forward_extend:</span><br><span class="line">   Full Attention: 用 [10..13] 的 KV 做 prefix, 只计算 [E,F,G,H]</span><br><span class="line">   Mamba: 从 checkpoint 继续</span><br><span class="line">   Track: 保存新 SSM state 到 ping-pong buffer (假设 slot B = pool slot 101)</span><br><span class="line"></span><br><span class="line">4. cache_unfinished_req (或 cache_finished_req):</span><br><span class="line">   token_ids = [A,B,C,D,E,F,G,H]   ← fill_ids 累积了全部</span><br><span class="line">   kv_indices = [10,11,12,13,20,21,22,23]</span><br><span class="line"></span><br><span class="line">   insert(key=[A,B,C,D,E,F,G,H], value=[10,11,12,13,20,21,22,23],</span><br><span class="line">          mamba_value=slot 101, prev_prefix_len=4)</span><br><span class="line"></span><br><span class="line">   while 循环匹配 [A,B,C,D]:</span><br><span class="line">     prev_prefix_len(4) &lt; total(0) + prefix_len(4) → 4 &lt; 4 → False</span><br><span class="line">     不 free [10,11,12,13]（这些是 lock 的共享 slot）</span><br><span class="line"></span><br><span class="line">   剩余 key=[E,F,G,H] → 创建新节点:</span><br><span class="line">     node.value=[20,21,22,23], node.mamba_value=[101]</span><br><span class="line"></span><br><span class="line">   Tree: root → [A,B,C,D](KV:[10..13], SSM:[100])</span><br><span class="line">                    └── [E,F,G,H](KV:[20..23], SSM:[101])</span><br></pre></td></tr></table></figure></div>
+<h3 id="43-free-重复-kv-的场景"><a class="markdownIt-Anchor" href="#43-free-重复-kv-的场景"></a> 4.3 free 重复 KV 的场景</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">接上面，假设在 Chunk 1 和 Chunk 2 之间，Request B 已经 cache 了 [A,B,C,D,E,F]:</span><br><span class="line"></span><br><span class="line">Tree: root → [A,B,C,D](KV:[10..13], SSM:[100])</span><br><span class="line">                 └── [E,F](KV:[30,31], SSM:[105])  ← Request B 留下的</span><br><span class="line"></span><br><span class="line">现在 Request A 的 Chunk 2 完成:</span><br><span class="line">  insert(key=[A,B,C,D,E,F,G,H], value=[10,11,12,13,20,21,22,23],</span><br><span class="line">         prev_prefix_len=4)</span><br><span class="line"></span><br><span class="line">  while 循环第一轮: 匹配 [A,B,C,D], prefix_len=4</span><br><span class="line">    4 &lt; 0+4 → False, 不 free</span><br><span class="line"></span><br><span class="line">  while 循环第二轮: 匹配 [E,F], prefix_len=2</span><br><span class="line">    4 &lt; 4+2 → True!</span><br><span class="line">    start = max(0, 4-4) = 0</span><br><span class="line">    free(value[0:2]) → free([20, 21])  ← A 自己算的 E,F 的 KV slot</span><br><span class="line"></span><br><span class="line">    为什么 free? 因为 tree 已有 [E,F] 的 KV (slot [30,31])，</span><br><span class="line">    A 自己算的 [20,21] 是多余副本。</span><br><span class="line"></span><br><span class="line">  剩余 key=[G,H] → 创建新节点:</span><br><span class="line">    node.value=[22,23], node.mamba_value=[101]</span><br><span class="line"></span><br><span class="line">  后续 match_prefix 回来会把 req_to_token 更新为:</span><br><span class="line">    req_to_token = [10, 11, 12, 13, 30, 31, 22, 23]</span><br><span class="line">                    └─ tree 的 ─┘ └ tree ┘ └─ 新 ─┘</span><br></pre></td></tr></table></figure></div>
+<h2 id="5-decode-流程"><a class="markdownIt-Anchor" href="#5-decode-流程"></a> 5. Decode 流程</h2>
+<h3 id="51-单-token-decode"><a class="markdownIt-Anchor" href="#51-单-token-decode"></a> 5.1 单 token decode</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Request 在 decode 阶段，每次生成 1 个 token:</span><br><span class="line"></span><br><span class="line">1. scheduler 从 running batch 中取出 request</span><br><span class="line"></span><br><span class="line">2. forward_decode:</span><br><span class="line">   Full Attention: 用 req_to_token 中所有历史 KV slot 做 attention</span><br><span class="line">                   新 token 的 KV 写入新分配的 slot</span><br><span class="line">   Mamba: 读 mamba_pool_idx 对应的 state，更新后写回（in-place）</span><br><span class="line"></span><br><span class="line">3. 每隔 mamba_track_interval (256) token:</span><br><span class="line">   把当前 SSM state copy 到 ping-pong buffer</span><br><span class="line">   翻转 mamba_next_track_idx (0→1 或 1→0)</span><br><span class="line"></span><br><span class="line">4. 生成 EOS → cache_finished_req:</span><br><span class="line">   从 ping-pong buffer 取最后一个 checkpoint</span><br><span class="line">   insert 到 radix tree</span><br></pre></td></tr></table></figure></div>
+<h3 id="52-为什么-decode-中间不存-ssm-到-tree"><a class="markdownIt-Anchor" href="#52-为什么-decode-中间不存-ssm-到-tree"></a> 5.2 为什么 decode 中间不存 SSM 到 tree</h3>
+<ul>
+<li>Decode 产生的每个 token 是该 request 独有的采样结果</li>
+<li>不会有其他 request 产生完全相同的 token 序列</li>
+<li>所以中间 SSM state 永远不会被其他 request 命中</li>
+<li>存了也是浪费 SSM Pool 空间</li>
+</ul>
+<p>唯一有价值的是 <strong>最终 state</strong>（用于多轮对话的下一轮复用）。</p>
+<h3 id="53-track-interval-的权衡"><a class="markdownIt-Anchor" href="#53-track-interval-的权衡"></a> 5.3 Track Interval 的权衡</h3>
+<p>每 256 token 做一次 track（不是为了 tree 缓存，而是为了）：</p>
+<ul>
+<li><strong>Chunked prefill 被抢占</strong>: scheduler 打断后，需要从 checkpoint 恢复</li>
+<li><strong>Speculative decoding 回滚</strong>: draft 被 reject 后回退到最近 checkpoint</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Track 频率</th>
+<th>Decode 性能</th>
+<th>被抢占时重算量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每 token</td>
+<td>慢（每次多一次 memcpy）</td>
+<td>0</td>
+</tr>
+<tr>
+<td>每 256 token</td>
+<td>快</td>
+<td>最多 255 token</td>
+</tr>
+<tr>
+<td>不 track</td>
+<td>最快</td>
+<td>全部</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-完整端到端例子"><a class="markdownIt-Anchor" href="#6-完整端到端例子"></a> 6. 完整端到端例子</h2>
+<h3 id="场景设定"><a class="markdownIt-Anchor" href="#场景设定"></a> 场景设定</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">模型: Kimi-K2 (KDA hybrid, 28 full-attn layers + 32 mamba layers)</span><br><span class="line">Request 1: "You are a helpful assistant."  (30 tokens)</span><br><span class="line">Request 2: "You are a helpful assistant. Write Python code." (45 tokens)</span><br></pre></td></tr></table></figure></div>
+<h3 id="61-server-启动-warmup"><a class="markdownIt-Anchor" href="#61-server-启动-warmup"></a> 6.1 Server 启动 + Warmup</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">启动参数: --warmups kda_cache --warmup-prompts-file prompts.json</span><br><span class="line">prompts.json: ["You are a helpful assistant."]</span><br><span class="line"></span><br><span class="line">1. kda_cache warmup:</span><br><span class="line">   构造 GenerateReqInput(text="You are a helpful assistant.", max_new_tokens=1)</span><br><span class="line">   走完整 pipeline → prefill 30 tokens → 生成 1 token → 结束</span><br><span class="line"></span><br><span class="line">2. cache_finished_req:</span><br><span class="line">   insert(key=[tok0..tok30], value=[KV slot 1..31], mamba_value=[SSM slot 1])</span><br><span class="line"></span><br><span class="line">3. Tree 状态:</span><br><span class="line">   root → ["You are a helpful assistant. {1_token}"](KV:[1..31], SSM:[slot 1])</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-request-1-到来"><a class="markdownIt-Anchor" href="#62-request-1-到来"></a> 6.2 Request 1 到来</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">prompt = "You are a helpful assistant. Tell me a joke."</span><br><span class="line">tokens = [tok0..tok29, tok30..tok39]  (40 tokens)</span><br><span class="line"></span><br><span class="line">1. match_prefix:</span><br><span class="line">   沿 tree 匹配 → 命中 "You are a helpful assistant." (30 tokens)</span><br><span class="line">   last_node 有 mamba_value=[slot 1]</span><br><span class="line"></span><br><span class="line">   COW:</span><br><span class="line">     alloc 新 SSM slot 50 给 request 1</span><br><span class="line">     req.mamba_cow_src_index = [slot 1]</span><br><span class="line">     req.mamba_pool_idx = slot 50</span><br><span class="line"></span><br><span class="line">   返回 prefix_indices = [1, 2, ..., 30]  (tree 中的 KV indices)</span><br><span class="line"></span><br><span class="line">2. alloc:</span><br><span class="line">   分配 KV slot [100,101,...,109] 给剩余 10 token "Tell me a joke."</span><br><span class="line">   req_to_token = [1,2,...,30, 100,101,...,109]</span><br><span class="line">                   └── 共享 tree ──┘ └── 新分配 ──┘</span><br><span class="line"></span><br><span class="line">3. forward_extend:</span><br><span class="line">   ① _execute_deferred_mamba_cow_and_clear:</span><br><span class="line">      mamba_pool.copy_from(src=[slot 1], dst=[slot 50])</span><br><span class="line">      → SSM state 从 tree 的 slot 1 copy 到 request 的 slot 50</span><br><span class="line"></span><br><span class="line">   ② Full Attention:</span><br><span class="line">      prefix token [0:30]: 直接读 KV Pool slot [1..30]（已有，不计算）</span><br><span class="line">      新 token [30:40]: 计算 KV，存入 slot [100..109]</span><br><span class="line"></span><br><span class="line">   ③ Mamba:</span><br><span class="line">      从 slot 50 的 state 开始（= "You are a helpful assistant." 处理完的 state）</span><br><span class="line">      递归计算 " Tell me a joke." 的 10 个 token</span><br><span class="line">      slot 50 的 state 被更新（现在包含全部 40 token 的信息）</span><br><span class="line"></span><br><span class="line">4. Decode (假设生成 5 个 token):</span><br><span class="line">   每个 token: Full Attention attend 所有历史 + Mamba 更新 slot 50</span><br><span class="line">   KV Pool 再分配 5 个 slot</span><br><span class="line"></span><br><span class="line">   不触发 track（5 &lt; 256）</span><br><span class="line"></span><br><span class="line">5. EOS → cache_finished_req:</span><br><span class="line">   token_ids = [tok0..tok44]  (40 prompt + 5 generated)</span><br><span class="line">   kv_indices = [1,...,30, 100,...,109, 新slot×5]</span><br><span class="line">   mamba_value = [slot 50]  (最终 SSM state)</span><br><span class="line"></span><br><span class="line">   insert:</span><br><span class="line">     while 循环匹配已有的 "You are a helpful assistant." (30 tokens)</span><br><span class="line">       → 不 free（prev_prefix_len=30，全在保护区）</span><br><span class="line">     free(重复部分的KV) 如果有</span><br><span class="line">     创建新节点 " Tell me a joke.{5_tokens}"</span><br><span class="line"></span><br><span class="line">   Tree:</span><br><span class="line">   root → ["You are a helpful assistant."](KV:[1..30], SSM:[slot 1])</span><br><span class="line">             ├── [" {warmup的1token}"](KV:[31], SSM:[slot X])</span><br><span class="line">             └── [" Tell me a joke.{5tok}"](KV:[100..114], SSM:[slot 50])</span><br></pre></td></tr></table></figure></div>
+<h3 id="63-request-2-到来复用前缀"><a class="markdownIt-Anchor" href="#63-request-2-到来复用前缀"></a> 6.3 Request 2 到来（复用前缀）</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">prompt = "You are a helpful assistant. Write Python code."</span><br><span class="line">tokens = [tok0..tok29, tok30..tok44]  (45 tokens)</span><br><span class="line"></span><br><span class="line">1. match_prefix:</span><br><span class="line">   匹配 "You are a helpful assistant." → 命中! last_node 有 SSM:[slot 1]</span><br><span class="line"></span><br><span class="line">   COW: alloc slot 60, 记录 cow_src=[slot 1]</span><br><span class="line">   返回 prefix_indices = [1..30]</span><br><span class="line"></span><br><span class="line">2. alloc:</span><br><span class="line">   分配 KV slot [200..214] 给 " Write Python code." (15 tokens)</span><br><span class="line">   req_to_token = [1,...,30, 200,...,214]</span><br><span class="line"></span><br><span class="line">3. forward_extend:</span><br><span class="line">   ① COW: copy SSM slot 1 → slot 60</span><br><span class="line">   ② Full Attention: 只计算 15 个新 token</span><br><span class="line">   ③ Mamba: 从 slot 60 继续递归 15 个 token</span><br><span class="line"></span><br><span class="line">   对比没有 warmup:</span><br><span class="line">     需要从头计算 45 个 token 的 Mamba 递归</span><br><span class="line">   有 warmup:</span><br><span class="line">     只需计算 15 个 token 的 Mamba 递归（节省 30 token 的串行计算）</span><br><span class="line"></span><br><span class="line">4. ... (后续 decode + cache_finished_req 同理)</span><br></pre></td></tr></table></figure></div>
+<h3 id="64-复用限制长无法复用于短"><a class="markdownIt-Anchor" href="#64-复用限制长无法复用于短"></a> 6.4 复用限制：长无法复用于短</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">假设 tree 中只有:</span><br><span class="line">  root → ["ABCDEFGH"](KV:[1..8], SSM:[slot 1])  (来自一个 8 token request)</span><br><span class="line"></span><br><span class="line">新 request: "ABCD" (4 tokens)</span><br><span class="line"></span><br><span class="line">match_prefix:</span><br><span class="line">  while 循环进入 "ABCDEFGH" 节点</span><br><span class="line">  prefix_len = 4 &lt; len(node.key)=8</span><br><span class="line">  → _split_node:</span><br><span class="line">    root → ["ABCD"](KV:[1..4], mamba_value=None!)  ← 中间节点，没有 SSM!</span><br><span class="line">              └── ["EFGH"](KV:[5..8], SSM:[slot 1])</span><br><span class="line"></span><br><span class="line">  best_last_node = root（因为 "ABCD" 节点没有 mamba_value）</span><br><span class="line">  返回 prefix_indices = []  ← 无法复用!</span><br><span class="line"></span><br><span class="line">  即使 KV 匹配了 4 个 token，但没有对应的 SSM state</span><br><span class="line">  → request 必须从头计算 Mamba（Full Attention 仍可复用 KV）</span><br></pre></td></tr></table></figure></div>
+<h2 id="7-关键设计总结"><a class="markdownIt-Anchor" href="#7-关键设计总结"></a> 7. 关键设计总结</h2>
+<h3 id="71-为什么-kv-可以共享但-ssm-需要-cow"><a class="markdownIt-Anchor" href="#71-为什么-kv-可以共享但-ssm-需要-cow"></a> 7.1 为什么 KV 可以共享但 SSM 需要 COW</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>KV Cache</th>
+<th>SSM State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>读/写模式</td>
+<td>Attention 只读历史 KV</td>
+<td>Forward 每个 token 都修改 state</td>
+</tr>
+<tr>
+<td>能否共享</td>
+<td>可以（只读）</td>
+<td>不行（会被修改）</td>
+</tr>
+<tr>
+<td>方案</td>
+<td>直接共享 Pool index</td>
+<td>Copy-on-Write</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-radix-tree-存指针不存数据"><a class="markdownIt-Anchor" href="#72-radix-tree-存指针不存数据"></a> 7.2 Radix Tree 存指针不存数据</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Tree node.value = [10, 11, 12]     ← 3 个 int，指向 KV Pool</span><br><span class="line">Tree node.mamba_value = [5]        ← 1 个 int，指向 SSM Pool</span><br><span class="line"></span><br><span class="line">实际数据始终在 Pool 的 GPU 显存里，不动。</span><br><span class="line">insert/evict 只是转移"谁拥有这个 slot"的所有权。</span><br></pre></td></tr></table></figure></div>
+<h3 id="73-lock-引用计数"><a class="markdownIt-Anchor" href="#73-lock-引用计数"></a> 7.3 Lock 引用计数</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">inc_lock_ref: request 开始使用 tree 节点 → lock_ref++，节点不可淘汰</span><br><span class="line">dec_lock_ref: request 释放 tree 节点 → lock_ref--</span><br><span class="line">lock_ref == 0: 节点可被 LRU 淘汰</span><br><span class="line"></span><br><span class="line">不变量: 如果 mamba_lock_ref &gt; 0，则 full_lock_ref 必定 &gt; 0</span><br><span class="line">       (SSM 依赖 KV，有 SSM 引用就必须保护 KV)</span><br></pre></td></tr></table></figure></div>
+<h3 id="74-warmup-的价值"><a class="markdownIt-Anchor" href="#74-warmup-的价值"></a> 7.4 Warmup 的价值</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">不用 warmup:  第一个请求必须从头计算 Mamba（串行，慢）</span><br><span class="line">用了 warmup:  第一个请求就能 COW 缓存的 SSM state（快）</span><br><span class="line"></span><br><span class="line">最佳实践: warmup 最短的公共前缀（system prompt）</span><br><span class="line">         所有以此开头的请求都能命中</span><br></pre></td></tr></table></figure></div>
+<h2 id="8-kda-speculative-decoding-机制"><a class="markdownIt-Anchor" href="#8-kda-speculative-decoding-机制"></a> 8. KDA Speculative Decoding 机制</h2>
+<h3 id="81-整体架构"><a class="markdownIt-Anchor" href="#81-整体架构"></a> 8.1 整体架构</h3>
+<p>KDA 模型的 speculative decoding 使用 <code>FROZEN_KV_MTP</code> 算法：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Target Model (完整 KDA LLM):</span><br><span class="line">  Layer 0: Full Attention  → 产生 KV Cache</span><br><span class="line">  Layer 1: Mamba (SSM)     → 产生 SSM State</span><br><span class="line">  Layer 2: Full Attention</span><br><span class="line">  Layer 3: Mamba</span><br><span class="line">  ...</span><br><span class="line">  LM Head → logits</span><br><span class="line"></span><br><span class="line">Draft Model (轻量级 MTP 头):</span><br><span class="line">  共享 target 的 embedding 和 lm_head</span><br><span class="line">  几层 Transformer block（注意力只读 target 已有的 KV）</span><br><span class="line">  不含 Mamba 层，不自己维护 KV</span><br></pre></td></tr></table></figure></div>
+<h3 id="82-frozen-kv-设计"><a class="markdownIt-Anchor" href="#82-frozen-kv-设计"></a> 8.2 Frozen KV 设计</h3>
+<p>“Frozen”（冻结）指 draft 推理全程中，target 的 KV 序列不增长、不变化：</p>
+<ul>
+<li>Draft 模型不写 KV Pool</li>
+<li>Draft 每步的 RoPE position 固定为 <code>seq_lens - 1</code></li>
+<li>通过上下文管理器临时将 attention backend 的 KV pool 切换为 target 的（只读）</li>
+</ul>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># frozen_kv_mtp_utils.py</span></span><br><span class="line"><span class="meta">@contextmanager</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">target_kv_pool_view</span>(<span class="params">forward_batch, kv_context, draft_attn_backend</span>):</span><br><span class="line">    saved_pool = draft_attn_backend.token_to_kv_pool</span><br><span class="line">    draft_attn_backend.token_to_kv_pool = kv_context.target_token_to_kv_pool</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="keyword">yield</span></span><br><span class="line">    <span class="keyword">finally</span>:</span><br><span class="line">        draft_attn_backend.token_to_kv_pool = saved_pool</span><br></pre></td></tr></table></figure></div>
+<h3 id="83-verify-阶段的-mamba-处理"><a class="markdownIt-Anchor" href="#83-verify-阶段的-mamba-处理"></a> 8.3 Verify 阶段的 Mamba 处理</h3>
+<p>Verify 时 target 模型对 EAGLE tree 所有 draft tokens 做一次 batched forward。
+所有 draft tokens 从 layer 0 到 layer 31 并行走一遍（层间串行，层内 batch 并行）。</p>
+<p>对 Mamba 层的特殊处理：</p>
+<ul>
+<li><code>disable_state_update=True</code>：不直接修改主 SSM state</li>
+<li>每个 draft position 的递归结果写入 <code>intermediate_states_buffer</code></li>
+<li>通过 <code>retrieve_parent_token</code> 数组实现 EAGLE tree 的 parent→child SSM 继承</li>
+</ul>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># mamba.py:651 (verify 路径)</span></span><br><span class="line">selective_state_update(</span><br><span class="line">    ssm_state,</span><br><span class="line">    ...,</span><br><span class="line">    disable_state_update=<span class="literal">True</span>,</span><br><span class="line">    intermediate_states_buffer=layer_cache.intermediate_ssm,</span><br><span class="line">    cache_steps=draft_token_num,</span><br><span class="line">    retrieve_parent_token=metadata.retrieve_parent_token,</span><br><span class="line">)</span><br></pre></td></tr></table></figure></div>
+<h3 id="84-intermediate-buffer-布局与回滚"><a class="markdownIt-Anchor" href="#84-intermediate-buffer-布局与回滚"></a> 8.4 Intermediate Buffer 布局与回滚</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># memory_pool.py:301 — 额外分配的显存</span></span><br><span class="line">intermediate_ssm_state_cache = torch.zeros(</span><br><span class="line">    num_mamba_layers,        <span class="comment"># 32</span></span><br><span class="line">    spec_state_size + <span class="number">1</span>,     <span class="comment"># max_running_requests + 1</span></span><br><span class="line">    draft_token_num,         <span class="comment"># 63 (topk=4,steps=3 的树节点数)</span></span><br><span class="line">    nheads * head_dim,</span><br><span class="line">    ssm_state_size,</span><br><span class="line">)</span><br></pre></td></tr></table></figure></div>
+<p>Verify 后通过 <code>fused_mamba_state_scatter_with_mask</code> O(1) 回滚：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># eagle_worker.py:1087</span></span><br><span class="line">fused_mamba_state_scatter_with_mask(</span><br><span class="line">    ssm_states,                    <span class="comment"># 主 SSM state pool</span></span><br><span class="line">    intermediate_state_cache,      <span class="comment"># intermediate buffer</span></span><br><span class="line">    state_indices_tensor,          <span class="comment"># request → pool slot</span></span><br><span class="line">    last_correct_step_indices,     <span class="comment"># 每个 req 最后正确的 step</span></span><br><span class="line">)</span><br><span class="line"><span class="comment"># 效果: main_state[layer, slot] = buffer[layer, req, accepted_step]</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="85-当前方案的内存开销"><a class="markdownIt-Anchor" href="#85-当前方案的内存开销"></a> 8.5 当前方案的内存开销</h3>
+<p>Intermediate buffer 是主 SSM state 的 <code>draft_token_num</code> 倍：</p>
+<table>
+<thead>
+<tr>
+<th>topk</th>
+<th>steps</th>
+<th>draft_token_num</th>
+<th>额外内存相对主 state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>3</td>
+<td>3</td>
+<td>3×</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td>7</td>
+<td>7×</td>
+</tr>
+<tr>
+<td>4</td>
+<td>3</td>
+<td>63</td>
+<td>63×</td>
+</tr>
+</tbody>
+</table>
+<p>每层的 intermediate buffer 独立保留（不可释放），因为 verify 判定后要从所有层的 buffer 中 scatter 正确 step 的值。</p>
+<h3 id="86-与-radixcache-的集成"><a class="markdownIt-Anchor" href="#86-与-radixcache-的集成"></a> 8.6 与 RadixCache 的集成</h3>
+<p>Spec decode 全程中 Radix Tree 不被修改。所有操作在 Pool 级别闭环：</p>
+<ol>
+<li>Verify 后：scatter 正确 SSM state 回主 pool</li>
+<li>如果跨越 track interval（256）：scatter 到 ping-pong buffer</li>
+<li>Request 结束：<code>cache_finished_req</code> 从 ping-pong buffer 取 SSM 存入 tree</li>
+</ol>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Verify → scatter 正确 step → 主 state 更新</span><br><span class="line">       → 如果跨 256 → ping-pong buffer 也更新</span><br><span class="line"></span><br><span class="line">Request 结束 → cache_finished_req → ping-pong → radix tree 节点</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="9-延迟更新方案优化-intermediate-buffer-内存"><a class="markdownIt-Anchor" href="#9-延迟更新方案优化-intermediate-buffer-内存"></a> 9. 延迟更新方案（优化 Intermediate Buffer 内存）</h2>
+<h3 id="91-问题动机"><a class="markdownIt-Anchor" href="#91-问题动机"></a> 9.1 问题动机</h3>
+<p>当前方案的 intermediate buffer 常驻显存：<code>[32 layers × N × T × state_size]</code>。
+当 topk=4, T=63 时，额外显存可达数 GB，非常昂贵。根本原因是 verify 后需要从每一层的 buffer 中 scatter，所以所有层的 buffer 都不能释放。</p>
+<h3 id="92-方案核心思想"><a class="markdownIt-Anchor" href="#92-方案核心思想"></a> 9.2 方案核心思想</h3>
+<p><strong>Verify 时不更新主 SSM state，verify 结束后也不立即更新，而是等到下一轮开始时，用被接受 tokens 的"输入激活值"把 SSM 重新递推到正确状态。</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Round t:</span><br><span class="line">  1. Replay: 用上一轮保存的激活值，S(t-1) → S(t)</span><br><span class="line">  2. Draft: 从 S(t) 开始 seed</span><br><span class="line">  3. Verify forward: Mamba 层临时算各节点 S（用 1 层复用 buffer 得到 logits）</span><br><span class="line">  4. Verify 判定: 确定接受 [A, B, C]</span><br><span class="line">  5. 保存被接受 tokens 在每层的输入激活值</span><br><span class="line">  6. 主 state 仍为 S(t)（不更新）</span><br><span class="line"></span><br><span class="line">Round t+1:</span><br><span class="line">  1. Replay: 用 Round t 保存的激活值，S(t) → S(t+1)</span><br><span class="line">  2. ...</span><br></pre></td></tr></table></figure></div>
+<h3 id="93-什么是输入激活值"><a class="markdownIt-Anchor" href="#93-什么是输入激活值"></a> 9.3 什么是"输入激活值"</h3>
+<p>SSM 的递归公式为 <code>S_new = A × S_old + B × x</code>，其中：</p>
+<ul>
+<li><code>A</code> — 模型参数（永远在那里）</li>
+<li><code>S_old</code> — 主 pool 里的当前值（永远在那里）</li>
+<li><code>B, x, dt</code> — 线性投影算出的中间值（只在 forward 瞬间存在）</li>
+</ul>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">输入激活 = (hidden_states_d, dt, B, C)  ← Mamba 层做 SSM 递归需要的原料</span><br></pre></td></tr></table></figure></div>
+<p>Replay 时：只要有激活值 + 模型参数 + 当前 S_old，就能重算出 S_new：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下一轮开始时</span></span><br><span class="line"><span class="keyword">for</span> layer <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">32</span>):</span><br><span class="line">    <span class="keyword">for</span> token <span class="keyword">in</span> accepted_tokens:</span><br><span class="line">        main_state[layer] = A[layer] * main_state[layer] + B_saved[layer,token] * x_saved[layer,token]</span><br></pre></td></tr></table></figure></div>
+<h3 id="94-为什么只保留-accepted-的激活值就够了"><a class="markdownIt-Anchor" href="#94-为什么只保留-accepted-的激活值就够了"></a> 9.4 为什么只保留 accepted 的激活值就够了</h3>
+<p>时序上，verify 判定<strong>在保存之前</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. Verify forward → 得到 63 个 logits</span><br><span class="line">2. 贪心判定 → 知道只有 [d0, d1, d3] 被接受</span><br><span class="line">3. ★ 这时才保存激活值 ★ → 只保存 d0, d1, d3 的</span><br></pre></td></tr></table></figure></div>
+<p>从语义上，被拒绝的 tokens 等于从未发生过。request 的真实序列永远是一条线性链——只有 accepted 路径上的 tokens 对 S(t) 有贡献：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">S(t-1) → process(d0) → S_a</span><br><span class="line">S_a    → process(d1) → S_b</span><br><span class="line">S_b    → process(d3) → S_c = S(t)</span><br></pre></td></tr></table></figure></div>
+<p>被拒绝的 tokens 的激活值对 S(t) 没有任何贡献，无需保存。</p>
+<h3 id="95-verify-期间的-1-层复用-buffer"><a class="markdownIt-Anchor" href="#95-verify-期间的-1-层复用-buffer"></a> 9.5 Verify 期间的 1 层复用 Buffer</h3>
+<p>虽然不存全量快照，verify forward 中 Mamba 层仍需临时计算 tree 各节点的 S（因为 <code>output = C × S_new</code> 需要 S 才能算出 logits）。</p>
+<p>但这些临时 S 只在<strong>单层计算期间</strong>有用：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">模型前向是逐层串行执行的：</span><br><span class="line">  Layer 0 → Layer 1 → Layer 2 → ... → Layer 31</span><br><span class="line"></span><br><span class="line">每一层的输入是上一层的 output（hidden_states），不是上一层的 SSM state。</span><br><span class="line">Layer 1 从自己的主 state 出发计算，不需要 Layer 0 的临时 S。</span><br></pre></td></tr></table></figure></div>
+<p>所以可以只分配 1 层大小的 buffer，逐层覆盖复用：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Mamba Layer 0 执行:</span><br><span class="line">  buffer 存 Layer 0 各节点的临时 S</span><br><span class="line">  所有节点算完 → 得到 output_0 → 传给下一层</span><br><span class="line">  ★ buffer 中 Layer 0 的值此后无人再需要 ★</span><br><span class="line"></span><br><span class="line">Mamba Layer 1 执行:</span><br><span class="line">  覆盖同一块 buffer → 存 Layer 1 各节点的临时 S</span><br><span class="line">  得到 output_1 → 传给下一层</span><br><span class="line">  ★ buffer 又没用了 ★</span><br><span class="line"></span><br><span class="line">...Layer 31 同理...</span><br></pre></td></tr></table></figure></div>
+<p><strong>当前方案不能这样做</strong>：因为 verify 结束后需要从每层的 buffer 中 scatter，如果 Layer 0 的 buffer 被 Layer 1 覆盖了就取不回来了。延迟方案不做 scatter（改为 replay），所以可以覆盖。</p>
+<h3 id="96-eagle-tree-内部-parentchild-的-s-共享"><a class="markdownIt-Anchor" href="#96-eagle-tree-内部-parentchild-的-s-共享"></a> 9.6 EAGLE Tree 内部 parent→child 的 S 共享</h3>
+<p>单层 buffer 内部，tree 节点的依赖通过 <code>retrieve_parent_token</code> 数组解决：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Buffer layout (单层, 单 request): [T slots, state_size]</span><br><span class="line"></span><br><span class="line">EAGLE tree:             Buffer slot:</span><br><span class="line">      bonus (从主 state 读)</span><br><span class="line">     / | \</span><br><span class="line">   d0  d1  d2          buffer[0], buffer[1], buffer[2]</span><br><span class="line">  /|\ /|\</span><br><span class="line"> d3 d4 d5 d6 d7 d8    buffer[3], buffer[4], ..., buffer[8]</span><br><span class="line"></span><br><span class="line">retrieve_parent_token = [-1, -1, -1, 0, 0, 0, 1, 1, 1]</span><br><span class="line">                         └ step 0 ┘  └── step 1 ──────┘</span><br><span class="line">                         parent=主state  parent=buffer[0/1]</span><br></pre></td></tr></table></figure></div>
+<p>Kernel 内部按 step 顺序处理：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Step 0: d0, d1, d2 从主 state 读 → 结果写入 buffer[0,1,2]</span><br><span class="line">Step 1: d3 读 buffer[0](=d0 的 S), d6 读 buffer[1](=d1 的 S)</span><br><span class="line">        → 结果写入 buffer[3..8]</span><br></pre></td></tr></table></figure></div>
+<h3 id="97-内存对比"><a class="markdownIt-Anchor" href="#97-内存对比"></a> 9.7 内存对比</h3>
+<p>设 L=32 layers, N=32 requests, T=63 (topk=4), accepted=4, bf16</p>
+<p><strong>大小对比</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">SSM state 单份:    nheads × head_dim × dstate ≈ 500K elements</span><br><span class="line">输入激活值单份:    hidden_d + dt + B + C ≈ 10K elements</span><br><span class="line">比值: 约 50× 更小</span><br></pre></td></tr></table></figure></div>
+<p><strong>总内存对比</strong>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>当前方案</th>
+<th>延迟方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>常驻内存（verify 后）</td>
+<td>L×N×T×state = 32×32×63×500K×2B ≈ <strong>数 GB</strong></td>
+<td>L×accepted×activation = 32×4×10K×2B ≈ <strong>2.5 MB</strong></td>
+</tr>
+<tr>
+<td>峰值内存（verify 期间）</td>
+<td>同上（不释放）</td>
+<td>1×N×T×state ≈ <strong>当前的 1/32</strong></td>
+</tr>
+<tr>
+<td>缩减比（常驻）</td>
+<td>基准</td>
+<td><strong>~1000×</strong></td>
+</tr>
+<tr>
+<td>缩减比（峰值）</td>
+<td>基准</td>
+<td><strong>~32×</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="98-延迟代价"><a class="markdownIt-Anchor" href="#98-延迟代价"></a> 9.8 延迟代价</h3>
+<p>下一轮开始时的 replay 耗时：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">replay = num_layers × num_accepted × 单次 SSM update kernel</span><br><span class="line">       = 32 × 4 × ~10μs</span><br><span class="line">       ≈ 100-300 μs</span><br><span class="line"></span><br><span class="line">对比 verify forward 本身: 5-20 ms</span><br><span class="line">overhead: ~2%，可忽略</span><br></pre></td></tr></table></figure></div>
+<h3 id="99-正确性保证"><a class="markdownIt-Anchor" href="#99-正确性保证"></a> 9.9 正确性保证</h3>
+<p><strong>主 state 更新顺序</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Round t-1 结束: 保存了 accepted 的激活值, S 仍为 S(t-2)</span><br><span class="line">Round t 开始:   replay S(t-2) → S(t-1)  ✓ (此时 S 是正确的)</span><br><span class="line">Round t draft:  从 S(t-1) 出发 seed ✓</span><br><span class="line">Round t verify: 从 S(t-1) 出发计算各节点 logits ✓</span><br></pre></td></tr></table></figure></div>
+<p><strong>前提条件</strong>：Draft 模型本身不含 Mamba 层（Frozen-KV MTP 满足，draft 只读 target KV）。</p>
+<p><strong>Accepted 路径线性链保证</strong>：Verify 贪心判定保证接受路径从根到叶连续——不可能"跳着接受"。所以逐个 replay accepted tokens 就能正确递推 S。</p>
+<h3 id="910-track-interval-兼容"><a class="markdownIt-Anchor" href="#910-track-interval-兼容"></a> 9.10 Track Interval 兼容</h3>
+<p>Replay 时顺便检查是否跨越 256 边界：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> i, token <span class="keyword">in</span> <span class="built_in">enumerate</span>(accepted_tokens):</span><br><span class="line">    main_state[layer] = A * main_state[layer] + B_saved[layer, i] * x_saved[layer, i]</span><br><span class="line">    current_seq_len += <span class="number">1</span></span><br><span class="line">    <span class="keyword">if</span> current_seq_len % <span class="number">256</span> == <span class="number">0</span>:</span><br><span class="line">        ping_pong_buffer[track_slot] = main_state[layer].clone()</span><br></pre></td></tr></table></figure></div>
+<p>比当前方案（从 intermediate buffer scatter 特定 step）更直观。</p>
+<h3 id="911-完整时序对比"><a class="markdownIt-Anchor" href="#911-完整时序对比"></a> 9.11 完整时序对比</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">═══ 当前方案 ═══════════════════════════════════════════════════════</span><br><span class="line"></span><br><span class="line">Round t:</span><br><span class="line">  [Draft] → [Verify forward: 63 节点, 32 层全部写入 intermediate buffer]</span><br><span class="line">           → [Verify 判定: 接受 4 个]</span><br><span class="line">           → [Scatter: 从 32 层 buffer 中取 step=k 写回主 state]</span><br><span class="line">           → 主 state 立即 = S(t)</span><br><span class="line"></span><br><span class="line">Round t+1:</span><br><span class="line">  [Draft: 从 S(t) 开始] → [Verify] → [Scatter] → S(t+1)</span><br><span class="line"></span><br><span class="line">常驻内存: 32 × N × 63 × state_size (不释放)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">═══ 延迟更新方案 ══════════════════════════════════════════════════</span><br><span class="line"></span><br><span class="line">Round t:</span><br><span class="line">  [Replay: 用 Round t-1 的激活值, S(t-2)→S(t-1)]</span><br><span class="line">  [Draft: 从 S(t-1) 开始]</span><br><span class="line">  [Verify forward: 63 节点, 用 1 层复用 buffer 临时算 logits]</span><br><span class="line">  [Verify 判定: 接受 4 个]</span><br><span class="line">  [保存 4 个 token × 32 层的输入激活值]</span><br><span class="line">  主 state 仍为 S(t-1)</span><br><span class="line"></span><br><span class="line">Round t+1:</span><br><span class="line">  [Replay: 用 Round t 的激活值, S(t-1)→S(t)]</span><br><span class="line">  [Draft: 从 S(t) 开始] → ...</span><br><span class="line"></span><br><span class="line">常驻内存: 32 × 4 × activation_size (~MB 级)</span><br><span class="line">峰值内存: 1 × N × 63 × state_size (verify 期间临时, 可释放)</span><br></pre></td></tr></table></figure></div>
+<h3 id="912-方案优缺点总结"><a class="markdownIt-Anchor" href="#912-方案优缺点总结"></a> 9.12 方案优缺点总结</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>当前方案（全量快照）</th>
+<th>延迟更新方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>峰值内存</td>
+<td>32 × N × T × state</td>
+<td>1 × N × T × state（<strong>32× 缩减</strong>）</td>
+</tr>
+<tr>
+<td>常驻内存</td>
+<td>同峰值</td>
+<td>32 × accepted × activation（<strong>~1000× 缩减</strong>）</td>
+</tr>
+<tr>
+<td>Verify 后延迟</td>
+<td>0（O(1) scatter）</td>
+<td>+100-300 μs（replay）</td>
+</tr>
+<tr>
+<td>实现复杂度</td>
+<td>现有</td>
+<td>需改动：1) 缓存激活逻辑 2) buffer 复用 3) replay kernel</td>
+</tr>
+<tr>
+<td>正确性</td>
+<td>✓</td>
+<td>✓（replay 后再 draft，顺序正确）</td>
+</tr>
+<tr>
+<td>适用条件</td>
+<td>通用</td>
+<td>Draft 无 Mamba 层（Frozen-KV MTP 满足）</td>
+</tr>
+<tr>
+<td>Track 兼容</td>
+<td>需要从 buffer scatter 特定 step</td>
+<td>replay 过程中自然检查，更简洁</td>
+</tr>
+</tbody>
+</table>
+<h3 id="913-适用场景选择"><a class="markdownIt-Anchor" href="#913-适用场景选择"></a> 9.13 适用场景选择</h3>
+<ul>
+<li><strong>topk=1, T=3</strong>：当前方案只需 3× 主 state，延迟方案收益有限</li>
+<li><strong>topk=2, T=7</strong>：延迟方案可节省约 90% intermediate buffer</li>
+<li><strong>topk=4, T=63</strong>：延迟方案价值最大，从 ~GB 级降到 ~MB 级</li>
+<li><strong>内存紧张 + 需要大 batch</strong>：延迟方案释放的显存可换来更多并发 request</li>
+</ul>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> SGLang之MambaRadixCache机制</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-05-29 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-14 22:47:27
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/05/29/SGLang之MambaRadixCache机制解析/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM-infra/">#LLM infra</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/SGLang/">#SGLang</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/01/hello-world/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">Hello World — 博客配置说明</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/05/28/SGLang%E4%B9%8BKV%20Cache%E5%86%85%E5%AD%98%E6%B1%A0%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">SGLang之KV Cache内存池机制</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">SGLang之MambaRadixCache机制</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4%E5%B8%83%E5%B1%80"><span class="nav-text"> 1. 内存空间布局</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-%E4%B8%89%E5%A4%A7%E5%86%85%E5%AD%98%E6%B1%A0"><span class="nav-text"> 1.1 三大内存池</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-kv-pool-%E7%A9%BA%E9%97%B4"><span class="nav-text"> 1.2 KV Pool 空间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-ssm-pool-%E7%A9%BA%E9%97%B4"><span class="nav-text"> 1.3 SSM Pool 空间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#14-reqtotokenpool-%E6%98%A0%E5%B0%84%E8%A1%A8"><span class="nav-text"> 1.4 ReqToTokenPool 映射表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#15-%E7%A9%BA%E9%97%B4%E5%AF%B9%E6%AF%94"><span class="nav-text"> 1.5 空间对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-radix-tree-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-text"> 2. Radix Tree 数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-treenode-%E5%AE%9A%E4%B9%89"><span class="nav-text"> 2.1 TreeNode 定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-radix-tree-%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E5%89%8D%E7%BC%80"><span class="nav-text"> 2.2 Radix Tree 如何存储前缀</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-tombstone-%E6%9C%BA%E5%88%B6"><span class="nav-text"> 2.3 Tombstone 机制</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E7%BC%93%E5%AD%98%E6%9C%BA%E5%88%B6%E5%8E%9F%E7%90%86"><span class="nav-text"> 3. 缓存机制原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E5%89%8D%E7%BC%80%E5%85%B1%E4%BA%AB%E4%B8%8D-copy-%E6%95%B0%E6%8D%AE%E5%8F%AA%E5%85%B1%E4%BA%AB-index"><span class="nav-text"> 3.1 前缀共享——不 copy 数据，只共享 index</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-ssm-copy-on-write-cow"><span class="nav-text"> 3.2 SSM Copy-on-Write (COW)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-%E5%8F%8C-lru-%E7%8B%AC%E7%AB%8B%E6%B7%98%E6%B1%B0"><span class="nav-text"> 3.3 双 LRU 独立淘汰</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-ping-pong-track-buffer"><span class="nav-text"> 3.4 Ping-Pong Track Buffer</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-prefill-%E6%B5%81%E7%A8%8B"><span class="nav-text"> 4. Prefill 流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E9%9D%9E-chunked-prefill%E7%9F%AD-prompt-%E4%B8%80%E6%AC%A1%E5%A4%84%E7%90%86%E5%AE%8C"><span class="nav-text"> 4.1 非 Chunked Prefill（短 prompt 一次处理完）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-chunked-prefill%E9%95%BF-prompt-%E5%88%86%E5%A4%9A%E6%AC%A1%E5%A4%84%E7%90%86"><span class="nav-text"> 4.2 Chunked Prefill（长 prompt 分多次处理）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-free-%E9%87%8D%E5%A4%8D-kv-%E7%9A%84%E5%9C%BA%E6%99%AF"><span class="nav-text"> 4.3 free 重复 KV 的场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-decode-%E6%B5%81%E7%A8%8B"><span class="nav-text"> 5. Decode 流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E5%8D%95-token-decode"><span class="nav-text"> 5.1 单 token decode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-%E4%B8%BA%E4%BB%80%E4%B9%88-decode-%E4%B8%AD%E9%97%B4%E4%B8%8D%E5%AD%98-ssm-%E5%88%B0-tree"><span class="nav-text"> 5.2 为什么 decode 中间不存 SSM 到 tree</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-track-interval-%E7%9A%84%E6%9D%83%E8%A1%A1"><span class="nav-text"> 5.3 Track Interval 的权衡</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E5%AE%8C%E6%95%B4%E7%AB%AF%E5%88%B0%E7%AB%AF%E4%BE%8B%E5%AD%90"><span class="nav-text"> 6. 完整端到端例子</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF%E8%AE%BE%E5%AE%9A"><span class="nav-text"> 场景设定</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#61-server-%E5%90%AF%E5%8A%A8-warmup"><span class="nav-text"> 6.1 Server 启动 + Warmup</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-request-1-%E5%88%B0%E6%9D%A5"><span class="nav-text"> 6.2 Request 1 到来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-request-2-%E5%88%B0%E6%9D%A5%E5%A4%8D%E7%94%A8%E5%89%8D%E7%BC%80"><span class="nav-text"> 6.3 Request 2 到来（复用前缀）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-%E5%A4%8D%E7%94%A8%E9%99%90%E5%88%B6%E9%95%BF%E6%97%A0%E6%B3%95%E5%A4%8D%E7%94%A8%E4%BA%8E%E7%9F%AD"><span class="nav-text"> 6.4 复用限制：长无法复用于短</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E5%85%B3%E9%94%AE%E8%AE%BE%E8%AE%A1%E6%80%BB%E7%BB%93"><span class="nav-text"> 7. 关键设计总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-%E4%B8%BA%E4%BB%80%E4%B9%88-kv-%E5%8F%AF%E4%BB%A5%E5%85%B1%E4%BA%AB%E4%BD%86-ssm-%E9%9C%80%E8%A6%81-cow"><span class="nav-text"> 7.1 为什么 KV 可以共享但 SSM 需要 COW</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-radix-tree-%E5%AD%98%E6%8C%87%E9%92%88%E4%B8%8D%E5%AD%98%E6%95%B0%E6%8D%AE"><span class="nav-text"> 7.2 Radix Tree 存指针不存数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-lock-%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0"><span class="nav-text"> 7.3 Lock 引用计数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#74-warmup-%E7%9A%84%E4%BB%B7%E5%80%BC"><span class="nav-text"> 7.4 Warmup 的价值</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-kda-speculative-decoding-%E6%9C%BA%E5%88%B6"><span class="nav-text"> 8. KDA Speculative Decoding 机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#81-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-text"> 8.1 整体架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#82-frozen-kv-%E8%AE%BE%E8%AE%A1"><span class="nav-text"> 8.2 Frozen KV 设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#83-verify-%E9%98%B6%E6%AE%B5%E7%9A%84-mamba-%E5%A4%84%E7%90%86"><span class="nav-text"> 8.3 Verify 阶段的 Mamba 处理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#84-intermediate-buffer-%E5%B8%83%E5%B1%80%E4%B8%8E%E5%9B%9E%E6%BB%9A"><span class="nav-text"> 8.4 Intermediate Buffer 布局与回滚</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#85-%E5%BD%93%E5%89%8D%E6%96%B9%E6%A1%88%E7%9A%84%E5%86%85%E5%AD%98%E5%BC%80%E9%94%80"><span class="nav-text"> 8.5 当前方案的内存开销</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#86-%E4%B8%8E-radixcache-%E7%9A%84%E9%9B%86%E6%88%90"><span class="nav-text"> 8.6 与 RadixCache 的集成</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-%E5%BB%B6%E8%BF%9F%E6%9B%B4%E6%96%B0%E6%96%B9%E6%A1%88%E4%BC%98%E5%8C%96-intermediate-buffer-%E5%86%85%E5%AD%98"><span class="nav-text"> 9. 延迟更新方案（优化 Intermediate Buffer 内存）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#91-%E9%97%AE%E9%A2%98%E5%8A%A8%E6%9C%BA"><span class="nav-text"> 9.1 问题动机</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#92-%E6%96%B9%E6%A1%88%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-text"> 9.2 方案核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#93-%E4%BB%80%E4%B9%88%E6%98%AF%E8%BE%93%E5%85%A5%E6%BF%80%E6%B4%BB%E5%80%BC"><span class="nav-text"> 9.3 什么是&quot;输入激活值&quot;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#94-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AA%E4%BF%9D%E7%95%99-accepted-%E7%9A%84%E6%BF%80%E6%B4%BB%E5%80%BC%E5%B0%B1%E5%A4%9F%E4%BA%86"><span class="nav-text"> 9.4 为什么只保留 accepted 的激活值就够了</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#95-verify-%E6%9C%9F%E9%97%B4%E7%9A%84-1-%E5%B1%82%E5%A4%8D%E7%94%A8-buffer"><span class="nav-text"> 9.5 Verify 期间的 1 层复用 Buffer</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#96-eagle-tree-%E5%86%85%E9%83%A8-parentchild-%E7%9A%84-s-%E5%85%B1%E4%BA%AB"><span class="nav-text"> 9.6 EAGLE Tree 内部 parent→child 的 S 共享</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#97-%E5%86%85%E5%AD%98%E5%AF%B9%E6%AF%94"><span class="nav-text"> 9.7 内存对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#98-%E5%BB%B6%E8%BF%9F%E4%BB%A3%E4%BB%B7"><span class="nav-text"> 9.8 延迟代价</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#99-%E6%AD%A3%E7%A1%AE%E6%80%A7%E4%BF%9D%E8%AF%81"><span class="nav-text"> 9.9 正确性保证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#910-track-interval-%E5%85%BC%E5%AE%B9"><span class="nav-text"> 9.10 Track Interval 兼容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#911-%E5%AE%8C%E6%95%B4%E6%97%B6%E5%BA%8F%E5%AF%B9%E6%AF%94"><span class="nav-text"> 9.11 完整时序对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#912-%E6%96%B9%E6%A1%88%E4%BC%98%E7%BC%BA%E7%82%B9%E6%80%BB%E7%BB%93"><span class="nav-text"> 9.12 方案优缺点总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#913-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF%E9%80%89%E6%8B%A9"><span class="nav-text"> 9.13 适用场景选择</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 29 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

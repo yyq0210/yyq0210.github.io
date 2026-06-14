@@ -489,7 +489,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">26</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -529,7 +529,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">26</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -544,6 +544,76 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/">
+                            hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel 详解
+仓库链接：xlite-dev/HGEMM at eee72be829545bd6bd115a4b252b5068c9f61597
+代码链接：HGEMM/kernels/hgemm/mma/hgemm_mma_stage.cu at eee72be829545bd6bd115a4b252b50...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Wed Mar 04 2026 23:50:00 GMT+0800">
+                
+                    2026-03-04
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/CUDA/">CUDA</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/CUDA/">CUDA</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/03/04/hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel/">阅读全文<span class="seo-reader-text">hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -993,6 +1063,156 @@ matxscript运行时系统的内存管理机制负责高效地分配和回收运�
                 </div>
             </li>
         
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2025/06/07/conv2d%E4%B9%8Bbackward/">
+                            conv2d之backward
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             1 填充
+在此之前，先补充一些卷积层前向过程中的一个步骤：填充（padding）；首先引出问题，例如现在有一个卷积运算具体参数如下：
+
+卷积的输入 X 宽高都是28，卷积核 W 的宽高是5，取步长 S 为1，那么输出 A 宽高就是24
+因为卷积运输的计算方式决定了输出的长度总是小于输入（长度为1的卷积核除外），这样有时会碰到一些问题，例如输入边缘的信息很重要，但是卷积计算对输入的边缘采样不...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Jun 07 2025 22:13:32 GMT+0800">
+                
+                    2025-06-07
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2025/06/07/conv2d%E4%B9%8Bbackward/">阅读全文<span class="seo-reader-text">conv2d之backward</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2025/06/06/conv2d%E4%B9%8Bforward/">
+                            conv2d之forward
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             1 直接卷积
+在直接卷积中，卷积核（滤波器）通过在输入图像上滑动并与图像的每个位置进行逐元素相乘，然后将所有乘积相加得到输出的单个像素值。这个过程可以看作是在输入图像上进行的一种滑动窗口操作，其中卷积核的大小决定了窗口的大小。下图所示为一个输入进行卷积的过程，如果为批量输入，则结果也多个。维度变化为：
+
+
+其中：
+
+
+
+
+
+12345678910111213141516/*不考虑输出的pa...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Fri Jun 06 2025 22:13:32 GMT+0800">
+                
+                    2025-06-06
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2025/06/06/conv2d%E4%B9%8Bforward/">阅读全文<span class="seo-reader-text">conv2d之forward</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1023,7 +1243,7 @@ matxscript运行时系统的内存管理机制负责高效地分配和回收运�
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 26 篇文章
+                        共撰写了 29 篇文章
                     </span>
                     
                 </p>
