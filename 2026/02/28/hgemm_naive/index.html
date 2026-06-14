@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/02/28/hgemm_naive/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hgemm_naive_kernel详解">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/02/28/hgemm_naive/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-02-28T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-14T15:28:37.983Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="CUDA">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            hgemm_naive_kernel详解 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">hgemm_naive_kernel详解</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-02-28 23:50</span>
+        <span class="mobile">2026-02-28 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-14 23:28:37</span>
+            <span class="mobile">2026-06-14 23:28:37</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/CUDA/">CUDA</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/CUDA/">CUDA</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>hgemm_naive_kernel详解</p>
+<p>仓库链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/tree/eee72be829545bd6bd115a4b252b5068c9f61597">xlite-dev/HGEMM at eee72be829545bd6bd115a4b252b5068c9f61597<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>代码链接：<a class="link" target="_blank" rel="noopener" href="https://github.com/xlite-dev/HGEMM/blob/eee72be829545bd6bd115a4b252b5068c9f61597/kernels/hgemm/naive/hgemm.cu">HGEMM/kernels/hgemm/naive/hgemm.cu at eee72be829545bd6bd115a4b252b5068c9f61597 · xlite-dev/HGEMM<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h1 id="cuda-hgemm-kernel-技术报告"><a class="markdownIt-Anchor" href="#cuda-hgemm-kernel-技术报告"></a> CUDA HGEMM Kernel 技术报告</h1>
+<p><strong>Half-Precision General Matrix Multiplication (HGEMM) 优化实现详解</strong></p>
+<p>本报告详细分析了从朴素实现到高度优化版本的 HGEMM CUDA kernel，涵盖 Shared Memory 优化、Bank Conflict 分析、向量化访存、Double Buffering 等核心技术。</p>
+<hr>
+<h2 id="目录"><a class="markdownIt-Anchor" href="#目录"></a> 📑 目录</h2>
+<ol>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#1-%E6%A6%82%E8%BF%B0">概述<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#2-kernel-%E7%89%88%E6%9C%AC%E6%80%BB%E8%A7%88">Kernel 版本总览<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#3-%E6%9C%B4%E7%B4%A0%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90">朴素实现分析<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#4-block-tiling-%E4%BC%98%E5%8C%96">Block Tiling 优化<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#5-thread-tiling-%E4%BC%98%E5%8C%96">Thread Tiling 优化<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#6-bank-conflict-%E8%AF%A6%E8%A7%A3">Bank Conflict 详解<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#7-bank-conflict-free-%E4%BC%98%E5%8C%96">Bank Conflict Free 优化<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#8-double-buffering-%E4%BC%98%E5%8C%96">Double Buffering 优化<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#9-%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94%E4%B8%8E%E5%88%86%E6%9E%90">性能对比与分析<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://www.yuque.com/u41811030/pvtsxy/qyfscpopfo0wmi18#10-%E6%80%BB%E7%BB%93%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5">总结与最佳实践<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ol>
+<hr>
+<h2 id="1-概述"><a class="markdownIt-Anchor" href="#1-概述"></a> 1. 概述</h2>
+<h3 id="11-问题定义"><a class="markdownIt-Anchor" href="#11-问题定义"></a> 1.1 问题定义</h3>
+<p>HGEMM (Half-precision GEMM) 计算矩阵乘法：<img lazyload="" src="/images/loading.svg" data-src="https://cdn.nlark.com/yuque/__latex/63f406fa5e86507390dff970a355717e.svg" alt="img"></p>
+<ul>
+<li><strong>A</strong>: <img lazyload="" src="/images/loading.svg" data-src="https://cdn.nlark.com/yuque/__latex/718e5425c901d10ef810aa6a68038dc2.svg" alt="img"> 矩阵 (FP16)</li>
+<li><strong>B</strong>: <img lazyload="" src="/images/loading.svg" data-src="https://cdn.nlark.com/yuque/__latex/8dbd71e51c2a5fb64717860424007c16.svg" alt="img"> 矩阵 (FP16)</li>
+<li><strong>C</strong>: <img lazyload="" src="/images/loading.svg" data-src="https://cdn.nlark.com/yuque/__latex/96fb6155a93cd51a1b0a12c3a9d4d787.svg" alt="img"> 矩阵 (FP16)</li>
+</ul>
+<h3 id="12-核心优化技术"><a class="markdownIt-Anchor" href="#12-核心优化技术"></a> 1.2 核心优化技术</h3>
+<table>
+<thead>
+<tr>
+<th>优化技术</th>
+<th>目的</th>
+<th>收益</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Block Tiling</strong></td>
+<td>数据局部性</td>
+<td>减少全局内存访问</td>
+</tr>
+<tr>
+<td><strong>Thread Tiling</strong></td>
+<td>计算密度</td>
+<td>提高 FMA/Load 比率</td>
+</tr>
+<tr>
+<td><strong>Vectorization</strong></td>
+<td>访存带宽</td>
+<td>减少指令数量</td>
+</tr>
+<tr>
+<td><strong>Bank Conflict Free</strong></td>
+<td>共享内存效率</td>
+<td>消除访存冲突</td>
+</tr>
+<tr>
+<td><strong>Double Buffering</strong></td>
+<td>延迟隐藏</td>
+<td>重叠计算与访存</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-硬件背景"><a class="markdownIt-Anchor" href="#13-硬件背景"></a> 1.3 硬件背景</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">CUDA Shared Memory Bank 结构：</span><br><span class="line">├── 32 个 Bank</span><br><span class="line">├── 每个 Bank 宽度: 4 bytes</span><br><span class="line">├── 一个 Bank Cycle: 32 banks × 4 bytes = 128 bytes = 64 half</span><br><span class="line">└── Bank 计算: Bank = (element_index × 2 / 4) % 32 = (element_index / 2) % 32</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="2-kernel-版本总览"><a class="markdownIt-Anchor" href="#2-kernel-版本总览"></a> 2. Kernel 版本总览</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                        HGEMM Kernel 演进路径                             │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                         │</span><br><span class="line">│  hgemm_naive_f16_kernel                                                 │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + Shared Memory + K Tiling                                       │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_sliced_k_f16_kernel                                              │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + Thread Tile 8×8 + Vectorization (f16x4)                        │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_t_8x8_sliced_k_f16x4_kernel                                      │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + LDST64BITS Pack                                                │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_t_8x8_sliced_k_f16x4_pack_kernel                                 │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + Transpose s_a (Bank Conflict Reduction)                        │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_t_8x8_sliced_k_f16x4_bcf_kernel                                  │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + Padding (OFFSET) + f16x8                                       │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel                             │</span><br><span class="line">│      │                                                                  │</span><br><span class="line">│      │ + Double Buffering                                               │</span><br><span class="line">│      ▼                                                                  │</span><br><span class="line">│  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel                        │</span><br><span class="line">│                                                                         │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="21-各版本配置参数"><a class="markdownIt-Anchor" href="#21-各版本配置参数"></a> 2.1 各版本配置参数</h3>
+<table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>BM</th>
+<th>BN</th>
+<th>BK</th>
+<th>TM</th>
+<th>TN</th>
+<th>Threads</th>
+<th>Elements/Thread</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>naive</td>
+<td>32</td>
+<td>32</td>
+<td>-</td>
+<td>1</td>
+<td>1</td>
+<td>1024</td>
+<td>1</td>
+</tr>
+<tr>
+<td>sliced_k</td>
+<td>32</td>
+<td>32</td>
+<td>32</td>
+<td>1</td>
+<td>1</td>
+<td>1024</td>
+<td>1</td>
+</tr>
+<tr>
+<td>t_8x8_f16x4</td>
+<td>128</td>
+<td>128</td>
+<td>8</td>
+<td>8</td>
+<td>8</td>
+<td>256</td>
+<td>64</td>
+</tr>
+<tr>
+<td>bcf/dbuf</td>
+<td>128</td>
+<td>128</td>
+<td>8</td>
+<td>8</td>
+<td>8</td>
+<td>256</td>
+<td>64</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-朴素实现分析"><a class="markdownIt-Anchor" href="#3-朴素实现分析"></a> 3. 朴素实现分析</h2>
+<h3 id="31-代码实现"><a class="markdownIt-Anchor" href="#31-代码实现"></a> 3.1 代码实现</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">__global__ void hgemm_naive_f16_kernel(half* a, half* b, half* c, int M, int N, int K) {</span><br><span class="line">  int n = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  int m = blockIdx.y * blockDim.y + threadIdx.y;</span><br><span class="line"></span><br><span class="line">  if (m &lt; M &amp;&amp; n &lt; N) {</span><br><span class="line">    half psum = 0.0;</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int k = 0; k &lt; K; k++) {</span><br><span class="line">      psum += a[m * K + k] * b[k * N + n];  // 每次迭代 2 次全局内存访问</span><br><span class="line">    }</span><br><span class="line">    c[m * N + n] = psum;</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="32-执行配置"><a class="markdownIt-Anchor" href="#32-执行配置"></a> 3.2 执行配置</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">dim3 block(32, 32);  // 1024 threads/block</span><br><span class="line">dim3 grid((N + 31) / 32, (M + 31) / 32);</span><br></pre></td></tr></table></figure></div>
+<h3 id="33-问题分析"><a class="markdownIt-Anchor" href="#33-问题分析"></a> 3.3 问题分析</h3>
+<h4 id="问题1无数据复用"><a class="markdownIt-Anchor" href="#问题1无数据复用"></a> 🔴 问题1：无数据复用</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">对于计算 C[m][n]，需要读取：</span><br><span class="line">- A[m][0:K] 的整行 (K 个元素)</span><br><span class="line">- B[0:K][n] 的整列 (K 个元素)</span><br><span class="line"></span><br><span class="line">整个 C 矩阵的计算：</span><br><span class="line">- A 的每一行被读取 N 次 → 总共 M × N × K 次访问</span><br><span class="line">- B 的每一列被读取 M 次 → 总共 M × N × K 次访问</span><br><span class="line"></span><br><span class="line">数据复用率 = 0（每个数据仅服务于一次计算）</span><br></pre></td></tr></table></figure></div>
+<h4 id="问题2极低的计算密度"><a class="markdownIt-Anchor" href="#问题2极低的计算密度"></a> 🔴 问题2：极低的计算密度</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">每次循环迭代：</span><br><span class="line">├── 2 次 Global Memory Load (a[m*K+k], b[k*N+n])</span><br><span class="line">├── 1 次 FMA 计算 (psum += a * b)</span><br><span class="line">└── 计算密度 = 1 FMA / 2 Load = 0.5 FMA/Load</span><br><span class="line"></span><br><span class="line">理想计算密度 &gt; 10 FMA/Load</span><br></pre></td></tr></table></figure></div>
+<h4 id="问题3内存访问模式不佳"><a class="markdownIt-Anchor" href="#问题3内存访问模式不佳"></a> 🔴 问题3：内存访问模式不佳</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">矩阵 B 的访问模式：</span><br><span class="line">Thread 0:  b[k*N + 0]   ← 连续 4 bytes</span><br><span class="line">Thread 1:  b[k*N + 1]   ← 连续 4 bytes (但与 Thread 0 不连续)</span><br><span class="line">Thread 31: b[k*N + 31]  ← 连续 4 bytes</span><br><span class="line"></span><br><span class="line">问题：每个 warp 访问的是 B 矩阵同一行的连续元素</span><br><span class="line">     → 可合并 (coalesced)，这点是 OK 的</span><br><span class="line"></span><br><span class="line">矩阵 A 的访问模式：</span><br><span class="line">同一个 warp 内，ty 相同的线程访问相同的 a[m*K+k]</span><br><span class="line">     → 存在广播机会，但也意味着重复访问</span><br></pre></td></tr></table></figure></div>
+<h4 id="问题4无向量化"><a class="markdownIt-Anchor" href="#问题4无向量化"></a> 🔴 问题4：无向量化</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">每次只加载 1 个 half (2 bytes)</span><br><span class="line">理论上可以使用：</span><br><span class="line">- half2:   4 bytes  (2x throughput)</span><br><span class="line">- float4:  16 bytes (8x throughput)</span><br></pre></td></tr></table></figure></div>
+<h3 id="34-性能特征"><a class="markdownIt-Anchor" href="#34-性能特征"></a> 3.4 性能特征</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>值</th>
+<th>评价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>计算密度</td>
+<td>0.5 FMA/Load</td>
+<td>❌ 极低</td>
+</tr>
+<tr>
+<td>数据复用</td>
+<td>0</td>
+<td>❌ 无</td>
+</tr>
+<tr>
+<td>向量化</td>
+<td>1 element</td>
+<td>❌ 无</td>
+</tr>
+<tr>
+<td>Shared Memory</td>
+<td>未使用</td>
+<td>❌ 未优化</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="4-block-tiling-优化"><a class="markdownIt-Anchor" href="#4-block-tiling-优化"></a> 4. Block Tiling 优化</h2>
+<h3 id="41-核心思想"><a class="markdownIt-Anchor" href="#41-核心思想"></a> 4.1 核心思想</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                      Block Tiling 原理图                            │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│     矩阵 A (M×K)           矩阵 B (K×N)           矩阵 C (M×N)      │</span><br><span class="line">│   ┌────────────┐         ┌────────────┐         ┌────────────┐     │</span><br><span class="line">│   │            │         │            │         │            │     │</span><br><span class="line">│   │   ┌────┐   │   BK    │   ┌────────┤   BN    │   ┌────────┤     │</span><br><span class="line">│   │   │ A' │◄──┼────────►│   │   B'   │◄───────►│   │   C'   │     │</span><br><span class="line">│   │   │    │   │         │   │        │         │   │        │     │</span><br><span class="line">│   │   └────┘   │   ▲     │   └────────┤         │   └────────┤     │</span><br><span class="line">│   │     ▲      │   │     │            │         │            │     │</span><br><span class="line">│   │     │ BM   │   │     │            │         │            │     │</span><br><span class="line">│   └─────┼──────┘   │     └────────────┘         └────────────┘     │</span><br><span class="line">│         │          │                                                │</span><br><span class="line">│         └──────────┘                                                │</span><br><span class="line">│              K 维度分块迭代                                          │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   每个 Block 负责计算 C 中 BM×BN 大小的子块                          │</span><br><span class="line">│   K 维度按 BK 大小分块迭代，每次迭代：                                │</span><br><span class="line">│   1. 加载 A' (BM×BK) 到 Shared Memory                               │</span><br><span class="line">│   2. 加载 B' (BK×BN) 到 Shared Memory                               │</span><br><span class="line">│   3. 计算 C' += A' × B'                                             │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="42-代码实现"><a class="markdownIt-Anchor" href="#42-代码实现"></a> 4.2 代码实现</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">template&lt;const int BM=32, const int BN=32, const int BK=32&gt;</span><br><span class="line">__global__ void hgemm_sliced_k_f16_kernel(half* a, half* b, half* c, int M, int N, int K) {</span><br><span class="line">  __shared__ half s_a[BM][BK], s_b[BK][BN];  // 共享内存缓存</span><br><span class="line"></span><br><span class="line">  int bx = blockIdx.x, by = blockIdx.y;</span><br><span class="line">  int tx = threadIdx.x, ty = threadIdx.y;</span><br><span class="line">  int tid = ty * blockDim.x + tx;</span><br><span class="line">  </span><br><span class="line">  // 计算加载索引</span><br><span class="line">  int load_smem_a_m = tid / 32;  // 行索引</span><br><span class="line">  int load_smem_a_k = tid % 32;  // 列索引</span><br><span class="line">  int load_smem_b_k = tid / 32;</span><br><span class="line">  int load_smem_b_n = tid % 32;</span><br><span class="line">  </span><br><span class="line">  int load_gmem_a_m = by * BM + load_smem_a_m;</span><br><span class="line">  int load_gmem_b_n = bx * BN + load_smem_b_n;</span><br><span class="line">  </span><br><span class="line">  half sum = 0;</span><br><span class="line">  for (int bk = 0; bk &lt; (K + BK - 1) / BK; ++bk) {</span><br><span class="line">    // 协作加载数据到共享内存</span><br><span class="line">    int load_gmem_a_k = bk * BK + load_smem_a_k;</span><br><span class="line">    s_a[load_smem_a_m][load_smem_a_k] = a[load_gmem_a_m * K + load_gmem_a_k];</span><br><span class="line">    </span><br><span class="line">    int load_gmem_b_k = bk * BK + load_smem_b_k;</span><br><span class="line">    s_b[load_smem_b_k][load_smem_b_n] = b[load_gmem_b_k * N + load_gmem_b_n];</span><br><span class="line">    __syncthreads();</span><br><span class="line">    </span><br><span class="line">    // 从共享内存计算</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int k = 0; k &lt; BK; ++k) {</span><br><span class="line">      sum += s_a[load_smem_a_m][k] * s_b[k][load_smem_b_n];</span><br><span class="line">    }</span><br><span class="line">    __syncthreads();</span><br><span class="line">  }</span><br><span class="line">  c[load_gmem_a_m * N + load_gmem_b_n] = sum;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="43-数据复用分析"><a class="markdownIt-Anchor" href="#43-数据复用分析"></a> 4.3 数据复用分析</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">原始实现（无复用）：</span><br><span class="line">├── 矩阵 A: 每个元素被读取 N 次</span><br><span class="line">├── 矩阵 B: 每个元素被读取 M 次</span><br><span class="line">└── 总全局内存访问: 2 × M × N × K</span><br><span class="line"></span><br><span class="line">Block Tiling 实现：</span><br><span class="line">├── 矩阵 A: 每个元素被读取 N/BN 次 (复用 BN 次)</span><br><span class="line">├── 矩阵 B: 每个元素被读取 M/BM 次 (复用 BM 次)</span><br><span class="line">└── 总全局内存访问: (M × N × K / BN) + (M × N × K / BM)</span><br><span class="line"></span><br><span class="line">复用提升: BM 或 BN 倍 (取决于矩阵)</span><br></pre></td></tr></table></figure></div>
+<h3 id="44-仍存在的问题"><a class="markdownIt-Anchor" href="#44-仍存在的问题"></a> 4.4 仍存在的问题</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>计算密度仍低</td>
+<td>每线程仅计算 1 个输出元素</td>
+</tr>
+<tr>
+<td>无向量化</td>
+<td>单元素加载</td>
+</tr>
+<tr>
+<td>同步开销</td>
+<td>每次 K 迭代需要 2 次 <code>__syncthreads()</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="5-thread-tiling-优化"><a class="markdownIt-Anchor" href="#5-thread-tiling-优化"></a> 5. Thread Tiling 优化</h2>
+<h3 id="51-核心思想"><a class="markdownIt-Anchor" href="#51-核心思想"></a> 5.1 核心思想</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                     Thread Tiling 原理图                            │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Block Tile (BM=128, BN=128)         Thread Tile (TM=8, TN=8)     │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   ┌────────────────────────────┐      每个线程计算 8×8 = 64 个元素  │</span><br><span class="line">│   │ ┌──┬──┬──┬──┬──┬──┬──┬──┐ │                                    │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      ┌──────────────┐              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      │ r_c[8][8]    │              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      │              │              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │  =   │  64 FP16     │              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      │  寄存器      │              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      │              │              │</span><br><span class="line">│   │ ├──┼──┼──┼──┼──┼──┼──┼──┤ │      └──────────────┘              │</span><br><span class="line">│   │ └──┴──┴──┴──┴──┴──┴──┴──┘ │                                    │</span><br><span class="line">│   └────────────────────────────┘      Block: 16×16 = 256 线程      │</span><br><span class="line">│                                       256 × 64 = 16384 = 128×128 ✓ │</span><br><span class="line">│   线程布局: blockDim(16, 16)                                        │</span><br><span class="line">│   tx: 0~15, ty: 0~15                                                │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="52-计算密度提升"><a class="markdownIt-Anchor" href="#52-计算密度提升"></a> 5.2 计算密度提升</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">每次 K 迭代，每个线程：</span><br><span class="line">├── 加载: r_comp_a[8] 从 s_a (8 个 half)</span><br><span class="line">├── 加载: r_comp_b[8] 从 s_b (8 个 half)  </span><br><span class="line">├── 计算: 8 × 8 = 64 次 FMA</span><br><span class="line">└── 计算密度 = 64 FMA / 16 Load = 4 FMA/Load</span><br><span class="line"></span><br><span class="line">对比 naive: 0.5 FMA/Load → 提升 8 倍！</span><br></pre></td></tr></table></figure></div>
+<h3 id="53-代码实现"><a class="markdownIt-Anchor" href="#53-代码实现"></a> 5.3 代码实现</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">template&lt;const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8&gt;</span><br><span class="line">__global__ void hgemm_t_8x8_sliced_k_f16x4_kernel(half* a, half* b, half* c, int M, int N, int K) {</span><br><span class="line">  int bx = blockIdx.x, by = blockIdx.y;</span><br><span class="line">  int tx = threadIdx.x, ty = threadIdx.y;</span><br><span class="line">  int tid = ty * blockDim.x + tx;  // 0~255</span><br><span class="line">  </span><br><span class="line">  __shared__ half s_a[BM][BK], s_b[BK][BN];  // 128×8 + 8×128 = 4KB</span><br><span class="line">  </span><br><span class="line">  // 加载索引计算</span><br><span class="line">  // s_a[128][8]: 每行 8 元素，每线程加载 4 个，需要 2 线程/行，128 行需要 256 线程</span><br><span class="line">  int load_smem_a_m = tid / 2;                    // 0~127</span><br><span class="line">  int load_smem_a_k = (tid % 2 == 0) ? 0 : 4;     // 0 或 4</span><br><span class="line">  </span><br><span class="line">  // s_b[8][128]: 每行 128 元素，每线程加载 4 个，需要 32 线程/行，8 行需要 256 线程</span><br><span class="line">  int load_smem_b_k = tid / 32;                   // 0~7</span><br><span class="line">  int load_smem_b_n = (tid % 32) * 4;             // 0,4,8,...,124</span><br><span class="line"></span><br><span class="line">  half r_c[TM][TN] = {0};  // 寄存器存储 8×8 结果</span><br><span class="line">  </span><br><span class="line">  for (int bk = 0; bk &lt; (K + BK - 1) / BK; ++bk) {</span><br><span class="line">    // 向量化加载到共享内存 (使用 half2)</span><br><span class="line">    int load_gmem_a_k = bk * BK + load_smem_a_k;</span><br><span class="line">    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;</span><br><span class="line">    HALF2(s_a[load_smem_a_m][load_smem_a_k + 0]) = HALF2(a[load_gmem_a_addr + 0]);</span><br><span class="line">    HALF2(s_a[load_smem_a_m][load_smem_a_k + 2]) = HALF2(a[load_gmem_a_addr + 2]);</span><br><span class="line">    </span><br><span class="line">    int load_gmem_b_k = bk * BK + load_smem_b_k;</span><br><span class="line">    int load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n;</span><br><span class="line">    HALF2(s_b[load_smem_b_k][load_smem_b_n + 0]) = HALF2(b[load_gmem_b_addr + 0]);</span><br><span class="line">    HALF2(s_b[load_smem_b_k][load_smem_b_n + 2]) = HALF2(b[load_gmem_b_addr + 2]);</span><br><span class="line">    __syncthreads();</span><br><span class="line">    </span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int k = 0; k &lt; BK; k++) {</span><br><span class="line">      #pragma unroll</span><br><span class="line">      for (int m = 0; m &lt; TM; m++) {</span><br><span class="line">        #pragma unroll</span><br><span class="line">        for (int n = 0; n &lt; TN; n++) {</span><br><span class="line">          int comp_smem_a_m = ty * TM + m;  // 线程 ty 负责的 M 范围</span><br><span class="line">          int comp_smem_b_n = tx * TN + n;  // 线程 tx 负责的 N 范围</span><br><span class="line">          r_c[m][n] += s_a[comp_smem_a_m][k] * s_b[k][comp_smem_b_n];</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">    __syncthreads();</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  // 向量化写回结果</span><br><span class="line">  #pragma unroll</span><br><span class="line">  for (int m = 0; m &lt; TM; ++m) {</span><br><span class="line">    int store_gmem_c_m = by * BM + ty * TM + m;</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int n = 0; n &lt; TN; n += 2) {</span><br><span class="line">      int store_gmem_c_n = bx * BN + tx * TN + n;</span><br><span class="line">      HALF2(c[store_gmem_c_m * N + store_gmem_c_n]) = HALF2(r_c[m][n]);</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="54-线程到数据的映射"><a class="markdownIt-Anchor" href="#54-线程到数据的映射"></a> 5.4 线程到数据的映射</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                  Thread (ty, tx) 到 C 子块的映射                     │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Block Tile C[128×128]                                             │</span><br><span class="line">│                                                                     │</span><br><span class="line">│        tx=0    tx=1    tx=2    ...    tx=15                         │</span><br><span class="line">│       ┌──────┬──────┬──────┬───────┬──────┐                         │</span><br><span class="line">│  ty=0 │ 8×8  │ 8×8  │ 8×8  │  ...  │ 8×8  │ ← 线程(0,0)~(0,15)     │</span><br><span class="line">│       ├──────┼──────┼──────┼───────┼──────┤                         │</span><br><span class="line">│  ty=1 │ 8×8  │ 8×8  │ 8×8  │  ...  │ 8×8  │ ← 线程(1,0)~(1,15)     │</span><br><span class="line">│       ├──────┼──────┼──────┼───────┼──────┤                         │</span><br><span class="line">│   ⋮   │  ⋮   │  ⋮   │  ⋮   │   ⋮   │  ⋮   │                         │</span><br><span class="line">│       ├──────┼──────┼──────┼───────┼──────┤                         │</span><br><span class="line">│ ty=15 │ 8×8  │ 8×8  │ 8×8  │  ...  │ 8×8  │ ← 线程(15,0)~(15,15)   │</span><br><span class="line">│       └──────┴──────┴──────┴───────┴──────┘                         │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   线程 (ty, tx) 计算 C 的子块:                                       │</span><br><span class="line">│   ├── M 方向: [ty*TM, ty*TM+8) = [ty*8, ty*8+8)                     │</span><br><span class="line">│   └── N 方向: [tx*TN, tx*TN+8) = [tx*8, tx*8+8)                     │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="6-bank-conflict-详解"><a class="markdownIt-Anchor" href="#6-bank-conflict-详解"></a> 6. Bank Conflict 详解</h2>
+<h3 id="61-shared-memory-bank-结构"><a class="markdownIt-Anchor" href="#61-shared-memory-bank-结构"></a> 6.1 Shared Memory Bank 结构</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                    Shared Memory Bank 布局                          │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   32 Banks, 每个 Bank 4 bytes, 总计 128 bytes = 64 half             │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Bank:    b0      b1      b2      b3     ...     b31               │</span><br><span class="line">│          ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┐               │</span><br><span class="line">│   地址:  │ 0-3 │ 4-7 │8-11 │12-15│ ... │124-127│               │</span><br><span class="line">│          │     │     │     │     │     │       │               │</span><br><span class="line">│   half:  │h0,h1│h2,h3│h4,h5│h6,h7│ ... │h62,h63│               │</span><br><span class="line">│          └─────┴─────┴─────┴─────┴─────┴───────┘               │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Bank 计算公式:                                                     │</span><br><span class="line">│   Bank(element_index) = (element_index / 2) % 32                    │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   例: half element[128]                                             │</span><br><span class="line">│   element[0], element[1]   → Bank 0  (layer 0)                      │</span><br><span class="line">│   element[2], element[3]   → Bank 1  (layer 0)                      │</span><br><span class="line">│   ...                                                               │</span><br><span class="line">│   element[62], element[63] → Bank 31 (layer 0)                      │</span><br><span class="line">│   element[64], element[65] → Bank 0  (layer 1)  ← 回到 Bank 0!      │</span><br><span class="line">│   element[66], element[67] → Bank 1  (layer 1)                      │</span><br><span class="line">│   ...                                                               │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-s_abmbk-的-bank-conflict-分析"><a class="markdownIt-Anchor" href="#62-s_abmbk-的-bank-conflict-分析"></a> 6.2 s_a[BM][BK] 的 Bank Conflict 分析</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">s_a[128][8] 布局 (行主序):</span><br><span class="line"></span><br><span class="line">Row 0:   s_a[0][0~7]   → half[0~7]   → Bank 0~3 (layer 0)</span><br><span class="line">Row 1:   s_a[1][0~7]   → half[8~15]  → Bank 4~7 (layer 0)</span><br><span class="line">Row 2:   s_a[2][0~7]   → half[16~23] → Bank 8~11 (layer 0)</span><br><span class="line">...</span><br><span class="line">Row 7:   s_a[7][0~7]   → half[56~63] → Bank 28~31 (layer 0)</span><br><span class="line">Row 8:   s_a[8][0~7]   → half[64~71] → Bank 0~3 (layer 1)  ← Bank 0~3 重复!</span><br><span class="line">Row 9:   s_a[9][0~7]   → half[72~79] → Bank 4~7 (layer 1)</span><br><span class="line">...</span><br><span class="line">Row 15:  s_a[15][0~7]  → half[120~127] → Bank 28~31 (layer 1)</span><br><span class="line">Row 16:  s_a[16][0~7]  → half[128~135] → Bank 0~3 (layer 2)  ← Bank 0~3 重复!</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">关键发现: 每 8 行，Bank 模式重复！</span><br><span class="line">s_a[m][k] 与 s_a[m+8][k] 访问相同 Bank</span><br></pre></td></tr></table></figure></div>
+<h3 id="63-读取-s_a-时的-bank-conflict"><a class="markdownIt-Anchor" href="#63-读取-s_a-时的-bank-conflict"></a> 6.3 读取 s_a 时的 Bank Conflict</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">计算阶段，线程访问模式:</span><br><span class="line"></span><br><span class="line">comp_smem_a_m = ty * TM + m;  // TM=8</span><br><span class="line">comp_smem_b_n = tx * TN + n;  // TN=8</span><br><span class="line"></span><br><span class="line">对于 Warp 0 (tid 0~31, 即 ty=0~1, tx=0~15):</span><br><span class="line"></span><br><span class="line">┌──────────────────────────────────────────────────────────────────┐</span><br><span class="line">│   Warp 0 访问 s_a[comp_smem_a_m][k] 的 Bank 分布                  │</span><br><span class="line">├──────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                  │</span><br><span class="line">│   ty=0 (tid 0~15):  comp_smem_a_m = 0×8 + m = m (0~7)           │</span><br><span class="line">│   ty=1 (tid 16~31): comp_smem_a_m = 1×8 + m = 8+m (8~15)        │</span><br><span class="line">│                                                                  │</span><br><span class="line">│   当 m=0, k=0:                                                   │</span><br><span class="line">│   ├── ty=0: s_a[0][0]  → Bank 0                                 │</span><br><span class="line">│   └── ty=1: s_a[8][0]  → Bank 0  ← 同一 Bank!                   │</span><br><span class="line">│                                                                  │</span><br><span class="line">│   当 m=0, k=1:                                                   │</span><br><span class="line">│   ├── ty=0: s_a[0][1]  → Bank 0                                 │</span><br><span class="line">│   └── ty=1: s_a[8][1]  → Bank 0  ← 同一 Bank!                   │</span><br><span class="line">│                                                                  │</span><br><span class="line">│   结论: Warp 0 中 ty=0 和 ty=1 的线程总是访问相同 Bank            │</span><br><span class="line">│         → 2-way Bank Conflict!                                   │</span><br><span class="line">│                                                                  │</span><br><span class="line">└──────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="64-完整-warp-的-bank-conflict-表"><a class="markdownIt-Anchor" href="#64-完整-warp-的-bank-conflict-表"></a> 6.4 完整 Warp 的 Bank Conflict 表</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">s_a[128][8] 读取 Bank Conflict (同一 k 值):</span><br><span class="line"></span><br><span class="line">┌────────┬─────────────────┬───────────────────┬──────────────────┐</span><br><span class="line">│ 线程   │ comp_smem_a_m   │ s_a[m][k] 地址    │ Bank             │</span><br><span class="line">├────────┼─────────────────┼───────────────────┼──────────────────┤</span><br><span class="line">│ ty=0   │ 0+m (0~7)       │ m*8+k             │ (m*8+k)/2 % 32   │</span><br><span class="line">│ ty=1   │ 8+m (8~15)      │ (8+m)*8+k         │ ((8+m)*8+k)/2%32 │</span><br><span class="line">│ ty=2   │ 16+m (16~23)    │ (16+m)*8+k        │ ...              │</span><br><span class="line">│ ...    │ ...             │ ...               │ ...              │</span><br><span class="line">│ ty=15  │ 120+m (120~127) │ (120+m)*8+k       │ ...              │</span><br><span class="line">└────────┴─────────────────┴───────────────────┴──────────────────┘</span><br><span class="line"></span><br><span class="line">当 m=0, k=0:</span><br><span class="line">ty=0:  s_a[0][0]   = half[0]   → Bank 0</span><br><span class="line">ty=1:  s_a[8][0]   = half[64]  → Bank 0   ← Conflict!</span><br><span class="line">ty=2:  s_a[16][0]  = half[128] → Bank 0   ← Conflict!</span><br><span class="line">...</span><br><span class="line">ty=15: s_a[120][0] = half[960] → Bank 0   ← Conflict!</span><br><span class="line"></span><br><span class="line">→ 16-way Bank Conflict! (ty=0~15 全部访问 Bank 0)</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="7-bank-conflict-free-优化"><a class="markdownIt-Anchor" href="#7-bank-conflict-free-优化"></a> 7. Bank Conflict Free 优化</h2>
+<h3 id="71-转置-s_a-s_abkbm"><a class="markdownIt-Anchor" href="#71-转置-s_a-s_abkbm"></a> 7.1 转置 s_a: s_a[BK][BM]</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">原始布局 s_a[BM][BK] = s_a[128][8]:</span><br><span class="line">├── 问题: 同一 k 值时，不同 ty 访问相同 Bank</span><br><span class="line">└── 原因: 行间距 8 half = 4 Banks，每 8 行回到相同 Bank</span><br><span class="line"></span><br><span class="line">转置布局 s_a[BK][BM] = s_a[8][128]:</span><br><span class="line">├── 每行 128 个 half = 64 Banks = 2 个完整 Bank Cycle</span><br><span class="line">└── 效果: 不同 m 值的元素分布在不同 Bank</span><br><span class="line"></span><br><span class="line">新布局下的 Bank 分布:</span><br><span class="line">s_a[k][0~1]   → Bank 0</span><br><span class="line">s_a[k][2~3]   → Bank 1</span><br><span class="line">s_a[k][4~5]   → Bank 2</span><br><span class="line">...</span><br><span class="line">s_a[k][62~63] → Bank 31</span><br><span class="line">s_a[k][64~65] → Bank 0 (layer 1)</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<h3 id="72-转置后的访问分析"><a class="markdownIt-Anchor" href="#72-转置后的访问分析"></a> 7.2 转置后的访问分析</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">转置后访问: s_a[k][ty * TM + m]</span><br><span class="line"></span><br><span class="line">对于 Warp 0 (ty=0~1):</span><br><span class="line"></span><br><span class="line">当 k=0, m=0:</span><br><span class="line">├── ty=0: s_a[0][0]  → Bank 0</span><br><span class="line">└── ty=1: s_a[0][8]  → Bank 4   ← 不同 Bank!</span><br><span class="line"></span><br><span class="line">当 k=0, m=0~7 (ty=0):</span><br><span class="line">├── s_a[0][0]  → Bank 0</span><br><span class="line">├── s_a[0][1]  → Bank 0</span><br><span class="line">├── s_a[0][2]  → Bank 1</span><br><span class="line">├── s_a[0][3]  → Bank 1</span><br><span class="line">├── s_a[0][4]  → Bank 2</span><br><span class="line">├── s_a[0][5]  → Bank 2</span><br><span class="line">├── s_a[0][6]  → Bank 3</span><br><span class="line">└── s_a[0][7]  → Bank 3</span><br><span class="line"></span><br><span class="line">→ 如果使用 LDST128BITS 一次读 8 个 half，只涉及 4 个连续 Bank</span><br></pre></td></tr></table></figure></div>
+<h3 id="73-bcf_kernel-实现"><a class="markdownIt-Anchor" href="#73-bcf_kernel-实现"></a> 7.3 bcf_kernel 实现</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">template&lt;const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8&gt;</span><br><span class="line">__global__ void hgemm_t_8x8_sliced_k_f16x4_bcf_kernel(...) {</span><br><span class="line">  __shared__ half s_a[BK][BM];  // 转置: [8][128] 而非 [128][8]</span><br><span class="line">  __shared__ half s_b[BK][BN];  // 保持: [8][128]</span><br><span class="line">  </span><br><span class="line">  half r_load_a[4], r_load_b[4];  // 加载缓冲</span><br><span class="line">  half r_comp_a[TM], r_comp_b[TN];  // 计算缓冲</span><br><span class="line">  half r_c[TM][TN] = {0};</span><br><span class="line"></span><br><span class="line">  // 加载时转置存储</span><br><span class="line">  int load_a_smem_m = tid / 2;      // 原始行索引</span><br><span class="line">  int load_a_smem_k = (tid &amp; 1) &lt;&lt; 2;  // 原始列索引 (0 或 4)</span><br><span class="line">  </span><br><span class="line">  for (int bk = 0; bk &lt; (K + BK - 1) / BK; bk++) {</span><br><span class="line">    // 从全局内存按行读取 A</span><br><span class="line">    HALF2(r_load_a[0]) = HALF2(a[load_a_gmem_addr + 0]);</span><br><span class="line">    HALF2(r_load_a[2]) = HALF2(a[load_a_gmem_addr + 2]);</span><br><span class="line">    </span><br><span class="line">    // 转置存入共享内存: s_a[k][m] 而非 s_a[m][k]</span><br><span class="line">    s_a[load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];</span><br><span class="line">    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];</span><br><span class="line">    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];</span><br><span class="line">    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];</span><br><span class="line">    </span><br><span class="line">    __syncthreads();</span><br><span class="line">    </span><br><span class="line">    for (int tk = 0; tk &lt; BK; tk++) {</span><br><span class="line">      // 计算时按列读取: s_a[tk][m_range]</span><br><span class="line">      HALF2(r_comp_a[0]) = HALF2(s_a[tk][ty * TM / 2]);</span><br><span class="line">      HALF2(r_comp_a[2]) = HALF2(s_a[tk][ty * TM / 2 + 2]);</span><br><span class="line">      HALF2(r_comp_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2]);</span><br><span class="line">      HALF2(r_comp_a[6]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2 + 2]);</span><br><span class="line">      </span><br><span class="line">      // FMA 计算</span><br><span class="line">      for (int tm = 0; tm &lt; TM; tm++)</span><br><span class="line">        for (int tn = 0; tn &lt; TN; tn++)</span><br><span class="line">          r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="74-写入时的-bank-conflict"><a class="markdownIt-Anchor" href="#74-写入时的-bank-conflict"></a> 7.4 写入时的 Bank Conflict</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">转置存储: s_a[load_a_smem_k + i][load_a_smem_m]</span><br><span class="line"></span><br><span class="line">tid 0: m=0, k=0~3 → s_a[0~3][0]</span><br><span class="line">tid 1: m=0, k=4~7 → s_a[4~7][0]</span><br><span class="line">tid 2: m=1, k=0~3 → s_a[0~3][1]</span><br><span class="line">tid 3: m=1, k=4~7 → s_a[4~7][1]</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">写入 s_a[k][m]:</span><br><span class="line">├── s_a[0][0] = half[0]   → Bank 0</span><br><span class="line">├── s_a[1][0] = half[128] → Bank 0 (因为 128/2 % 32 = 0)</span><br><span class="line">├── s_a[2][0] = half[256] → Bank 0</span><br><span class="line">└── s_a[3][0] = half[384] → Bank 0</span><br><span class="line"></span><br><span class="line">tid 0 写入 s_a[0~3][0]，全部访问 Bank 0</span><br><span class="line">tid 2 写入 s_a[0~3][1]，全部访问 Bank 0</span><br><span class="line"></span><br><span class="line">→ 写入时仍有 Bank Conflict (但写入次数少，影响较小)</span><br></pre></td></tr></table></figure></div>
+<h3 id="75-padding-优化-offset"><a class="markdownIt-Anchor" href="#75-padding-优化-offset"></a> 7.5 Padding 优化 (OFFSET)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">__shared__ half s_a[BK][BM + OFFSET];  // OFFSET=8</span><br><span class="line"></span><br><span class="line">添加 Padding 后:</span><br><span class="line">每行 128 + 8 = 136 half = 68 Banks</span><br><span class="line"></span><br><span class="line">s_a[k][m] 新地址 = k * 136 + m</span><br><span class="line"></span><br><span class="line">s_a[0][0] = half[0]     → Bank 0</span><br><span class="line">s_a[1][0] = half[136]   → Bank (136/2) % 32 = 68 % 32 = 4</span><br><span class="line">s_a[2][0] = half[272]   → Bank (272/2) % 32 = 136 % 32 = 8</span><br><span class="line">s_a[3][0] = half[408]   → Bank (408/2) % 32 = 204 % 32 = 12</span><br><span class="line"></span><br><span class="line">→ 不同 k 值访问不同 Bank，消除写入时的 Bank Conflict!</span><br></pre></td></tr></table></figure></div>
+<h3 id="76-padding-效果可视化"><a class="markdownIt-Anchor" href="#76-padding-效果可视化"></a> 7.6 Padding 效果可视化</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                    OFFSET=8 Padding 效果                            │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   无 Padding: s_a[8][128]                                           │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   k=0: [Bank 0][Bank 1][Bank 2]...[Bank 31][Bank 0][Bank 1]...      │</span><br><span class="line">│   k=1: [Bank 0][Bank 1][Bank 2]...[Bank 31][Bank 0][Bank 1]...      │</span><br><span class="line">│   k=2: [Bank 0][Bank 1][Bank 2]...[Bank 31][Bank 0][Bank 1]...      │</span><br><span class="line">│         ↑                                                           │</span><br><span class="line">│         所有 k 的 m=0 都在 Bank 0                                    │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   有 Padding: s_a[8][128 + 8]                                       │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   k=0: [Bank 0][Bank 1][Bank 2]...[Bank 31][Bank 0]...[PAD]         │</span><br><span class="line">│   k=1: [Bank 4][Bank 5][Bank 6]...[Bank 3][Bank 4]...[PAD]          │</span><br><span class="line">│   k=2: [Bank 8][Bank 9][Bank 10]...[Bank 7][Bank 8]...[PAD]         │</span><br><span class="line">│         ↑                                                           │</span><br><span class="line">│         不同 k 的 m=0 在不同 Bank                                    │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Bank 偏移: Δ = (OFFSET / 2) % 32 = 4                              │</span><br><span class="line">│   k=0 → Bank 0, k=1 → Bank 4, k=2 → Bank 8, ...                     │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="8-double-buffering-优化"><a class="markdownIt-Anchor" href="#8-double-buffering-优化"></a> 8. Double Buffering 优化</h2>
+<h3 id="81-核心思想"><a class="markdownIt-Anchor" href="#81-核心思想"></a> 8.1 核心思想</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                    Double Buffering 原理                            │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   传统实现 (无 Double Buffering):                                    │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐           │</span><br><span class="line">│   │ Load 0 │→│Compute0│→│ Load 1 │→│Compute1│→│ Load 2 │→...       │</span><br><span class="line">│   └────────┘ └────────┘ └────────┘ └────────┘ └────────┘           │</span><br><span class="line">│   │←──────────串行执行，无重叠──────────→│                          │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Double Buffering 实现:                                            │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Buffer 0: │ Load 0 │         │ Load 2 │         │ Load 4 │       │</span><br><span class="line">│   Buffer 1: │        │ Load 1 │         │ Load 3 │         │       │</span><br><span class="line">│   Compute:  │        │Compute0│Compute1│Compute2│Compute3│         │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   ┌────────┬────────┬────────┬────────┬────────┐                   │</span><br><span class="line">│   │ Load 0 │ Load 1 │ Load 2 │ Load 3 │  ...   │ ← 加载流水线       │</span><br><span class="line">│   ├────────┼────────┼────────┼────────┼────────┤                   │</span><br><span class="line">│   │        │Compute0│Compute1│Compute2│  ...   │ ← 计算流水线       │</span><br><span class="line">│   └────────┴────────┴────────┴────────┴────────┘                   │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   关键: 加载 Buffer[i+1] 与计算 Buffer[i] 并行                       │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="82-代码实现"><a class="markdownIt-Anchor" href="#82-代码实现"></a> 8.2 代码实现</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><span class="line">template&lt;const int BM=128, const int BN=128, const int BK=8, </span><br><span class="line">         const int TM=8, const int TN=8, const int OFFSET=0&gt;</span><br><span class="line">__global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(...) {</span><br><span class="line">  </span><br><span class="line">  // 双缓冲: 两套 Shared Memory</span><br><span class="line">  __shared__ half s_a[2][BK][BM + OFFSET];</span><br><span class="line">  __shared__ half s_b[2][BK][BN + OFFSET];</span><br><span class="line"></span><br><span class="line">  half r_load_a[4], r_load_b[4];  // 加载寄存器</span><br><span class="line">  half r_comp_a[TM], r_comp_b[TN];  // 计算寄存器</span><br><span class="line">  half r_c[TM][TN] = {0};</span><br><span class="line"></span><br><span class="line">  // ========== 阶段 0: 预加载第一块到 Buffer 0 ==========</span><br><span class="line">  {</span><br><span class="line">    int load_a_gmem_addr = load_a_gmem_m * K + load_a_smem_k;  // bk=0</span><br><span class="line">    int load_b_gmem_addr = load_b_smem_k * N + load_b_gmem_n;  // bk=0</span><br><span class="line">    </span><br><span class="line">    LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);</span><br><span class="line">    LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);</span><br><span class="line"></span><br><span class="line">    // 存入 Buffer 0</span><br><span class="line">    s_a[0][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];</span><br><span class="line">    s_a[0][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];</span><br><span class="line">    s_a[0][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];</span><br><span class="line">    s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];</span><br><span class="line">    LDST64BITS(s_b[0][load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);</span><br><span class="line">  }</span><br><span class="line">  __syncthreads();</span><br><span class="line"></span><br><span class="line">  // ========== 主循环: bk = 1 开始 ==========</span><br><span class="line">  for (int bk = 1; bk &lt; (K + BK - 1) / BK; bk++) {</span><br><span class="line">    </span><br><span class="line">    int smem_sel = (bk - 1) &amp; 1;      // 当前计算使用的 Buffer</span><br><span class="line">    int smem_sel_next = bk &amp; 1;       // 下一次加载使用的 Buffer</span><br><span class="line"></span><br><span class="line">    // Step 1: 开始加载下一块数据到寄存器 (异步)</span><br><span class="line">    int load_a_gmem_k = bk * BK + load_a_smem_k;</span><br><span class="line">    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;</span><br><span class="line">    int load_b_gmem_k = bk * BK + load_b_smem_k;</span><br><span class="line">    int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n;</span><br><span class="line">    </span><br><span class="line">    LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);  // 异步加载</span><br><span class="line">    LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);  // 异步加载</span><br><span class="line">    </span><br><span class="line">    // Step 2: 使用当前 Buffer 进行计算 (与加载并行)</span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int tk = 0; tk &lt; BK; tk++) {</span><br><span class="line">      LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[smem_sel][tk][ty * TM]);</span><br><span class="line">      LDST128BITS(r_comp_b[0]) = LDST128BITS(s_b[smem_sel][tk][tx * TN]);</span><br><span class="line"></span><br><span class="line">      #pragma unroll</span><br><span class="line">      for (int tm = 0; tm &lt; TM; tm++) {</span><br><span class="line">        #pragma unroll</span><br><span class="line">        for (int tn = 0; tn &lt; TN; tn++) {</span><br><span class="line">          r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);</span><br><span class="line">        }</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    // Step 3: 将加载的数据写入下一个 Buffer (计算完成后)</span><br><span class="line">    s_a[smem_sel_next][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];</span><br><span class="line">    s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];</span><br><span class="line">    s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];</span><br><span class="line">    s_a[smem_sel_next][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];</span><br><span class="line">    LDST64BITS(s_b[smem_sel_next][load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);</span><br><span class="line"></span><br><span class="line">    __syncthreads();  // 仅需一次同步!</span><br><span class="line">  }</span><br><span class="line">  </span><br><span class="line">  // ========== 阶段 Final: 计算最后一块 (Buffer 1) ==========</span><br><span class="line">  #pragma unroll</span><br><span class="line">  for (int tk = 0; tk &lt; BK; tk++) {</span><br><span class="line">    LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[1][tk][ty * TM]);</span><br><span class="line">    LDST128BITS(r_comp_b[0]) = LDST128BITS(s_b[1][tk][tx * TN]);</span><br><span class="line"></span><br><span class="line">    #pragma unroll</span><br><span class="line">    for (int tm = 0; tm &lt; TM; tm++) {</span><br><span class="line">      #pragma unroll</span><br><span class="line">      for (int tn = 0; tn &lt; TN; tn++) {</span><br><span class="line">        r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);</span><br><span class="line">      }</span><br><span class="line">    }</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  // 写回结果</span><br><span class="line">  #pragma unroll</span><br><span class="line">  for (int i = 0; i &lt; TM; i++) {</span><br><span class="line">    int store_c_gmem_m = by * BM + ty * TM + i;</span><br><span class="line">    int store_c_gmem_n = bx * BN + tx * TN;</span><br><span class="line">    LDST128BITS(c[store_c_gmem_m * N + store_c_gmem_n]) = LDST128BITS(r_c[i][0]);</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="83-同步次数优化"><a class="markdownIt-Anchor" href="#83-同步次数优化"></a> 8.3 同步次数优化</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">传统实现 (无 Double Buffering):</span><br><span class="line">每次 K 迭代需要 2 次 __syncthreads()</span><br><span class="line">├── 第 1 次: 确保数据加载完成后再计算</span><br><span class="line">└── 第 2 次: 确保计算完成后再加载下一批</span><br><span class="line"></span><br><span class="line">总同步次数 = 2 × K/BK</span><br><span class="line"></span><br><span class="line">Double Buffering 实现:</span><br><span class="line">每次 K 迭代仅需 1 次 __syncthreads()</span><br><span class="line">├── 计算使用 Buffer[i]，与加载 Buffer[i+1] 无依赖</span><br><span class="line">└── 只需在写入 Buffer[i+1] 完成后同步</span><br><span class="line"></span><br><span class="line">总同步次数 = K/BK</span><br><span class="line"></span><br><span class="line">节省同步次数 = K/BK 次</span><br></pre></td></tr></table></figure></div>
+<h3 id="84-流水线时序"><a class="markdownIt-Anchor" href="#84-流水线时序"></a> 8.4 流水线时序</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                 Double Buffering 流水线时序图                        │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   bk=0    │  Load[0]→Buf0  │                                        │</span><br><span class="line">│           │  __sync__      │                                        │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   bk=1    │  Load[1]→Reg   │  Compute Buf0  │  Reg→Buf1  │ __sync__ │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   bk=2    │  Load[2]→Reg   │  Compute Buf1  │  Reg→Buf0  │ __sync__ │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   bk=3    │  Load[3]→Reg   │  Compute Buf0  │  Reg→Buf1  │ __sync__ │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   ...                                                               │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Final   │                │  Compute Buf1  │                       │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   时间轴  │←────────────────────────────────────────────────────→│  │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   关键: Load[bk]→Reg 与 Compute Buf[bk-1] 并行执行                  │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="9-性能对比与分析"><a class="markdownIt-Anchor" href="#9-性能对比与分析"></a> 9. 性能对比与分析</h2>
+<h3 id="91-各版本性能对比-相对性能"><a class="markdownIt-Anchor" href="#91-各版本性能对比-相对性能"></a> 9.1 各版本性能对比 (相对性能)</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                        性能对比 (估算)                               │</span><br><span class="line">├──────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                      │</span><br><span class="line">│   Kernel                              │ 相对性能 │ 主要优化           │</span><br><span class="line">│   ────────────────────────────────────┼──────────┼──────────────────  │</span><br><span class="line">│   hgemm_naive_f16_kernel              │   1.0×   │ 基准               │</span><br><span class="line">│   hgemm_sliced_k_f16_kernel           │   5.0×   │ +Shared Memory     │</span><br><span class="line">│   hgemm_t_8x8_sliced_k_f16x4_kernel   │  20.0×   │ +Thread Tile       │</span><br><span class="line">│   hgemm_t_8x8_sliced_k_f16x4_pack     │  25.0×   │ +Pack Load/Store   │</span><br><span class="line">│   hgemm_t_8x8_sliced_k_f16x4_bcf      │  40.0×   │ +Transpose BCF     │</span><br><span class="line">│   hgemm_t_8x8_sliced_k_f16x8_pack_bcf │  50.0×   │ +Padding OFFSET    │</span><br><span class="line">│   hgemm_t_8x8_sliced_k_f16x8_dbuf     │  60.0×   │ +Double Buffering  │</span><br><span class="line">│   cuBLAS hgemm                        │ ~80.0×   │ 高度优化库         │</span><br><span class="line">│                                                                      │</span><br><span class="line">└──────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="92-各版本计算密度"><a class="markdownIt-Anchor" href="#92-各版本计算密度"></a> 9.2 各版本计算密度</h3>
+<table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>每次 K 迭代 FMA</th>
+<th>每次 K 迭代 Load</th>
+<th>计算密度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>naive</td>
+<td>1</td>
+<td>2</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>sliced_k</td>
+<td>1</td>
+<td>0 (from smem)</td>
+<td>~1</td>
+</tr>
+<tr>
+<td>t_8x8</td>
+<td>64</td>
+<td>16</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>t_8x8_f16x4</td>
+<td>64</td>
+<td>16</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>bcf/dbuf</td>
+<td>64</td>
+<td>16</td>
+<td>4.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="93-shared-memory-使用量"><a class="markdownIt-Anchor" href="#93-shared-memory-使用量"></a> 9.3 Shared Memory 使用量</h3>
+<table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>s_a</th>
+<th>s_b</th>
+<th>总计</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sliced_k</td>
+<td>32×32×2 = 2KB</td>
+<td>32×32×2 = 2KB</td>
+<td>4KB</td>
+<td>基础</td>
+</tr>
+<tr>
+<td>t_8x8</td>
+<td>128×8×2 = 2KB</td>
+<td>8×128×2 = 2KB</td>
+<td>4KB</td>
+<td>Tiling</td>
+</tr>
+<tr>
+<td>bcf (OFFSET=4)</td>
+<td>8×132×2 = 2.1KB</td>
+<td>8×132×2 = 2.1KB</td>
+<td>4.2KB</td>
+<td>Padding</td>
+</tr>
+<tr>
+<td>dbuf (OFFSET=8)</td>
+<td>2×8×136×2 = 4.3KB</td>
+<td>2×8×136×2 = 4.3KB</td>
+<td>8.6KB</td>
+<td>Double</td>
+</tr>
+</tbody>
+</table>
+<h3 id="94-bank-conflict-分析"><a class="markdownIt-Anchor" href="#94-bank-conflict-分析"></a> 9.4 Bank Conflict 分析</h3>
+<table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>s_a 写入</th>
+<th>s_a 读取</th>
+<th>s_b 写入</th>
+<th>s_b 读取</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>t_8x8_f16x4</td>
+<td>无冲突</td>
+<td>16-way</td>
+<td>2-way</td>
+<td>2-way</td>
+</tr>
+<tr>
+<td>bcf (转置)</td>
+<td>4-way</td>
+<td>2-way</td>
+<td>2-way</td>
+<td>2-way</td>
+</tr>
+<tr>
+<td>bcf (OFFSET)</td>
+<td>无冲突</td>
+<td>无冲突</td>
+<td>无冲突</td>
+<td>4-way</td>
+</tr>
+<tr>
+<td>dbuf</td>
+<td>无冲突</td>
+<td>无冲突</td>
+<td>无冲突</td>
+<td>4-way</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="10-总结与最佳实践"><a class="markdownIt-Anchor" href="#10-总结与最佳实践"></a> 10. 总结与最佳实践</h2>
+<h3 id="101-优化技术总结"><a class="markdownIt-Anchor" href="#101-优化技术总结"></a> 10.1 优化技术总结</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                        HGEMM 优化技术栈                             │</span><br><span class="line">├─────────────────────────────────────────────────────────────────────┤</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Level 1: 内存层次优化                                              │</span><br><span class="line">│   ├── Shared Memory Tiling (Block Tile)                             │</span><br><span class="line">│   ├── Register Tiling (Thread Tile)                                 │</span><br><span class="line">│   └── K 维度分块 (K Tile)                                           │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Level 2: 访存优化                                                  │</span><br><span class="line">│   ├── 向量化加载/存储 (half2, float4, LDST128BITS)                  │</span><br><span class="line">│   ├── Bank Conflict 消除 (转置 + Padding)                           │</span><br><span class="line">│   └── 内存合并访问 (Coalesced Access)                               │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Level 3: 延迟隐藏                                                  │</span><br><span class="line">│   ├── Double Buffering (流水线)                                     │</span><br><span class="line">│   ├── 寄存器预取                                                     │</span><br><span class="line">│   └── 循环展开 (#pragma unroll)                                     │</span><br><span class="line">│                                                                     │</span><br><span class="line">│   Level 4: 指令级优化                                                │</span><br><span class="line">│   ├── FMA 指令 (__hfma)                                             │</span><br><span class="line">│   ├── 减少分支                                                       │</span><br><span class="line">│   └── 指令级并行 (ILP)                                              │</span><br><span class="line">│                                                                     │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<h3 id="102-最佳实践清单"><a class="markdownIt-Anchor" href="#102-最佳实践清单"></a> 10.2 最佳实践清单</h3>
+<h4 id="shared-memory-使用"><a class="markdownIt-Anchor" href="#shared-memory-使用"></a> ✅ Shared Memory 使用</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">// 1. 选择合适的 Tile 大小</span><br><span class="line">constexpr int BM = 128, BN = 128, BK = 8;  // 平衡 smem 使用和复用</span><br><span class="line"></span><br><span class="line">// 2. 添加 Padding 消除 Bank Conflict</span><br><span class="line">__shared__ half s_a[BK][BM + OFFSET];  // OFFSET = 8</span><br><span class="line"></span><br><span class="line">// 3. 考虑转置以优化访问模式</span><br><span class="line">// s_a[BK][BM] 而非 s_a[BM][BK]</span><br></pre></td></tr></table></figure></div>
+<h4 id="向量化访存"><a class="markdownIt-Anchor" href="#向量化访存"></a> ✅ 向量化访存</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 1. 使用向量类型</span><br><span class="line">#define LDST64BITS(value)  (reinterpret_cast&lt;float2*&gt;(&amp;(value))[0])</span><br><span class="line">#define LDST128BITS(value) (reinterpret_cast&lt;float4*&gt;(&amp;(value))[0])</span><br><span class="line"></span><br><span class="line">// 2. 合并小的加载/存储</span><br><span class="line">LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[tk][ty * TM]);  // 8 half 一次</span><br></pre></td></tr></table></figure></div>
+<h4 id="double-buffering"><a class="markdownIt-Anchor" href="#double-buffering"></a> ✅ Double Buffering</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// 1. 分配双缓冲</span><br><span class="line">__shared__ half s_a[2][BK][BM + OFFSET];</span><br><span class="line"></span><br><span class="line">// 2. 预加载第一块</span><br><span class="line">// 3. 主循环中交替使用</span><br><span class="line">int smem_sel = (bk - 1) &amp; 1;</span><br><span class="line">int smem_sel_next = bk &amp; 1;</span><br><span class="line"></span><br><span class="line">// 4. 先加载到寄存器，再计算，最后写 smem</span><br></pre></td></tr></table></figure></div>
+<h4 id="循环展开"><a class="markdownIt-Anchor" href="#循环展开"></a> ✅ 循环展开</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">// 1. 展开内层循环</span><br><span class="line">#pragma unroll</span><br><span class="line">for (int tm = 0; tm &lt; TM; tm++) {</span><br><span class="line">  #pragma unroll</span><br><span class="line">  for (int tn = 0; tn &lt; TN; tn++) {</span><br><span class="line">    r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="103-进一步优化方向"><a class="markdownIt-Anchor" href="#103-进一步优化方向"></a> 10.3 进一步优化方向</h3>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>技术</th>
+<th>预期收益</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tensor Core</td>
+<td>WMMA/MMA 指令</td>
+<td>2-4×</td>
+</tr>
+<tr>
+<td>Swizzle</td>
+<td>手动地址重映射</td>
+<td>10-20%</td>
+</tr>
+<tr>
+<td>Async Copy</td>
+<td>cp.async 指令</td>
+<td>15-25%</td>
+</tr>
+<tr>
+<td>Multi-Stage</td>
+<td>多级流水线</td>
+<td>10-15%</td>
+</tr>
+<tr>
+<td>Warp Specialization</td>
+<td>分离 Load/Compute</td>
+<td>10-20%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="104-参考资源"><a class="markdownIt-Anchor" href="#104-参考资源"></a> 10.4 参考资源</h3>
+<ul>
+<li><a class="link" target="_blank" rel="noopener" href="https://github.com/NVIDIA/cutlass">CUTLASS: CUDA Templates for Linear Algebra Subroutines<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">NVIDIA CUDA Programming Guide<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/">Bank Conflicts in Shared Memory<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://siboehm.com/articles/22/CUDA-MMM">Optimizing Matrix Multiplication<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ul>
+<hr>
+<h2 id="附录-a-宏定义说明"><a class="markdownIt-Anchor" href="#附录-a-宏定义说明"></a> 附录 A: 宏定义说明</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">// 向量类型转换宏</span><br><span class="line">#define HALF2(value)      (reinterpret_cast&lt;half2*&gt;(&amp;(value))[0])</span><br><span class="line">#define LDST64BITS(value) (reinterpret_cast&lt;float2*&gt;(&amp;(value))[0])   // 8 bytes = 4 half</span><br><span class="line">#define LDST128BITS(value)(reinterpret_cast&lt;float4*&gt;(&amp;(value))[0])  // 16 bytes = 8 half</span><br><span class="line"></span><br><span class="line">// 使用示例</span><br><span class="line">half r_load[4];</span><br><span class="line">LDST64BITS(r_load[0]) = LDST64BITS(a[addr]);  // 一次加载 4 个 half</span><br><span class="line"></span><br><span class="line">half s_a[8][128];</span><br><span class="line">LDST128BITS(r_comp[0]) = LDST128BITS(s_a[k][m]);  // 一次加载 8 个 half</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="附录-b-kernel-配置参数"><a class="markdownIt-Anchor" href="#附录-b-kernel-配置参数"></a> 附录 B: Kernel 配置参数</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">// 优化版 Kernel 的标准配置</span><br><span class="line">constexpr int BM = 128;       // Block Tile M 维度</span><br><span class="line">constexpr int BN = 128;       // Block Tile N 维度</span><br><span class="line">constexpr int BK = 8;         // K 维度分块大小</span><br><span class="line">constexpr int TM = 8;         // Thread Tile M 维度</span><br><span class="line">constexpr int TN = 8;         // Thread Tile N 维度</span><br><span class="line">constexpr int OFFSET = 8;     // Bank Conflict Padding</span><br><span class="line"></span><br><span class="line">// 执行配置</span><br><span class="line">dim3 block(BN/TN, BM/TM);     // (16, 16) = 256 threads</span><br><span class="line">dim3 grid((N+BN-1)/BN, (M+BM-1)/BM);</span><br><span class="line"></span><br><span class="line">// Shared Memory 大小</span><br><span class="line">// 单缓冲: 2 × BK × (BM + OFFSET) × sizeof(half) = 2 × 8 × 136 × 2 = 4.25 KB</span><br><span class="line">// 双缓冲: 2 × 2 × BK × (BM + OFFSET) × sizeof(half) = 8.5 KB</span><br></pre></td></tr></table></figure></div>
+<hr>
+<p><strong>文档版本</strong>: v1.0
+<strong>最后更新</strong>: 2026-02-22
+<strong>作者</strong>: CUDA HGEMM 优化研究</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> hgemm_naive_kernel详解</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-02-28 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-14 23:28:37
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/02/28/hgemm_naive/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/CUDA/">#CUDA</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/03/02/hgemm_mma_m16n8k16_naive_kernel/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">hgemm_mma_m16n8k16_naive_kernel</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/02/03/TVM%E4%B9%8BfusePass/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">TVM Pass解读之fuse pass</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">hgemm_naive_kernel详解</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#cuda-hgemm-kernel-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A"><span class="nav-text"> CUDA HGEMM Kernel 技术报告</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%AE%E5%BD%95"><span class="nav-text"> 📑 目录</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 1. 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="nav-text"> 1.1 问题定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-%E6%A0%B8%E5%BF%83%E4%BC%98%E5%8C%96%E6%8A%80%E6%9C%AF"><span class="nav-text"> 1.2 核心优化技术</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-%E7%A1%AC%E4%BB%B6%E8%83%8C%E6%99%AF"><span class="nav-text"> 1.3 硬件背景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-kernel-%E7%89%88%E6%9C%AC%E6%80%BB%E8%A7%88"><span class="nav-text"> 2. Kernel 版本总览</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E5%90%84%E7%89%88%E6%9C%AC%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0"><span class="nav-text"> 2.1 各版本配置参数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%9C%B4%E7%B4%A0%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90"><span class="nav-text"> 3. 朴素实现分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 3.1 代码实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-%E6%89%A7%E8%A1%8C%E9%85%8D%E7%BD%AE"><span class="nav-text"> 3.2 执行配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="nav-text"> 3.3 问题分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-%E6%80%A7%E8%83%BD%E7%89%B9%E5%BE%81"><span class="nav-text"> 3.4 性能特征</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-block-tiling-%E4%BC%98%E5%8C%96"><span class="nav-text"> 4. Block Tiling 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-text"> 4.1 核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 4.2 代码实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-%E6%95%B0%E6%8D%AE%E5%A4%8D%E7%94%A8%E5%88%86%E6%9E%90"><span class="nav-text"> 4.3 数据复用分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#44-%E4%BB%8D%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text"> 4.4 仍存在的问题</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-thread-tiling-%E4%BC%98%E5%8C%96"><span class="nav-text"> 5. Thread Tiling 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-text"> 5.1 核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-%E8%AE%A1%E7%AE%97%E5%AF%86%E5%BA%A6%E6%8F%90%E5%8D%87"><span class="nav-text"> 5.2 计算密度提升</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 5.3 代码实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#54-%E7%BA%BF%E7%A8%8B%E5%88%B0%E6%95%B0%E6%8D%AE%E7%9A%84%E6%98%A0%E5%B0%84"><span class="nav-text"> 5.4 线程到数据的映射</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-bank-conflict-%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 6. Bank Conflict 详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-shared-memory-bank-%E7%BB%93%E6%9E%84"><span class="nav-text"> 6.1 Shared Memory Bank 结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-s_abmbk-%E7%9A%84-bank-conflict-%E5%88%86%E6%9E%90"><span class="nav-text"> 6.2 s_a[BM][BK] 的 Bank Conflict 分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-%E8%AF%BB%E5%8F%96-s_a-%E6%97%B6%E7%9A%84-bank-conflict"><span class="nav-text"> 6.3 读取 s_a 时的 Bank Conflict</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-%E5%AE%8C%E6%95%B4-warp-%E7%9A%84-bank-conflict-%E8%A1%A8"><span class="nav-text"> 6.4 完整 Warp 的 Bank Conflict 表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-bank-conflict-free-%E4%BC%98%E5%8C%96"><span class="nav-text"> 7. Bank Conflict Free 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-%E8%BD%AC%E7%BD%AE-s_a-s_abkbm"><span class="nav-text"> 7.1 转置 s_a: s_a[BK][BM]</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-%E8%BD%AC%E7%BD%AE%E5%90%8E%E7%9A%84%E8%AE%BF%E9%97%AE%E5%88%86%E6%9E%90"><span class="nav-text"> 7.2 转置后的访问分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-bcf_kernel-%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 7.3 bcf_kernel 实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#74-%E5%86%99%E5%85%A5%E6%97%B6%E7%9A%84-bank-conflict"><span class="nav-text"> 7.4 写入时的 Bank Conflict</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#75-padding-%E4%BC%98%E5%8C%96-offset"><span class="nav-text"> 7.5 Padding 优化 (OFFSET)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#76-padding-%E6%95%88%E6%9E%9C%E5%8F%AF%E8%A7%86%E5%8C%96"><span class="nav-text"> 7.6 Padding 效果可视化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-double-buffering-%E4%BC%98%E5%8C%96"><span class="nav-text"> 8. Double Buffering 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#81-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-text"> 8.1 核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#82-%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 8.2 代码实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#83-%E5%90%8C%E6%AD%A5%E6%AC%A1%E6%95%B0%E4%BC%98%E5%8C%96"><span class="nav-text"> 8.3 同步次数优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#84-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%97%B6%E5%BA%8F"><span class="nav-text"> 8.4 流水线时序</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94%E4%B8%8E%E5%88%86%E6%9E%90"><span class="nav-text"> 9. 性能对比与分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#91-%E5%90%84%E7%89%88%E6%9C%AC%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94-%E7%9B%B8%E5%AF%B9%E6%80%A7%E8%83%BD"><span class="nav-text"> 9.1 各版本性能对比 (相对性能)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#92-%E5%90%84%E7%89%88%E6%9C%AC%E8%AE%A1%E7%AE%97%E5%AF%86%E5%BA%A6"><span class="nav-text"> 9.2 各版本计算密度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#93-shared-memory-%E4%BD%BF%E7%94%A8%E9%87%8F"><span class="nav-text"> 9.3 Shared Memory 使用量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#94-bank-conflict-%E5%88%86%E6%9E%90"><span class="nav-text"> 9.4 Bank Conflict 分析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-%E6%80%BB%E7%BB%93%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="nav-text"> 10. 总结与最佳实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#101-%E4%BC%98%E5%8C%96%E6%8A%80%E6%9C%AF%E6%80%BB%E7%BB%93"><span class="nav-text"> 10.1 优化技术总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#102-%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5%E6%B8%85%E5%8D%95"><span class="nav-text"> 10.2 最佳实践清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#103-%E8%BF%9B%E4%B8%80%E6%AD%A5%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="nav-text"> 10.3 进一步优化方向</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#104-%E5%8F%82%E8%80%83%E8%B5%84%E6%BA%90"><span class="nav-text"> 10.4 参考资源</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E5%BD%95-a-%E5%AE%8F%E5%AE%9A%E4%B9%89%E8%AF%B4%E6%98%8E"><span class="nav-text"> 附录 A: 宏定义说明</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E5%BD%95-b-kernel-%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0"><span class="nav-text"> 附录 B: Kernel 配置参数</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 30 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
