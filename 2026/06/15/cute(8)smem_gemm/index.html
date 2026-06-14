@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/15/cute(8)smem_gemm/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cute（8）smem_gemm">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/15/cute(8)smem_gemm/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-15T14:13:32.000Z">
+<meta property="article:modified_time" content="2026-06-14T07:39:39.054Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="cuda, cutlass,cute">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            cute（8）smem_gemm | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">7</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">23</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">cute（8）smem_gemm</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-15 22:13:32</span>
+        <span class="mobile">2026-06-15 22:13:32</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-14 15:39:39</span>
+            <span class="mobile">2026-06-14 15:39:39</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="前置阅读"><a class="markdownIt-Anchor" href="#前置阅读"></a> 前置阅读</h1>
+<ul>
+<li>
+<p>官方文档：<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cutlass/latest/media/docs/cpp/cute/index.html">CuTe — NVIDIA CUTLASS Documentation<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+<li>
+<p>reed博士：<a class="link" target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/671419093">(4 封私信 / 2 条消息) cute 之 Swizzle - 知乎<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</li>
+</ul>
+<h1 id="第-8-课shared-memory-gemm"><a class="markdownIt-Anchor" href="#第-8-课shared-memory-gemm"></a> 第 8 课：Shared Memory GEMM</h1>
+<blockquote>
+<p>对应代码：<code>08_smem_gemm.cu</code>
+<strong>需要 GPU</strong>。</p>
+</blockquote>
+<h2 id="核心概念"><a class="markdownIt-Anchor" href="#核心概念"></a> 核心概念</h2>
+<p>在 07 的基础上加入 Shared Memory，实现两级数据搬运：</p>
+<ul>
+<li><strong>G2S</strong>：Global → Shared（cp.async 128bit 异步搬运）</li>
+<li><strong>S2R</strong>：Shared → Register（ldmatrix 指令）</li>
+<li><strong>Swizzle</strong> 消除 shared memory bank conflict</li>
+<li><strong>make_tiled_copy_A/B</strong> 与 TiledMMA 的线程布局自动匹配</li>
+<li><strong>retile_D</strong>：在 MMA 和 Copy 两种寄存器视角间切换</li>
+</ul>
+<hr>
+<h2 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h2>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> Config&gt;</span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">smem_gemm_kernel</span><span class="params">(<span class="type">half_t</span>* Dptr, <span class="type">const</span> <span class="type">half_t</span>* Aptr,</span></span></span><br><span class="line"><span class="params"><span class="function">                                 <span class="type">const</span> <span class="type">half_t</span>* Bptr, <span class="type">int</span> M, <span class="type">int</span> N, <span class="type">int</span> K)</span> </span>{</span><br><span class="line">  <span class="keyword">using</span> T = <span class="type">half_t</span>;</span><br><span class="line">  <span class="keyword">using</span> SmemLayoutA = <span class="keyword">typename</span> Config::SmemLayoutA;</span><br><span class="line">  <span class="keyword">using</span> SmemLayoutB = <span class="keyword">typename</span> Config::SmemLayoutB;</span><br><span class="line">  <span class="keyword">using</span> TiledMMA = <span class="keyword">typename</span> Config::MMA;</span><br><span class="line">  <span class="keyword">using</span> S2RCopyAtomA = <span class="keyword">typename</span> Config::S2RCopyAtomA;</span><br><span class="line">  <span class="keyword">using</span> S2RCopyAtomB = <span class="keyword">typename</span> Config::S2RCopyAtomB;</span><br><span class="line">  <span class="keyword">using</span> G2SCopyA = <span class="keyword">typename</span> Config::G2SCopyA;</span><br><span class="line">  <span class="keyword">using</span> G2SCopyB = <span class="keyword">typename</span> Config::G2SCopyB;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> kTileM = Config::kTileM;</span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> kTileN = Config::kTileN;</span><br><span class="line">  <span class="keyword">constexpr</span> <span class="type">int</span> kTileK = Config::kTileK;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">extern</span> __shared__ T shm_data[];</span><br><span class="line">  T* Ashm = shm_data;</span><br><span class="line">  T* Bshm = shm_data + <span class="built_in">cosize</span>(SmemLayoutA{});</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> idx = threadIdx.x;</span><br><span class="line">  <span class="type">int</span> bx = blockIdx.x;</span><br><span class="line">  <span class="type">int</span> by = blockIdx.y;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Global Tensor</span></span><br><span class="line">  <span class="keyword">auto</span> A = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Aptr), <span class="built_in">make_shape</span>(M, K), <span class="built_in">make_stride</span>(K, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">  <span class="keyword">auto</span> B = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Bptr), <span class="built_in">make_shape</span>(N, K), <span class="built_in">make_stride</span>(K, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line">  <span class="keyword">auto</span> D = <span class="built_in">make_tensor</span>(<span class="built_in">make_gmem_ptr</span>(Dptr), <span class="built_in">make_shape</span>(M, N), <span class="built_in">make_stride</span>(N, Int&lt;<span class="number">1</span>&gt;{}));</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> gA = <span class="built_in">local_tile</span>(A, <span class="built_in">make_tile</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileK&gt;{}), <span class="built_in">make_coord</span>(by, _));</span><br><span class="line">  <span class="keyword">auto</span> gB = <span class="built_in">local_tile</span>(B, <span class="built_in">make_tile</span>(Int&lt;kTileN&gt;{}, Int&lt;kTileK&gt;{}), <span class="built_in">make_coord</span>(bx, _));</span><br><span class="line">  <span class="keyword">auto</span> gD = <span class="built_in">local_tile</span>(D, <span class="built_in">make_tile</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileN&gt;{}), <span class="built_in">make_coord</span>(by, bx));</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Shared Memory</span></span><br><span class="line">  <span class="keyword">auto</span> sA = <span class="built_in">make_tensor</span>(<span class="built_in">make_smem_ptr</span>(Ashm), SmemLayoutA{});</span><br><span class="line">  <span class="keyword">auto</span> sB = <span class="built_in">make_tensor</span>(<span class="built_in">make_smem_ptr</span>(Bshm), SmemLayoutB{});</span><br><span class="line"></span><br><span class="line">  <span class="comment">// MMA</span></span><br><span class="line">  TiledMMA tiled_mma;</span><br><span class="line">  <span class="keyword">auto</span> thr_mma = tiled_mma.<span class="built_in">get_slice</span>(idx);</span><br><span class="line">  <span class="keyword">auto</span> tCrA = thr_mma.<span class="built_in">partition_fragment_A</span>(<span class="built_in">gA</span>(_, _, <span class="number">0</span>));</span><br><span class="line">  <span class="keyword">auto</span> tCrB = thr_mma.<span class="built_in">partition_fragment_B</span>(<span class="built_in">gB</span>(_, _, <span class="number">0</span>));</span><br><span class="line">  <span class="keyword">auto</span> tCrD = thr_mma.<span class="built_in">partition_fragment_C</span>(gD);</span><br><span class="line">  <span class="built_in">clear</span>(tCrD);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// S2R Copy</span></span><br><span class="line">  <span class="keyword">auto</span> s2r_tiled_copy_a = <span class="built_in">make_tiled_copy_A</span>(S2RCopyAtomA{}, tiled_mma);</span><br><span class="line">  <span class="keyword">auto</span> s2r_thr_copy_a = s2r_tiled_copy_a.<span class="built_in">get_slice</span>(idx);</span><br><span class="line">  <span class="keyword">auto</span> tAsA = s2r_thr_copy_a.<span class="built_in">partition_S</span>(sA);</span><br><span class="line">  <span class="keyword">auto</span> tCrA_view = s2r_thr_copy_a.<span class="built_in">retile_D</span>(tCrA);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> s2r_tiled_copy_b = <span class="built_in">make_tiled_copy_B</span>(S2RCopyAtomB{}, tiled_mma);</span><br><span class="line">  <span class="keyword">auto</span> s2r_thr_copy_b = s2r_tiled_copy_b.<span class="built_in">get_slice</span>(idx);</span><br><span class="line">  <span class="keyword">auto</span> tBsB = s2r_thr_copy_b.<span class="built_in">partition_S</span>(sB);</span><br><span class="line">  <span class="keyword">auto</span> tCrB_view = s2r_thr_copy_b.<span class="built_in">retile_D</span>(tCrB);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// G2S Copy</span></span><br><span class="line">  G2SCopyA g2s_tiled_copy_a;</span><br><span class="line">  <span class="keyword">auto</span> g2s_thr_copy_a = g2s_tiled_copy_a.<span class="built_in">get_slice</span>(idx);</span><br><span class="line">  <span class="keyword">auto</span> tAgA_copy = g2s_thr_copy_a.<span class="built_in">partition_S</span>(gA);</span><br><span class="line">  <span class="keyword">auto</span> tAsA_copy = g2s_thr_copy_a.<span class="built_in">partition_D</span>(sA);</span><br><span class="line"></span><br><span class="line">  G2SCopyB g2s_tiled_copy_b;</span><br><span class="line">  <span class="keyword">auto</span> g2s_thr_copy_b = g2s_tiled_copy_b.<span class="built_in">get_slice</span>(idx);</span><br><span class="line">  <span class="keyword">auto</span> tBgB_copy = g2s_thr_copy_b.<span class="built_in">partition_S</span>(gB);</span><br><span class="line">  <span class="keyword">auto</span> tBsB_copy = g2s_thr_copy_b.<span class="built_in">partition_D</span>(sB);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 打印调试信息</span></span><br><span class="line">  <span class="keyword">if</span> (idx == <span class="number">0</span> &amp;&amp; bx == <span class="number">0</span> &amp;&amp; by == <span class="number">0</span>) {</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  === G2S Copy ===\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAgA_copy shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tAgA_copy)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAgA_copy layout: "</span>); <span class="built_in">print</span>(tAgA_copy.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAsA_copy shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tAsA_copy)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAsA_copy layout: "</span>); <span class="built_in">print</span>(tAsA_copy.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  === MMA fragment ===\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrA shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tCrA)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrA layout: "</span>); <span class="built_in">print</span>(tCrA.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrB shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tCrB)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrD shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tCrD)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  === S2R Copy (make_tiled_copy_A) ===\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAsA shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tAsA)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tAsA layout: "</span>); <span class="built_in">print</span>(tAsA.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrA_view shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tCrA_view)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrA_view layout: "</span>); <span class="built_in">print</span>(tCrA_view.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  === S2R Copy (make_tiled_copy_B) ===\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tBsB shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tBsB)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tBsB layout: "</span>); <span class="built_in">print</span>(tBsB.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrB_view shape: "</span>); <span class="built_in">print</span>(<span class="built_in">shape</span>(tCrB_view)); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  tCrB_view layout: "</span>); <span class="built_in">print</span>(tCrB_view.<span class="built_in">layout</span>()); <span class="built_in">printf</span>(<span class="string">"\n"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"\n  === 循环结构 ===\n"</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  K 外层: K/kTileK = %d/%d = %d 轮\n"</span>, K, kTileK, K/kTileK);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"  K 内层: nk = size&lt;2&gt;(tCrA) = %d 轮\n"</span>, <span class="built_in">int</span>(<span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(tCrA)));</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 主循环：沿 K 方向</span></span><br><span class="line">  <span class="type">int</span> num_tile_k = K / kTileK;</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> itile = <span class="number">0</span>; itile &lt; num_tile_k; ++itile) {</span><br><span class="line">    <span class="comment">// Global -&gt; Shared</span></span><br><span class="line">    cute::<span class="built_in">copy</span>(g2s_tiled_copy_a, <span class="built_in">tAgA_copy</span>(_, _, _, itile), <span class="built_in">tAsA_copy</span>(_, _, _));</span><br><span class="line">    cute::<span class="built_in">copy</span>(g2s_tiled_copy_b, <span class="built_in">tBgB_copy</span>(_, _, _, itile), <span class="built_in">tBsB_copy</span>(_, _, _));</span><br><span class="line">    <span class="built_in">cp_async_fence</span>();</span><br><span class="line">    <span class="built_in">cp_async_wait</span>&lt;<span class="number">0</span>&gt;();</span><br><span class="line">    __syncthreads();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// K 内循环</span></span><br><span class="line">    <span class="type">int</span> nk = <span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(tCrA);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> ik = <span class="number">0</span>; ik &lt; nk; ++ik) {</span><br><span class="line">      <span class="comment">// Shared -&gt; Register</span></span><br><span class="line">      cute::<span class="built_in">copy</span>(s2r_tiled_copy_a, <span class="built_in">tAsA</span>(_, _, ik), <span class="built_in">tCrA_view</span>(_, _, ik));</span><br><span class="line">      cute::<span class="built_in">copy</span>(s2r_tiled_copy_b, <span class="built_in">tBsB</span>(_, _, ik), <span class="built_in">tCrB_view</span>(_, _, ik));</span><br><span class="line"></span><br><span class="line">      <span class="comment">// MMA</span></span><br><span class="line">      cute::<span class="built_in">gemm</span>(tiled_mma, tCrD, <span class="built_in">tCrA</span>(_, _, ik), <span class="built_in">tCrB</span>(_, _, ik), tCrD);</span><br><span class="line">    }</span><br><span class="line">    __syncthreads();</span><br><span class="line">  }</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 写回（简化版：直接从寄存器写 global）</span></span><br><span class="line">  <span class="keyword">auto</span> tDgD = thr_mma.<span class="built_in">partition_C</span>(gD);</span><br><span class="line">  cute::<span class="built_in">copy</span>(tCrD, tDgD);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// Config</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">GemmConfig</span> {</span><br><span class="line">  <span class="keyword">using</span> T = <span class="type">half_t</span>;</span><br><span class="line">  <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileM = <span class="number">128</span>;</span><br><span class="line">  <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileN = <span class="number">128</span>;</span><br><span class="line">  <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileK = <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Swizzle SmemLayout</span></span><br><span class="line">  <span class="keyword">using</span> SmemLayoutAtom = <span class="keyword">decltype</span>(<span class="built_in">composition</span>(</span><br><span class="line">      Swizzle&lt;<span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>&gt;{},</span><br><span class="line">      <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;kTileK&gt;{}),</span><br><span class="line">                  <span class="built_in">make_stride</span>(Int&lt;kTileK&gt;{}, Int&lt;<span class="number">1</span>&gt;{}))));</span><br><span class="line">  <span class="keyword">using</span> SmemLayoutA = <span class="keyword">decltype</span>(</span><br><span class="line">      <span class="built_in">tile_to_shape</span>(SmemLayoutAtom{}, <span class="built_in">make_shape</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileK&gt;{})));</span><br><span class="line">  <span class="keyword">using</span> SmemLayoutB = <span class="keyword">decltype</span>(</span><br><span class="line">      <span class="built_in">tile_to_shape</span>(SmemLayoutAtom{}, <span class="built_in">make_shape</span>(Int&lt;kTileN&gt;{}, Int&lt;kTileK&gt;{})));</span><br><span class="line"></span><br><span class="line">  <span class="comment">// MMA</span></span><br><span class="line">  <span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line">  <span class="keyword">using</span> mma_atom = MMA_Atom&lt;MMA_Traits&lt;mma_op&gt;&gt;;</span><br><span class="line">  <span class="keyword">using</span> MMA = <span class="keyword">decltype</span>(<span class="built_in">make_tiled_mma</span>(</span><br><span class="line">      mma_atom{},</span><br><span class="line">      <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),</span><br><span class="line">      Tile&lt;Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">16</span>&gt;&gt;{}));</span><br><span class="line"></span><br><span class="line">  <span class="comment">// G2S Copy: cp.async 128bit</span></span><br><span class="line">  <span class="keyword">using</span> g2s_copy_op = SM80_CP_ASYNC_CACHEGLOBAL&lt;cute::<span class="type">uint128_t</span>&gt;;</span><br><span class="line">  <span class="keyword">using</span> g2s_copy_atom = Copy_Atom&lt;Copy_Traits&lt;g2s_copy_op&gt;, T&gt;;</span><br><span class="line">  <span class="keyword">using</span> G2SCopyA = <span class="keyword">decltype</span>(<span class="built_in">make_tiled_copy</span>(</span><br><span class="line">      g2s_copy_atom{},</span><br><span class="line">      <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">32</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),</span><br><span class="line">      <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}))));</span><br><span class="line">  <span class="keyword">using</span> G2SCopyB = G2SCopyA;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// S2R Copy: ldmatrix</span></span><br><span class="line">  <span class="keyword">using</span> s2r_copy_atom = Copy_Atom&lt;Copy_Traits&lt;SM75_U32x4_LDSM_N&gt;, T&gt;;</span><br><span class="line">  <span class="keyword">using</span> S2RCopyAtomA = s2r_copy_atom;</span><br><span class="line">  <span class="keyword">using</span> S2RCopyAtomB = s2r_copy_atom;</span><br><span class="line"></span><br><span class="line">  <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kThreadNum = <span class="built_in">size</span>(MMA{});</span><br><span class="line">  <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kShmSize =</span><br><span class="line">      (<span class="built_in">cosize</span>(SmemLayoutA{}) + <span class="built_in">cosize</span>(SmemLayoutB{})) * <span class="built_in">sizeof</span>(T);</span><br><span class="line">};</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<h2 id="1-整体数据流"><a class="markdownIt-Anchor" href="#1-整体数据流"></a> 1. 整体数据流</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">07: Global ──直接──&gt; Register ──mma──&gt; Register ──直接──&gt; Global</span><br><span class="line">    (慢：global 延迟 ~400 cycles)</span><br><span class="line"></span><br><span class="line">08: Global ──cp.async──&gt; Shared ──ldmatrix──&gt; Register ──mma──&gt; Register → Global</span><br><span class="line">    (快：smem 延迟 ~20 cycles)</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="2-gemmconfig-逐项解析"><a class="markdownIt-Anchor" href="#2-gemmconfig-逐项解析"></a> 2. GemmConfig 逐项解析</h2>
+<h3 id="21-基本参数"><a class="markdownIt-Anchor" href="#21-基本参数"></a> 2.1 基本参数</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> T = <span class="type">half_t</span>;                    <span class="comment">// fp16</span></span><br><span class="line"><span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileM = <span class="number">128</span>;   <span class="comment">// 每个 block 处理 M=128 行</span></span><br><span class="line"><span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileN = <span class="number">128</span>;   <span class="comment">// 每个 block 处理 N=128 列</span></span><br><span class="line"><span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">int</span> kTileK = <span class="number">32</span>;    <span class="comment">// 每次从 global 搬 K=32 列到 smem</span></span><br></pre></td></tr></table></figure></div>
+<p>跟 07 对比，<strong>kTileK 从 16 变成了 32</strong>。因为有了 smem，一次可以搬更大的 K 块，减少搬运次数。</p>
+<h3 id="22-smemlayoutswizzle"><a class="markdownIt-Anchor" href="#22-smemlayoutswizzle"></a> 2.2 SmemLayout（Swizzle）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> SmemLayoutAtom = <span class="keyword">decltype</span>(<span class="built_in">composition</span>(</span><br><span class="line">    Swizzle&lt;<span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>&gt;{},</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">8</span>&gt;{}, Int&lt;kTileK&gt;{}),         <span class="comment">// (8, 32)</span></span><br><span class="line">                <span class="built_in">make_stride</span>(Int&lt;kTileK&gt;{}, Int&lt;<span class="number">1</span>&gt;{}))));      <span class="comment">// row-major</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> SmemLayoutA = <span class="keyword">decltype</span>(</span><br><span class="line">    <span class="built_in">tile_to_shape</span>(SmemLayoutAtom{}, <span class="built_in">make_shape</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileK&gt;{})));</span><br><span class="line"><span class="keyword">using</span> SmemLayoutB = <span class="keyword">decltype</span>(</span><br><span class="line">    <span class="built_in">tile_to_shape</span>(SmemLayoutAtom{}, <span class="built_in">make_shape</span>(Int&lt;kTileN&gt;{}, Int&lt;kTileK&gt;{})));</span><br></pre></td></tr></table></figure></div>
+<p>详见第 3 节 Swizzle 详解。</p>
+<p>smem 总大小：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">SmemLayoutA: 128 × 32 = 4096 个 half_t = 8192 bytes</span><br><span class="line">SmemLayoutB: 128 × 32 = 4096 个 half_t = 8192 bytes</span><br><span class="line">总计: 16384 bytes = 16 KB</span><br></pre></td></tr></table></figure></div>
+<h3 id="23-mma跟-07-完全一样"><a class="markdownIt-Anchor" href="#23-mma跟-07-完全一样"></a> 2.3 MMA（跟 07 完全一样）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> mma_op = SM80_16x8x16_F16F16F16F16_TN;</span><br><span class="line"><span class="keyword">using</span> mma_atom = MMA_Atom&lt;MMA_Traits&lt;mma_op&gt;&gt;;</span><br><span class="line"><span class="keyword">using</span> MMA = <span class="keyword">decltype</span>(<span class="built_in">make_tiled_mma</span>(</span><br><span class="line">    mma_atom{},                                                    <span class="comment">// 16×8×16 atom</span></span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">2</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),         <span class="comment">// EU Repeat</span></span><br><span class="line">    Tile&lt;Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">32</span>&gt;, Int&lt;<span class="number">16</span>&gt;&gt;{}));                           <span class="comment">// P Tile</span></span><br></pre></td></tr></table></figure></div>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Atom:       16×8×16,   32 线程</span><br><span class="line">EU (2,2,1): 32×16×16, 128 线程</span><br><span class="line">P &lt;32,32,16&gt;: 不变（P Tile 只做寄存器级 A 复用）</span><br><span class="line"></span><br><span class="line">TiledMMA 覆盖: 32(M) × 32(N) × 16(K)</span><br><span class="line">实际 mma.sync 一次: 32×16（P Tile 不增大硬件覆盖面积）</span><br></pre></td></tr></table></figure></div>
+<h3 id="24-g2s-copyglobal-shared-memory"><a class="markdownIt-Anchor" href="#24-g2s-copyglobal-shared-memory"></a> 2.4 G2S Copy（Global → Shared Memory）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> g2s_copy_op = SM80_CP_ASYNC_CACHEGLOBAL&lt;cute::<span class="type">uint128_t</span>&gt;;   <span class="comment">// cp.async 128bit</span></span><br><span class="line"><span class="keyword">using</span> g2s_copy_atom = Copy_Atom&lt;Copy_Traits&lt;g2s_copy_op&gt;, T&gt;;     <span class="comment">// 元素类型 half_t</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> G2SCopyA = <span class="keyword">decltype</span>(<span class="built_in">make_tiled_copy</span>(</span><br><span class="line">    g2s_copy_atom{},</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">32</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}),                   <span class="comment">// 线程布局: 32行×4列</span></span><br><span class="line">                <span class="built_in">make_stride</span>(Int&lt;<span class="number">4</span>&gt;{}, Int&lt;<span class="number">1</span>&gt;{})),                   <span class="comment">// row-major</span></span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}))));                  <span class="comment">// 每线程每次搬 1×8</span></span><br><span class="line"><span class="keyword">using</span> G2SCopyB = G2SCopyA;</span><br></pre></td></tr></table></figure></div>
+<p>三个参数拆解：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CopyAtom</td>
+<td><code>cp.async 128bit</code></td>
+<td>一条指令搬 128bit = 8 个 half_t</td>
+</tr>
+<tr>
+<td>线程布局</td>
+<td><code>(32, 4):(4, 1)</code> row-major</td>
+<td>128 线程排成 32 行 × 4 列</td>
+</tr>
+<tr>
+<td>值布局</td>
+<td><code>(1, 8)</code></td>
+<td>每线程每次搬 1 行 × 8 列</td>
+</tr>
+</tbody>
+</table>
+<p>一次覆盖多大：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">线程布局 × 值布局 = (32×1, 4×8) = (32, 32) = 1024 个 half_t</span><br></pre></td></tr></table></figure></div>
+<p>tile 多大：<code>(128, 32) = 4096</code></p>
+<p>需要几轮：<code>4096 / 1024 = 4</code> 轮</p>
+<p>关键：<strong>cp.async 是异步的</strong>，不经过寄存器，直接 global → smem。</p>
+<h3 id="25-s2r-copyshared-memory-register"><a class="markdownIt-Anchor" href="#25-s2r-copyshared-memory-register"></a> 2.5 S2R Copy（Shared Memory → Register）</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> s2r_copy_atom = Copy_Atom&lt;Copy_Traits&lt;SM75_U32x4_LDSM_N&gt;, T&gt;;</span><br><span class="line"><span class="keyword">using</span> S2RCopyAtomA = s2r_copy_atom;</span><br><span class="line"><span class="keyword">using</span> S2RCopyAtomB = s2r_copy_atom;</span><br></pre></td></tr></table></figure></div>
+<p><code>SM75_U32x4_LDSM_N</code> = ldmatrix 指令：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ldmatrix.sync.aligned.x4.m8n8.shared.b16</span><br><span class="line"></span><br><span class="line">一条指令：</span><br><span class="line">  - warp 内 32 个线程协作</span><br><span class="line">  - 从 smem 加载 4 个 8×8 矩阵（每个元素 16bit）</span><br><span class="line">  - 加载到寄存器，直接满足 mma.sync 的寄存器布局</span><br></pre></td></tr></table></figure></div>
+<p>ldmatrix 的价值：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">不用 ldmatrix：smem → 寄存器 → 还需要 shuffle 才能满足 mma.sync 布局</span><br><span class="line">用 ldmatrix：  smem → 寄存器（直接就是 mma.sync 需要的布局），省掉 shuffle</span><br></pre></td></tr></table></figure></div>
+<h3 id="26-完整配置总结"><a class="markdownIt-Anchor" href="#26-完整配置总结"></a> 2.6 完整配置总结</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────┐</span><br><span class="line">│                    GemmConfig 总览                        │</span><br><span class="line">├─────────────────────────────────────────────────────────┤</span><br><span class="line">│ Tile:      128(M) × 128(N) × 32(K)                     │</span><br><span class="line">│ 线程数:    128                                           │</span><br><span class="line">│ Smem:      16 KB (A: 8KB + B: 8KB, with Swizzle)       │</span><br><span class="line">│                                                         │</span><br><span class="line">│ G2S:  cp.async 128bit, 128 线程, 4 轮搬完一个 128×32   │</span><br><span class="line">│ S2R:  ldmatrix x4, 与 MMA 布局自动匹配                   │</span><br><span class="line">│ MMA:  SM80_16x8x16, EU(2,2,1), P&lt;32,32,16&gt;            │</span><br><span class="line">│                                                         │</span><br><span class="line">│ K 循环:                                                  │</span><br><span class="line">│   外层: K/kTileK = 128/32 = 4 轮 (每轮搬 G→S)          │</span><br><span class="line">│   内层: kTileK/atom_K = 32/16 = 2 轮 (每轮搬 S→R + MMA)│</span><br><span class="line">└─────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="3-swizzle-详解"><a class="markdownIt-Anchor" href="#3-swizzle-详解"></a> 3. Swizzle 详解</h2>
+<h3 id="31-什么是-bank-conflict"><a class="markdownIt-Anchor" href="#31-什么是-bank-conflict"></a> 3.1 什么是 Bank Conflict</h3>
+<p>Shared memory 有 <strong>32 个 bank</strong>，每个 bank 宽 4 bytes。</p>
+<p>地址到 bank 的映射：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">bank 编号 = (地址 / 4) % 32</span><br><span class="line"></span><br><span class="line">地址 0~3   → bank 0</span><br><span class="line">地址 4~7   → bank 1</span><br><span class="line">地址 8~11  → bank 2</span><br><span class="line">...</span><br><span class="line">地址 124~127 → bank 31</span><br><span class="line">地址 128~131 → bank 0    ← 回绕</span><br></pre></td></tr></table></figure></div>
+<p><strong>同一个 warp 的 32 个线程，如果两个线程访问同一个 bank 的不同地址 → conflict → 串行。</strong></p>
+<h3 id="32-不加-swizzle-时的问题"><a class="markdownIt-Anchor" href="#32-不加-swizzle-时的问题"></a> 3.2 不加 Swizzle 时的问题</h3>
+<p><code>(8, 32) : (32, 1)</code> 的 half_t (2 bytes) smem，一行 32 个 half = 64 bytes：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">half_t 是 2 bytes，一个 bank = 4 bytes = 2 个 half_t</span><br><span class="line">一行 32 个 half_t = 64 bytes = 16 bank</span><br><span class="line"></span><br><span class="line">row 0:  col 0~1 在 bank 0,  col 2~3 在 bank 1, ... col 30~31 在 bank 15</span><br><span class="line">row 1:  col 0~1 在 bank 16, col 2~3 在 bank 17, ... 到 bank 31, 然后回绕 bank 0...</span><br><span class="line">...</span><br><span class="line">row 4:  col 0~1 又回到 bank 0 ← 跟 row 0 同 bank！</span><br></pre></td></tr></table></figure></div>
+<p><strong>row 0 和 row 4 的 col 0 都在 bank 0</strong>。如果 ldmatrix 需要同时读不同行的同一列，就会 conflict。</p>
+<h3 id="33-swizzle-的核心思想"><a class="markdownIt-Anchor" href="#33-swizzle-的核心思想"></a> 3.3 Swizzle 的核心思想</h3>
+<p><strong>用行号来打乱列号</strong>，让不同行的同一逻辑列映射到不同物理列，从而落到不同 bank。</p>
+<p>操作就是：<strong>新列号 = 原列号 XOR 行号</strong></p>
+<h3 id="34-最简单的例子44-矩阵"><a class="markdownIt-Anchor" href="#34-最简单的例子44-矩阵"></a> 3.4 最简单的例子：4×4 矩阵</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">原始 (不 Swizzle):</span><br><span class="line">         col0  col1  col2  col3</span><br><span class="line">row 0:   (0,0) (0,1) (0,2) (0,3)</span><br><span class="line">row 1:   (1,0) (1,1) (1,2) (1,3)</span><br><span class="line">row 2:   (2,0) (2,1) (2,2) (2,3)</span><br><span class="line">row 3:   (3,0) (3,1) (3,2) (3,3)</span><br><span class="line"></span><br><span class="line">读 col 0 的四行: 都在同一物理列 → 同一 bank → conflict！</span><br></pre></td></tr></table></figure></div>
+<p>做 <code>新列号 = 原列号 XOR 行号</code>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">row 0: 新列号 = col XOR 0 = col       → col0 col1 col2 col3  (不变)</span><br><span class="line">row 1: 新列号 = col XOR 1             → col1 col0 col3 col2  (0↔1, 2↔3)</span><br><span class="line">row 2: 新列号 = col XOR 2             → col2 col3 col0 col1  (0↔2, 1↔3)</span><br><span class="line">row 3: 新列号 = col XOR 3             → col3 col2 col1 col0  (全反转)</span><br></pre></td></tr></table></figure></div>
+<p>Swizzle 后的存储位置：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">         物理col0  物理col1  物理col2  物理col3</span><br><span class="line">row 0:   (0,0)     (0,1)     (0,2)     (0,3)       ← 原样</span><br><span class="line">row 1:   (1,1)     (1,0)     (1,3)     (1,2)       ← 0↔1 交换</span><br><span class="line">row 2:   (2,2)     (2,3)     (2,0)     (2,1)       ← 0↔2 交换</span><br><span class="line">row 3:   (3,3)     (3,2)     (3,1)     (3,0)       ← 全反转</span><br></pre></td></tr></table></figure></div>
+<p>现在读逻辑 col 0 的四行：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">row 0 的逻辑 col 0 在 → 物理 col 0  → bank 0</span><br><span class="line">row 1 的逻辑 col 0 在 → 物理 col 1  → bank 1</span><br><span class="line">row 2 的逻辑 col 0 在 → 物理 col 2  → bank 2</span><br><span class="line">row 3 的逻辑 col 0 在 → 物理 col 3  → bank 3</span><br><span class="line"></span><br><span class="line">四个不同 bank → 无 conflict！</span><br></pre></td></tr></table></figure></div>
+<h3 id="35-swizzleb-m-s-三个参数的含义"><a class="markdownIt-Anchor" href="#35-swizzleb-m-s-三个参数的含义"></a> 3.5 Swizzle&lt;B, M, S&gt; 三个参数的含义</h3>
+<p>上面的简单 XOR 是"逐列"做的。但实际 smem 中：</p>
+<ul>
+<li>一个 bank = 4 bytes，而 half_t = 2 bytes，连续 2 个 half_t 共享一个 bank</li>
+<li>ldmatrix 需要连续的一组元素保持连续，不能逐个打乱</li>
+</ul>
+<p>所以 Swizzle 不是逐个元素 XOR，而是<strong>按组 XOR</strong>。</p>
+<p><code>Swizzle&lt;B, M, S&gt;</code> 定义了怎么分组：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">把 offset 的二进制位分成三段：</span><br><span class="line"></span><br><span class="line">offset bit:  [...] [B 段] [S 段] [M 段]</span><br><span class="line">                    高位    中间    低位</span><br><span class="line"></span><br><span class="line">M 段: 最低 M 位 → 一组内的偏移 → 不动（保持连续，给 ldmatrix 用）</span><br><span class="line">S 段: 中间 S 位 → 组号         → 被 XOR（打乱）</span><br><span class="line">B 段: 高位 B 位 → 行号         → XOR 源</span><br><span class="line"></span><br><span class="line">操作: S 段 = S 段 XOR B 段</span><br></pre></td></tr></table></figure></div>
+<h3 id="36-swizzle3-3-3-对应到-8-32-half_t"><a class="markdownIt-Anchor" href="#36-swizzle3-3-3-对应到-8-32-half_t"></a> 3.6 Swizzle&lt;3, 3, 3&gt; 对应到 (8, 32) half_t</h3>
+<p>一行 32 个 half_t，列号 0~31：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">M = 3: 低 3 位 = col % 8</span><br><span class="line">       8 个 half_t 一组 = 16 bytes</span><br><span class="line">       组内不动，保持连续（ldmatrix 需要）</span><br><span class="line"></span><br><span class="line">S = 3: 中间位 = col / 8</span><br><span class="line">       一行 32/8 = 4 组（组号 0~3）</span><br><span class="line">       被行号 XOR</span><br><span class="line"></span><br><span class="line">B = 3: 高 3 位 = 行号（0~7）</span><br><span class="line">       作为 XOR 源</span><br></pre></td></tr></table></figure></div>
+<p><strong>就是第 3.4 节的简单 XOR，但单位从"1 个元素"变成了"8 个元素一组"。</strong></p>
+<p>用组号来画：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">一行分 4 组: 组0(col0~7) 组1(col8~15) 组2(col16~23) 组3(col24~31)</span><br><span class="line"></span><br><span class="line">不加 Swizzle:</span><br><span class="line">row 0: 组0 组1 组2 组3</span><br><span class="line">row 1: 组0 组1 组2 组3     ← 同列同 bank，conflict</span><br><span class="line">row 2: 组0 组1 组2 组3</span><br><span class="line">row 3: 组0 组1 组2 组3</span><br><span class="line"></span><br><span class="line">加 Swizzle (组号 XOR 行号):</span><br><span class="line">row 0: 0^0=组0  1^0=组1  2^0=组2  3^0=组3   (不变)</span><br><span class="line">row 1: 0^1=组1  1^1=组0  2^1=组3  3^1=组2   (0↔1, 2↔3 交换)</span><br><span class="line">row 2: 0^2=组2  1^2=组3  2^2=组0  3^2=组1   (0↔2, 1↔3 交换)</span><br><span class="line">row 3: 0^3=组3  1^3=组2  2^3=组1  3^3=组0   (全反转)</span><br><span class="line">row 4: 回绕，同 row 0</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<h3 id="37-验证-bank-conflict-消除"><a class="markdownIt-Anchor" href="#37-验证-bank-conflict-消除"></a> 3.7 验证 bank conflict 消除</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">一组 = 8 个 half_t = 16 bytes = 4 个 bank</span><br><span class="line"></span><br><span class="line">组0 占 bank 0~3</span><br><span class="line">组1 占 bank 4~7</span><br><span class="line">组2 占 bank 8~11</span><br><span class="line">组3 占 bank 12~15</span><br><span class="line"></span><br><span class="line">Swizzle 后，读逻辑 col 0 的 row 0~3：</span><br><span class="line">  row 0 逻辑 col 0 在组 0 → bank 0</span><br><span class="line">  row 1 逻辑 col 0 在组 1 → bank 4    ← 不同 bank</span><br><span class="line">  row 2 逻辑 col 0 在组 2 → bank 8    ← 不同 bank</span><br><span class="line">  row 3 逻辑 col 0 在组 3 → bank 12   ← 不同 bank</span><br><span class="line"></span><br><span class="line">四行访问四个不同的 bank 组 → 无 conflict ✓</span><br></pre></td></tr></table></figure></div>
+<h3 id="38-m-段为什么不动"><a class="markdownIt-Anchor" href="#38-m-段为什么不动"></a> 3.8 M 段为什么不动</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">M = 3 → 低 3 位不参与 XOR → 一组内的 8 个元素保持物理连续</span><br><span class="line"></span><br><span class="line">原因：ldmatrix 一次读 128 bit = 8 个 half_t</span><br><span class="line">     这 8 个必须在 smem 中连续存放，否则 ldmatrix 一条指令读不完</span><br><span class="line">     如果把这 8 个也打乱 → ldmatrix 不能用 → 性能下降</span><br></pre></td></tr></table></figure></div>
+<h3 id="39-tile_to_shape-扩展"><a class="markdownIt-Anchor" href="#39-tile_to_shape-扩展"></a> 3.9 tile_to_shape 扩展</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> SmemLayoutA = <span class="keyword">decltype</span>(</span><br><span class="line">    <span class="built_in">tile_to_shape</span>(SmemLayoutAtom{}, <span class="built_in">make_shape</span>(Int&lt;kTileM&gt;{}, Int&lt;kTileK&gt;{})));</span><br></pre></td></tr></table></figure></div>
+<p>SmemLayoutAtom 是 <code>(8, 32)</code> with Swizzle，目标 <code>(128, 32)</code>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">在 M 方向重复 128/8 = 16 次：</span><br><span class="line"></span><br><span class="line">  行  0~7:    atom 0 (with Swizzle)</span><br><span class="line">  行  8~15:   atom 1 (with Swizzle, 同样的 XOR 模式)</span><br><span class="line">  行 16~23:   atom 2</span><br><span class="line">  ...</span><br><span class="line">  行 120~127: atom 15</span><br><span class="line"></span><br><span class="line">每个 8 行块内部都有 Swizzle 消除 bank conflict</span><br></pre></td></tr></table></figure></div>
+<h3 id="310-swizzle-总结"><a class="markdownIt-Anchor" href="#310-swizzle-总结"></a> 3.10 Swizzle 总结</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Swizzle 就是：按组对列号做 XOR</span><br><span class="line"></span><br><span class="line">  原始:  每行的列排列相同 → 同列同 bank → conflict</span><br><span class="line">  XOR:   不同行的列排列不同 → 同列不同 bank → 无 conflict</span><br><span class="line"></span><br><span class="line">Swizzle&lt;B, M, S&gt;:</span><br><span class="line">  M = 一组多大（低 M 位不动，保持连续，给 ldmatrix 用）</span><br><span class="line">  S = 一行多少组（中间 S 位，被 XOR 打乱）</span><br><span class="line">  B = 多少行参与（高 B 位，作为 XOR 源）</span><br><span class="line"></span><br><span class="line">Swizzle&lt;3, 3, 3&gt;:</span><br><span class="line">  M=3 → 8 个 half_t 一组（16 bytes），组内不动</span><br><span class="line">  S=3 → 一行最多 8 组（实际只有 4 组，因为 32/8=4）</span><br><span class="line">  B=3 → 8 行为一个 XOR 周期</span><br><span class="line"></span><br><span class="line">核心一句话：不同行的列组做 XOR 交换，让同列不同行散布到不同 bank。</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="4-cpasync-的内部循环"><a class="markdownIt-Anchor" href="#4-cpasync-的内部循环"></a> 4. cp.async 的内部循环</h2>
+<h3 id="41-问题cpasync-是自己内部循环-4-轮吗"><a class="markdownIt-Anchor" href="#41-问题cpasync-是自己内部循环-4-轮吗"></a> 4.1 问题：cp.async 是自己内部循环 4 轮吗？</h3>
+<p><strong>是的。</strong> cute::copy 内部自动遍历 CPY_M 维度。</p>
+<p>从打印结果看 G2S copy 的 shape：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">tAgA_copy shape: ((_8,_1), _4, _1, 4)</span><br><span class="line">                   CPY     CPY_M CPY_K  num_tile_k</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPY = <code>(8,1)</code> = 8</td>
+<td>每线程每次搬 8 个 half_t (128bit)</td>
+<td>cp.async 一条指令</td>
+</tr>
+<tr>
+<td>CPY_M = 4</td>
+<td>M 方向循环 4 次</td>
+<td>128 行 / 32 行线程 = 4 轮</td>
+</tr>
+<tr>
+<td>CPY_K = 1</td>
+<td>K 方向 1 次</td>
+<td>32 列 / (4 列线程 × 8 值) = 1</td>
+</tr>
+<tr>
+<td>num_tile_k = 4</td>
+<td>K 外层</td>
+<td>128/32 = 4</td>
+</tr>
+</tbody>
+</table>
+<p>一次 <code>cute::copy(g2s_tiled_copy_a, src, dst)</code> 的内部：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// cute::copy 内部等价于：</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> cpy_m = <span class="number">0</span>; cpy_m &lt; <span class="number">4</span>; ++cpy_m) {      <span class="comment">// 4 轮</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> cpy_k = <span class="number">0</span>; cpy_k &lt; <span class="number">1</span>; ++cpy_k) {   <span class="comment">// 1 轮</span></span><br><span class="line">        <span class="comment">// 128 个线程同时发出 cp.async，每个搬 128bit</span></span><br><span class="line">        cp.<span class="built_in">async</span>(smem_addr, global_addr);</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"><span class="comment">// 一个线程发了 4 条 cp.async 指令</span></span><br></pre></td></tr></table></figure></div>
+<p>画出来：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">128×32 的 tile：</span><br><span class="line"></span><br><span class="line">线程布局 (32,4) 每线程搬 (1,8)  →  一次覆盖 (32, 32)</span><br><span class="line"></span><br><span class="line">  行  0~31   ← CPY_M=0  (128 线程同时搬，每个搬 8 个 half_t)</span><br><span class="line">  行 32~63   ← CPY_M=1</span><br><span class="line">  行 64~95   ← CPY_M=2</span><br><span class="line">  行 96~127  ← CPY_M=3</span><br><span class="line"></span><br><span class="line">stride 验证：</span><br><span class="line">  tAgA_copy stride: ((_1,_0), 4096, _0, _32)</span><br><span class="line">  CPY_M 的 stride = 4096 = 32行 × 128(全局K stride)  ✓</span><br><span class="line">  num_tile_k 的 stride = 32 = kTileK  ✓</span><br></pre></td></tr></table></figure></div>
+<p><strong>一次 cute::copy 调用 = 128 线程 × 4 轮 × 128bit/次 = 搬完整个 128×32 tile。</strong></p>
+<p>不需要手动写 for 循环，cute::copy 自动遍历 CPY_M/CPY_K 维度。</p>
+<hr>
+<h2 id="5-make_tiled_copy_a-与-retile_d"><a class="markdownIt-Anchor" href="#5-make_tiled_copy_a-与-retile_d"></a> 5. make_tiled_copy_A 与 retile_D</h2>
+<h3 id="51-核心问题为什么-gs-不需要sr-需要"><a class="markdownIt-Anchor" href="#51-核心问题为什么-gs-不需要sr-需要"></a> 5.1 核心问题：为什么 G→S 不需要，S→R 需要</h3>
+<p><strong>根本原因：看目的地（Destination）是谁在用。</strong></p>
+<h4 id="gs目的地是-shared-memory公共的"><a class="markdownIt-Anchor" href="#gs目的地是-shared-memory公共的"></a> G→S：目的地是 shared memory（公共的）</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Global ──cp.async──&gt; Shared Memory</span><br><span class="line">                     ↑</span><br><span class="line">                     公共资源，谁写都行，只要数据到位就行</span><br></pre></td></tr></table></figure></div>
+<p>smem 是 block 内所有线程共享的。线程 0 写 smem[100] 和线程 5 写 smem[100]，效果一样。所以 G2S 的线程布局可以<strong>随便选</strong>，怎么高效怎么来：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// G2S: 线程布局自己选，怎么高效怎么来</span></span><br><span class="line"><span class="keyword">using</span> G2SCopyA = <span class="keyword">decltype</span>(<span class="built_in">make_tiled_copy</span>(</span><br><span class="line">    g2s_copy_atom{},</span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">32</span>&gt;{}, Int&lt;<span class="number">4</span>&gt;{}), ...),   <span class="comment">// ← 自己选</span></span><br><span class="line">    <span class="built_in">make_layout</span>(<span class="built_in">make_shape</span>(Int&lt;<span class="number">1</span>&gt;{}, Int&lt;<span class="number">8</span>&gt;{}))));       <span class="comment">// ← 自己选</span></span><br></pre></td></tr></table></figure></div>
+<h4 id="sr目的地是寄存器私有的"><a class="markdownIt-Anchor" href="#sr目的地是寄存器私有的"></a> S→R：目的地是寄存器（私有的）</h4>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Shared Memory ──ldmatrix──&gt; Register</span><br><span class="line">                            ↑</span><br><span class="line">                            私有！只有这个线程能用</span><br><span class="line">                            而且 mma.sync 要求特定布局</span><br></pre></td></tr></table></figure></div>
+<p>寄存器是线程私有的。线程 0 的 reg[0] 只有线程 0 能用，别人写不了也读不了。</p>
+<p>所以 S2R 有两个硬约束。</p>
+<h3 id="52-约束-1线程必须对得上"><a class="markdownIt-Anchor" href="#52-约束-1线程必须对得上"></a> 5.2 约束 1：线程必须对得上</h3>
+<p>mma.sync 硬件规定死了每个线程负责哪些矩阵元素：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">mma.sync 硬件规定：</span><br><span class="line">  线程 0 → 必须提供 A[0][0], A[0][1], A[8][0], A[8][1], A[0][8], A[0][9], A[8][8], A[8][9]</span><br><span class="line">  线程 1 → 必须提供 A[1][0], A[1][1], A[9][0], A[9][1], A[1][8], A[1][9], A[9][8], A[9][9]</span><br><span class="line">  ...</span><br><span class="line">  这个映射是芯片设计时焊死的，不能改。</span><br></pre></td></tr></table></figure></div>
+<p>如果 S2R 的线程分配选错了：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">                    正确的分配                    错误的分配</span><br><span class="line">                    ──────────                    ──────────</span><br><span class="line">smem A[0][0] ──→ 线程 0 的 reg[0]   smem A[0][0] ──→ 线程 3 的 reg[0]  ✗</span><br><span class="line">smem A[1][0] ──→ 线程 1 的 reg[0]   smem A[1][0] ──→ 线程 0 的 reg[0]  ✗</span><br><span class="line">smem A[2][0] ──→ 线程 2 的 reg[0]   smem A[2][0] ──→ 线程 1 的 reg[0]  ✗</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">错误分配后，mma.sync 一执行，每个线程拿到的都不是自己该用的数据</span><br><span class="line">→ 计算结果全错</span><br><span class="line">→ 而且无法修复（线程间不能交换寄存器）</span><br></pre></td></tr></table></figure></div>
+<h4 id="make_tiled_copy_a-怎么解决"><a class="markdownIt-Anchor" href="#make_tiled_copy_a-怎么解决"></a> make_tiled_copy_A 怎么解决</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> s2r_tiled_copy_a = <span class="built_in">make_tiled_copy_A</span>(S2RCopyAtomA{}, tiled_mma);</span><br><span class="line"><span class="comment">//                                                        ↑</span></span><br><span class="line"><span class="comment">//                                              从 MMA 的 Layout_TV_A 查：</span></span><br><span class="line"><span class="comment">//                                              线程 0 需要 A 的哪些位置</span></span><br><span class="line"><span class="comment">//                                              线程 1 需要 A 的哪些位置</span></span><br><span class="line"><span class="comment">//                                              ...</span></span><br><span class="line"><span class="comment">//                                              然后让 Copy 的线程分配与之一致</span></span><br></pre></td></tr></table></figure></div>
+<p>保证了：<strong>线程 0 从 smem 读出来的，恰好就是 mma.sync 要求线程 0 提供的。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>G2S</th>
+<th>S2R</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>线程布局</td>
+<td>你随便选</td>
+<td><strong>必须和 MMA 一致</strong></td>
+</tr>
+<tr>
+<td>用什么 API</td>
+<td><code>make_tiled_copy</code></td>
+<td><code>make_tiled_copy_A</code></td>
+</tr>
+<tr>
+<td>为什么</td>
+<td>smem 是公共的</td>
+<td>寄存器是私有的</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-约束-2寄存器视角必须对得上"><a class="markdownIt-Anchor" href="#53-约束-2寄存器视角必须对得上"></a> 5.3 约束 2：寄存器视角必须对得上</h3>
+<p>MMA 视角（partition_fragment_A 创建的 tCrA）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">tCrA shape: ((_2,_2,_2), _4, _2)</span><br><span class="line">             MMA内8个值    M重复  K内循环</span><br><span class="line">stride:     ((_1,_2,_4), _16, _8)</span><br></pre></td></tr></table></figure></div>
+<p>这是 mma.sync 要求的寄存器布局。8 个值按 <code>(2,2,2)</code> 嵌套排列。</p>
+<p>Copy 视角（ldmatrix 需要的布局）：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">tCrA_view shape: ((_8,_1), _4, _2)</span><br><span class="line">                  一次8个    M重复  K内循环</span><br><span class="line">stride:          ((_1,_0), _16, _8)</span><br></pre></td></tr></table></figure></div>
+<p><strong>实际上物理数据排列是一样的</strong>——ldmatrix 和 mma.sync 是配套设计的。真正的问题在 <strong>CuTe 的类型系统层面</strong>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">cute::copy 函数：需要 dst 的第 0 维 shape 是 (8,1)     ← "我一次搬 8 个连续值"</span><br><span class="line">cute::gemm 函数：需要 src 的第 0 维 shape 是 (2,2,2)   ← "我按三层嵌套访问"</span><br><span class="line"></span><br><span class="line">如果 shape 不匹配 → 编译报错</span><br></pre></td></tr></table></figure></div>
+<p>如果不做 retile_D，直接传 tCrA：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 假设不做 retile，直接传 tCrA</span></span><br><span class="line">cute::<span class="built_in">copy</span>(s2r_tiled_copy_a, <span class="built_in">tAsA</span>(_, _, ik), <span class="built_in">tCrA</span>(_, _, ik));</span><br><span class="line"><span class="comment">//                                            ↑</span></span><br><span class="line"><span class="comment">//                               tCrA 的第 0 维 shape 是 (2,2,2)</span></span><br><span class="line"><span class="comment">//                               但 s2r_tiled_copy_a 期望第 0 维是 (8,1)</span></span><br><span class="line"><span class="comment">//                               shape 不匹配 → 编译报错！</span></span><br></pre></td></tr></table></figure></div>
+<h4 id="retile_d-做的事"><a class="markdownIt-Anchor" href="#retile_d-做的事"></a> retile_D 做的事</h4>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> tCrA_view = s2r_thr_copy_a.<span class="built_in">retile_D</span>(tCrA);</span><br></pre></td></tr></table></figure></div>
+<p><strong>retile_D 不改变数据，不分配新寄存器，只改变看数据的方式（reshaping）。</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tCrA:      reg[0..7], 索引方式 (2,2,2) stride (1,2,4)</span><br><span class="line">           访问 reg[5] = tCrA(1,0,1) = 1×1 + 0×2 + 1×4 = 5  ✓</span><br><span class="line"></span><br><span class="line">tCrA_view: reg[0..7], 索引方式 (8,1) stride (1,0)</span><br><span class="line">           访问 reg[5] = tCrA_view(5,0) = 5×1 + 0×0 = 5     ✓</span><br><span class="line"></span><br><span class="line">同一个 reg[5]，两种方式都能访问到，只是坐标写法不同。</span><br></pre></td></tr></table></figure></div>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">retile_D 的效果：</span><br><span class="line"></span><br><span class="line">  tCrA       shape: ((_2,_2,_2), _4, _2)  ← gemm 用这个（MMA 视角）</span><br><span class="line">                      ↕ 同一片寄存器</span><br><span class="line">  tCrA_view  shape: ((_8,_1),    _4, _2)  ← copy 用这个（Copy 视角）</span><br></pre></td></tr></table></figure></div>
+<h3 id="54-约束总结"><a class="markdownIt-Anchor" href="#54-约束总结"></a> 5.4 约束总结</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">约束 1（线程对齐）：</span><br><span class="line">  mma.sync 硬件规定了每个线程负责哪些矩阵元素</span><br><span class="line">  S→R 的 Copy 必须让每个线程从 smem 读到自己该用的那份</span><br><span class="line">  → make_tiled_copy_A 从 MMA 的 Layout_TV 自动对齐</span><br><span class="line"></span><br><span class="line">约束 2（视角对齐）：</span><br><span class="line">  cute::copy 和 cute::gemm 对同一片寄存器的索引约定（shape）不同</span><br><span class="line">  copy 期望 (8,1)，gemm 期望 (2,2,2)</span><br><span class="line">  → retile_D 把 shape 从 MMA 视角转成 Copy 视角</span><br><span class="line">  → 不搬数据，只换索引方式，编译期完成</span><br><span class="line"></span><br><span class="line">一句话：约束 1 是"谁读什么"的问题，约束 2 是"怎么看同一片数据"的问题。</span><br></pre></td></tr></table></figure></div>
+<h3 id="55-gs-为什么不需要"><a class="markdownIt-Anchor" href="#55-gs-为什么不需要"></a> 5.5 G→S 为什么不需要</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">G→S:  Destination 是 smem (公共) → 线程布局随便选 → make_tiled_copy</span><br><span class="line">                                 → 无视角问题     → 不需要 retile</span><br><span class="line"></span><br><span class="line">S→R:  Destination 是 reg (私有)  → 线程布局必须匹配 MMA → make_tiled_copy_A</span><br><span class="line">                                 → 两种视角切换        → retile_D</span><br><span class="line"></span><br><span class="line">核心：smem 谁写都行，寄存器只有自己能用。</span><br></pre></td></tr></table></figure></div>
+<h3 id="56-类比"><a class="markdownIt-Anchor" href="#56-类比"></a> 5.6 类比</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">G→S 就像把货搬进仓库：</span><br><span class="line">  仓库(smem)是公共的，谁搬都行，放到对的位置就好</span><br><span class="line">  搬运工(线程)怎么分配无所谓，效率优先</span><br><span class="line">  不需要关心"谁搬的"</span><br><span class="line"></span><br><span class="line">S→R 就像把工具发给工人：</span><br><span class="line">  每个工人(线程)只能用自己手里的工具(寄存器)</span><br><span class="line">  必须把正确的工具发到正确的工人手里     ← make_tiled_copy_A</span><br><span class="line">  而且工具要按工人习惯的方式摆好         ← retile_D</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="6-两层-k-循环"><a class="markdownIt-Anchor" href="#6-两层-k-循环"></a> 6. 两层 K 循环</h2>
+<h3 id="61-为什么有两层循环"><a class="markdownIt-Anchor" href="#61-为什么有两层循环"></a> 6.1 为什么有两层循环</h3>
+<p>核心在于：<strong>一次搬到 smem 的 K 维度（32）比一次 MMA 能消耗的 K 维度（16）大。</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">kTileK = 32    ← 每次从 global 搬 32 列到 smem</span><br><span class="line">MMA K  = 16    ← 一次 mma.sync 只能算 K=16</span><br><span class="line"></span><br><span class="line">所以 smem 里的 32 列要分 32/16 = 2 次 MMA 才能用完</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-对比-07只有一层循环"><a class="markdownIt-Anchor" href="#62-对比-07只有一层循环"></a> 6.2 对比 07（只有一层循环）</h3>
+<p>07 的 kTileK = 16，刚好等于 MMA 的 K=16：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 07: kTileK=16, MMA K=16, 一次就用完</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> ik = <span class="number">0</span>; ik &lt; <span class="number">4</span>; ++ik) {     <span class="comment">// 64/16 = 4 轮</span></span><br><span class="line">    <span class="built_in">copy</span>(global → <span class="keyword">register</span>);          <span class="comment">// 搬 16 列</span></span><br><span class="line">    <span class="built_in">gemm</span>();                            <span class="comment">// 算 16 列，刚好用完</span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>只需要一层循环。</p>
+<h3 id="63-为什么-ktilek-要大于-mma-k"><a class="markdownIt-Anchor" href="#63-为什么-ktilek-要大于-mma-k"></a> 6.3 为什么 kTileK 要大于 MMA K</h3>
+<p>因为<strong>搬运比计算贵</strong>。cp.async 从 global 搬到 smem 有很高的开销（发起异步请求、fence、wait、syncthreads），所以希望一次多搬点，减少搬运次数：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kTileK=16: K=128 需要 128/16 = 8 次 G→S  ← 8 次 fence+wait+sync</span><br><span class="line">kTileK=32: K=128 需要 128/32 = 4 次 G→S  ← 4 次，减半</span><br></pre></td></tr></table></figure></div>
+<p>但 MMA 硬件一次只能算 K=16，所以搬进来的 32 列要分 2 次用。</p>
+<h3 id="64-两层循环的结构"><a class="markdownIt-Anchor" href="#64-两层循环的结构"></a> 6.4 两层循环的结构</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> num_tile_k = K / kTileK;                          <span class="comment">// 外层: 128/32 = 4 轮</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> itile = <span class="number">0</span>; itile &lt; num_tile_k; ++itile) {</span><br><span class="line">    <span class="comment">// Global -&gt; Shared: 搬 128×32 到 smem</span></span><br><span class="line">    cute::<span class="built_in">copy</span>(g2s_tiled_copy_a, <span class="built_in">tAgA_copy</span>(_, _, _, itile), <span class="built_in">tAsA_copy</span>(_, _, _));</span><br><span class="line">    cute::<span class="built_in">copy</span>(g2s_tiled_copy_b, <span class="built_in">tBgB_copy</span>(_, _, _, itile), <span class="built_in">tBsB_copy</span>(_, _, _));</span><br><span class="line">    <span class="built_in">cp_async_fence</span>();</span><br><span class="line">    <span class="built_in">cp_async_wait</span>&lt;<span class="number">0</span>&gt;();</span><br><span class="line">    __syncthreads();</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> nk = <span class="built_in">size</span>&lt;<span class="number">2</span>&gt;(tCrA);                            <span class="comment">// 内层: 32/16 = 2 轮</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> ik = <span class="number">0</span>; ik &lt; nk; ++ik) {</span><br><span class="line">        <span class="comment">// Shared -&gt; Register: ldmatrix 搬 16 列</span></span><br><span class="line">        cute::<span class="built_in">copy</span>(s2r_tiled_copy_a, <span class="built_in">tAsA</span>(_, _, ik), <span class="built_in">tCrA_view</span>(_, _, ik));</span><br><span class="line">        cute::<span class="built_in">copy</span>(s2r_tiled_copy_b, <span class="built_in">tBsB</span>(_, _, ik), <span class="built_in">tCrB_view</span>(_, _, ik));</span><br><span class="line">        <span class="comment">// MMA: 32 次 mma.sync</span></span><br><span class="line">        cute::<span class="built_in">gemm</span>(tiled_mma, tCrD, <span class="built_in">tCrA</span>(_, _, ik), <span class="built_in">tCrB</span>(_, _, ik), tCrD);</span><br><span class="line">    }</span><br><span class="line">    __syncthreads();</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>时间线：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">K 总共 128 列：</span><br><span class="line"></span><br><span class="line">  [G→S 32列] [S→R 16列][MMA] [S→R 16列][MMA]</span><br><span class="line">  [G→S 32列] [S→R 16列][MMA] [S→R 16列][MMA]</span><br><span class="line">  [G→S 32列] [S→R 16列][MMA] [S→R 16列][MMA]</span><br><span class="line">  [G→S 32列] [S→R 16列][MMA] [S→R 16列][MMA]</span><br></pre></td></tr></table></figure></div>
+<h3 id="65-从打印结果验证"><a class="markdownIt-Anchor" href="#65-从打印结果验证"></a> 6.5 从打印结果验证</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tCrA shape: ((_2,_2,_2), _4, _2)</span><br><span class="line">                               ↑</span><br><span class="line">                           nk=2  ← 这就是内层循环次数</span><br><span class="line"></span><br><span class="line">循环结构:</span><br><span class="line">  K 外层: K/kTileK = 128/32 = 4 轮</span><br><span class="line">  K 内层: nk = size&lt;2&gt;(tCrA) = 2 轮</span><br></pre></td></tr></table></figure></div>
+<p>tCrA 的第 3 维 <code>_2</code> 就是内层循环的 2 轮，对应 smem 里 32 列分成两个 16 列。</p>
+<h3 id="66-ktilek-的权衡"><a class="markdownIt-Anchor" href="#66-ktilek-的权衡"></a> 6.6 kTileK 的权衡</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">kTileK=16: 内层=1, 外层=8, G→S 次数多，但 smem 占用小</span><br><span class="line">kTileK=32: 内层=2, 外层=4, G→S 次数减半，smem 16KB</span><br><span class="line">kTileK=64: 内层=4, 外层=2, G→S 更少，但 smem 32KB（可能影响 occupancy）</span><br><span class="line"></span><br><span class="line">kTileK 的选择是搬运次数 vs smem 占用的权衡。</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="7-kernel-完整流程"><a class="markdownIt-Anchor" href="#7-kernel-完整流程"></a> 7. Kernel 完整流程</h2>
+<h3 id="71-kernel-中的使用流程"><a class="markdownIt-Anchor" href="#71-kernel-中的使用流程"></a> 7.1 kernel 中的使用流程</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 第 1 步：G→S（不关心谁写，不关心布局）</span></span><br><span class="line">cute::<span class="built_in">copy</span>(g2s_tiled_copy_a, <span class="built_in">tAgA_copy</span>(_, _, _, itile), tAsA_copy);</span><br><span class="line"><span class="comment">// 任意线程布局 → cp.async → smem</span></span><br><span class="line"><span class="comment">// make_tiled_copy 自己选线程布局，怎么快怎么来</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 第 2 步：__syncthreads()</span></span><br><span class="line"><span class="comment">// 确保 smem 数据完整</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 第 3 步：S→R（必须对得上）</span></span><br><span class="line">cute::<span class="built_in">copy</span>(s2r_tiled_copy_a, <span class="built_in">tAsA</span>(_, _, ik), <span class="built_in">tCrA_view</span>(_, _, ik));</span><br><span class="line"><span class="comment">// make_tiled_copy_A → 保证线程 0 读 mma 要求线程 0 用的数据</span></span><br><span class="line"><span class="comment">// retile_D → 让 copy 能正确索引寄存器</span></span><br><span class="line"><span class="comment">// ldmatrix: smem → 寄存器 (Copy 视角写入)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 第 4 步：MMA</span></span><br><span class="line">cute::<span class="built_in">gemm</span>(tiled_mma, tCrD, <span class="built_in">tCrA</span>(_, _, ik), <span class="built_in">tCrB</span>(_, _, ik), tCrD);</span><br><span class="line"><span class="comment">// mma.sync: 从寄存器读 (MMA 视角读取)</span></span><br><span class="line"><span class="comment">// 同一片寄存器，换个视角就能用</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="72-打印结果汇总"><a class="markdownIt-Anchor" href="#72-打印结果汇总"></a> 7.2 打印结果汇总</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">=== G2S Copy ===</span><br><span class="line">tAgA_copy shape: ((_8,_1), _4, _1, 4)     ← 每线程8值, 4轮M, 1轮K, 4个K tile</span><br><span class="line">tAsA_copy shape: ((_8,_1), _4, _1)         ← smem 侧，无 K tile 维度</span><br><span class="line"></span><br><span class="line">=== MMA fragment ===</span><br><span class="line">tCrA shape: ((_2,_2,_2), _4, _2)           ← MMA 视角</span><br><span class="line">tCrB shape: ((_2,_2), (_2,_4), _2)</span><br><span class="line">tCrD shape: ((_2,_2), _4, _8)</span><br><span class="line"></span><br><span class="line">=== S2R Copy ===</span><br><span class="line">tAsA shape:      ((_8,_1), _4, _2)         ← smem source</span><br><span class="line">tCrA_view shape: ((_8,_1), _4, _2)         ← 寄存器 Copy 视角（与 tAsA 一一对应）</span><br><span class="line"></span><br><span class="line">=== 循环结构 ===</span><br><span class="line">K 外层: 128/32 = 4 轮</span><br><span class="line">K 内层: 2 轮</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="8-与-0709-的对比"><a class="markdownIt-Anchor" href="#8-与-0709-的对比"></a> 8. 与 07/09 的对比</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>07（Simple GEMM）</th>
+<th>08（Smem GEMM）</th>
+<th>09（Multi-Stage）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据搬运</td>
+<td>Global→Reg</td>
+<td>Global→Smem→Reg</td>
+<td>Global→Smem(multi)→Reg</td>
+</tr>
+<tr>
+<td>smem</td>
+<td>无</td>
+<td>有，单缓冲</td>
+<td>有，多 stage 环形缓冲</td>
+</tr>
+<tr>
+<td>Swizzle</td>
+<td>不需要</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>K 循环</td>
+<td>1 层</td>
+<td>2 层</td>
+<td>2 层 + 流水线</td>
+</tr>
+<tr>
+<td>cp.async</td>
+<td>不用</td>
+<td>用，但同步等待</td>
+<td>用，异步重叠</td>
+</tr>
+<tr>
+<td>make_tiled_copy_A</td>
+<td>不需要</td>
+<td>需要</td>
+<td>需要</td>
+</tr>
+<tr>
+<td>retile_D</td>
+<td>不需要</td>
+<td>需要</td>
+<td>需要</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>很慢</td>
+<td>中等</td>
+<td>最快</td>
+</tr>
+<tr>
+<td>学习目标</td>
+<td>partition + gemm</td>
+<td>G2S + S2R + Swizzle</td>
+<td>流水线重叠</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="9-api-总结"><a class="markdownIt-Anchor" href="#9-api-总结"></a> 9. API 总结</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make_tiled_copy(atom, thr_layout, val_layout)</code></td>
+<td>创建 Copy，线程布局自己选（用于 G→S）</td>
+</tr>
+<tr>
+<td><code>make_tiled_copy_A(atom, tiled_mma)</code></td>
+<td>创建 Copy，线程布局自动从 MMA 提取（用于 S→R of A）</td>
+</tr>
+<tr>
+<td><code>make_tiled_copy_B(atom, tiled_mma)</code></td>
+<td>同上，用于 S→R of B</td>
+</tr>
+<tr>
+<td><code>thr_copy.retile_D(tCrA)</code></td>
+<td>把 MMA 视角的 fragment 转成 Copy 视角（zero-copy reshape）</td>
+</tr>
+<tr>
+<td><code>thr_copy.partition_S(smem)</code></td>
+<td>切分 smem Source</td>
+</tr>
+<tr>
+<td><code>thr_copy.partition_D(smem)</code></td>
+<td>切分 smem Destination</td>
+</tr>
+<tr>
+<td><code>cp_async_fence()</code></td>
+<td>标记一批 cp.async 的边界</td>
+</tr>
+<tr>
+<td><code>cp_async_wait&lt;N&gt;()</code></td>
+<td>等待直到最多还剩 N 批未完成</td>
+</tr>
+<tr>
+<td><code>composition(Swizzle, Layout)</code></td>
+<td>在 Layout 上叠加 Swizzle 消除 bank conflict</td>
+</tr>
+<tr>
+<td><code>tile_to_shape(atom, shape)</code></td>
+<td>把小 layout atom 重复扩展到目标 shape</td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> cute（8）smem_gemm</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-06-15 22:13:32</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-14 15:39:39
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/15/cute(8)smem_gemm/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-cutlass-cute/">#cuda, cutlass,cute</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/16/cute(9)multistage_gemm/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（9）multistage_gemm</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/14/cute(7)simple_gemm/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">cute（7）simple_gemm</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">cute（8）smem_gemm</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E9%98%85%E8%AF%BB"><span class="nav-text"> 前置阅读</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AC%AC-8-%E8%AF%BEshared-memory-gemm"><span class="nav-text"> 第 8 课：Shared Memory GEMM</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text"> 核心概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-text"> 代码实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%95%B4%E4%BD%93%E6%95%B0%E6%8D%AE%E6%B5%81"><span class="nav-text"> 1. 整体数据流</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-gemmconfig-%E9%80%90%E9%A1%B9%E8%A7%A3%E6%9E%90"><span class="nav-text"> 2. GemmConfig 逐项解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E5%9F%BA%E6%9C%AC%E5%8F%82%E6%95%B0"><span class="nav-text"> 2.1 基本参数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-smemlayoutswizzle"><span class="nav-text"> 2.2 SmemLayout（Swizzle）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-mma%E8%B7%9F-07-%E5%AE%8C%E5%85%A8%E4%B8%80%E6%A0%B7"><span class="nav-text"> 2.3 MMA（跟 07 完全一样）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#24-g2s-copyglobal-shared-memory"><span class="nav-text"> 2.4 G2S Copy（Global → Shared Memory）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#25-s2r-copyshared-memory-register"><span class="nav-text"> 2.5 S2R Copy（Shared Memory → Register）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#26-%E5%AE%8C%E6%95%B4%E9%85%8D%E7%BD%AE%E6%80%BB%E7%BB%93"><span class="nav-text"> 2.6 完整配置总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-swizzle-%E8%AF%A6%E8%A7%A3"><span class="nav-text"> 3. Swizzle 详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E4%BB%80%E4%B9%88%E6%98%AF-bank-conflict"><span class="nav-text"> 3.1 什么是 Bank Conflict</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-%E4%B8%8D%E5%8A%A0-swizzle-%E6%97%B6%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text"> 3.2 不加 Swizzle 时的问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-swizzle-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-text"> 3.3 Swizzle 的核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-%E6%9C%80%E7%AE%80%E5%8D%95%E7%9A%84%E4%BE%8B%E5%AD%9044-%E7%9F%A9%E9%98%B5"><span class="nav-text"> 3.4 最简单的例子：4×4 矩阵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#35-swizzleb-m-s-%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0%E7%9A%84%E5%90%AB%E4%B9%89"><span class="nav-text"> 3.5 Swizzle&lt;B, M, S&gt; 三个参数的含义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#36-swizzle3-3-3-%E5%AF%B9%E5%BA%94%E5%88%B0-8-32-half_t"><span class="nav-text"> 3.6 Swizzle&lt;3, 3, 3&gt; 对应到 (8, 32) half_t</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#37-%E9%AA%8C%E8%AF%81-bank-conflict-%E6%B6%88%E9%99%A4"><span class="nav-text"> 3.7 验证 bank conflict 消除</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#38-m-%E6%AE%B5%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E5%8A%A8"><span class="nav-text"> 3.8 M 段为什么不动</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#39-tile_to_shape-%E6%89%A9%E5%B1%95"><span class="nav-text"> 3.9 tile_to_shape 扩展</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#310-swizzle-%E6%80%BB%E7%BB%93"><span class="nav-text"> 3.10 Swizzle 总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-cpasync-%E7%9A%84%E5%86%85%E9%83%A8%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 4. cp.async 的内部循环</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E9%97%AE%E9%A2%98cpasync-%E6%98%AF%E8%87%AA%E5%B7%B1%E5%86%85%E9%83%A8%E5%BE%AA%E7%8E%AF-4-%E8%BD%AE%E5%90%97"><span class="nav-text"> 4.1 问题：cp.async 是自己内部循环 4 轮吗？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-make_tiled_copy_a-%E4%B8%8E-retile_d"><span class="nav-text"> 5. make_tiled_copy_A 与 retile_D</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-%E6%A0%B8%E5%BF%83%E9%97%AE%E9%A2%98%E4%B8%BA%E4%BB%80%E4%B9%88-gs-%E4%B8%8D%E9%9C%80%E8%A6%81sr-%E9%9C%80%E8%A6%81"><span class="nav-text"> 5.1 核心问题：为什么 G→S 不需要，S→R 需要</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-%E7%BA%A6%E6%9D%9F-1%E7%BA%BF%E7%A8%8B%E5%BF%85%E9%A1%BB%E5%AF%B9%E5%BE%97%E4%B8%8A"><span class="nav-text"> 5.2 约束 1：线程必须对得上</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-%E7%BA%A6%E6%9D%9F-2%E5%AF%84%E5%AD%98%E5%99%A8%E8%A7%86%E8%A7%92%E5%BF%85%E9%A1%BB%E5%AF%B9%E5%BE%97%E4%B8%8A"><span class="nav-text"> 5.3 约束 2：寄存器视角必须对得上</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#54-%E7%BA%A6%E6%9D%9F%E6%80%BB%E7%BB%93"><span class="nav-text"> 5.4 约束总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#55-gs-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E9%9C%80%E8%A6%81"><span class="nav-text"> 5.5 G→S 为什么不需要</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#56-%E7%B1%BB%E6%AF%94"><span class="nav-text"> 5.6 类比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E4%B8%A4%E5%B1%82-k-%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 6. 两层 K 循环</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-%E4%B8%BA%E4%BB%80%E4%B9%88%E6%9C%89%E4%B8%A4%E5%B1%82%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 6.1 为什么有两层循环</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-%E5%AF%B9%E6%AF%94-07%E5%8F%AA%E6%9C%89%E4%B8%80%E5%B1%82%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 6.2 对比 07（只有一层循环）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-%E4%B8%BA%E4%BB%80%E4%B9%88-ktilek-%E8%A6%81%E5%A4%A7%E4%BA%8E-mma-k"><span class="nav-text"> 6.3 为什么 kTileK 要大于 MMA K</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-%E4%B8%A4%E5%B1%82%E5%BE%AA%E7%8E%AF%E7%9A%84%E7%BB%93%E6%9E%84"><span class="nav-text"> 6.4 两层循环的结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#65-%E4%BB%8E%E6%89%93%E5%8D%B0%E7%BB%93%E6%9E%9C%E9%AA%8C%E8%AF%81"><span class="nav-text"> 6.5 从打印结果验证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#66-ktilek-%E7%9A%84%E6%9D%83%E8%A1%A1"><span class="nav-text"> 6.6 kTileK 的权衡</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-kernel-%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B"><span class="nav-text"> 7. Kernel 完整流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-kernel-%E4%B8%AD%E7%9A%84%E4%BD%BF%E7%94%A8%E6%B5%81%E7%A8%8B"><span class="nav-text"> 7.1 kernel 中的使用流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-%E6%89%93%E5%8D%B0%E7%BB%93%E6%9E%9C%E6%B1%87%E6%80%BB"><span class="nav-text"> 7.2 打印结果汇总</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-%E4%B8%8E-0709-%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="nav-text"> 8. 与 07&#x2F;09 的对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-api-%E6%80%BB%E7%BB%93"><span class="nav-text"> 9. API 总结</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 23 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
