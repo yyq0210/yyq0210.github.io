@@ -543,7 +543,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">32</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -570,7 +570,7 @@ mjx-container[display="true"] + br {
                 <div class="author flex flex-col justify-center my-2.5 mx-0">
     <div class="name">鱿鱼圈</div>
     
-        <div class="label">Lv3</div>
+        <div class="label">Lv4</div>
     
 </div>
                 <div class="statistics flex justify-around my-2.5">
@@ -583,7 +583,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">32</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -598,6 +598,161 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/06/21/FlashKDA%E4%B9%8Bbackward%EF%BC%88K1%EF%BC%89/">
+                            FlashKDA之backward（K1）
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            前置知识：KDA算法公式、triton、cuda、c++
+ K1_bwd “prepare” kernel 逐行精讲
+
+对应源码：csrc/smxx/bwd_kernel1.cuh 的 _flash_kda_bwd_prepare
+目标读者：没接触过自动微分 / CUDA kernel 的人。读完应能自己推出 L2 归一化反向、数值稳定的 、以及门控的逆向 cumsum，并理解代码为何这样写...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sun Jun 21 2026 23:50:00 GMT+0800">
+                
+                    2026-06-21
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/tags/KDA/">KDA</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/06/21/FlashKDA%E4%B9%8Bbackward%EF%BC%88K1%EF%BC%89/">阅读全文<span class="seo-reader-text">FlashKDA之backward（K1）</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/06/20/FlashKDA%E4%B9%8Bbackward%EF%BC%88K2%EF%BC%89/">
+                            FlashKDA之backward（K2）
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            前置知识：KDA算法公式、triton、cuda、c++
+ K2_bwd 反向递推 kernel 逐行精讲
+
+对应源码：csrc/smxx/bwd_kernel2.cuh 的 _flash_kda_bwd_recurrence
+目标读者：没接触过自动微分 / CUDA kernel 的人。读完应能自己把每一条梯度公式推一遍，并理解代码为什么这么写。
+约定：d&lt;量&gt; 表示 loss...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Jun 20 2026 23:50:00 GMT+0800">
+                
+                    2026-06-20
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/tags/KDA/">KDA</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/06/20/FlashKDA%E4%B9%8Bbackward%EF%BC%88K2%EF%BC%89/">阅读全文<span class="seo-reader-text">FlashKDA之backward（K2）</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1272,175 +1427,11 @@ reed博士：(4 封私信 / 14 条消息) cute 之 Copy抽象 - 知乎
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/06/09/cute(4)%E7%AC%AC%E4%B8%80%E4%B8%AAKernel/">
-                            cute（4）第一个Kernel
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             第 4 课：第一个 GPU Kernel
-
-对应代码：04_first_kernel.cu
-需要 GPU。
-
- 核心概念
-在 GPU kernel 中使用 CuTe Tensor：
-
-make_gmem_ptr 包装全局内存指针
-local_tile 按 block 切分工作
-每个线程用一维 index 访问 tile 中的元素
-
-
- 代码解析
- Kernel 1：向量加法 C = A +...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Tue Jun 09 2026 22:13:32 GMT+0800">
-                
-                    2026-06-09
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/cuda/">cuda</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/06/09/cute(4)%E7%AC%AC%E4%B8%80%E4%B8%AAKernel/">阅读全文<span class="seo-reader-text">cute（4）第一个Kernel</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/06/08/cute(3)Layout%E4%BB%A3%E6%95%B0/">
-                            cute（3）Layout代数
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             Ref
-
-
-官方文档：CuTe — NVIDIA CUTLASS Documentation
-
-
-reed博士：(4 封私信 / 14 条消息) cute Layout 的代数和几何解释 - 知乎
-
-
-竹佬：(4 封私信 / 14 条消息) 写给大家看的 CuTe 教程：Layout Compose &amp; Inverse - 知乎
-
-
- 3 Layout 代数
-
-对应代码：03_la...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Mon Jun 08 2026 22:13:32 GMT+0800">
-                
-                    2026-06-08
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/cuda/">cuda</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/06/08/cute(3)Layout%E4%BB%A3%E6%95%B0/">阅读全文<span class="seo-reader-text">cute（3）Layout代数</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
         <div class="paginator">
-	<span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/2/"><i class="fa-regular fa-angle-right"></i></a>
+	<span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/2/"><i class="fa-regular fa-angle-right"></i></a>
 </div>
   
     </div>
@@ -1466,7 +1457,7 @@ reed博士：(4 封私信 / 14 条消息) cute Layout 的代数和几何解释 -
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 30 篇文章
+                        共撰写了 32 篇文章
                     </span>
                     
                 </p>

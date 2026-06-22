@@ -489,7 +489,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">32</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -516,7 +516,7 @@ mjx-container[display="true"] + br {
                 <div class="author flex flex-col justify-center my-2.5 mx-0">
     <div class="name">鱿鱼圈</div>
     
-        <div class="label">Lv3</div>
+        <div class="label">Lv4</div>
     
 </div>
                 <div class="statistics flex justify-around my-2.5">
@@ -529,7 +529,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">32</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -544,6 +544,170 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/06/09/cute(4)%E7%AC%AC%E4%B8%80%E4%B8%AAKernel/">
+                            cute（4）第一个Kernel
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             第 4 课：第一个 GPU Kernel
+
+对应代码：04_first_kernel.cu
+需要 GPU。
+
+ 核心概念
+在 GPU kernel 中使用 CuTe Tensor：
+
+make_gmem_ptr 包装全局内存指针
+local_tile 按 block 切分工作
+每个线程用一维 index 访问 tile 中的元素
+
+
+ 代码解析
+ Kernel 1：向量加法 C = A +...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Tue Jun 09 2026 22:13:32 GMT+0800">
+                
+                    2026-06-09
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/06/09/cute(4)%E7%AC%AC%E4%B8%80%E4%B8%AAKernel/">阅读全文<span class="seo-reader-text">cute（4）第一个Kernel</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/06/08/cute(3)Layout%E4%BB%A3%E6%95%B0/">
+                            cute（3）Layout代数
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             Ref
+
+
+官方文档：CuTe — NVIDIA CUTLASS Documentation
+
+
+reed博士：(4 封私信 / 14 条消息) cute Layout 的代数和几何解释 - 知乎
+
+
+竹佬：(4 封私信 / 14 条消息) 写给大家看的 CuTe 教程：Layout Compose &amp; Inverse - 知乎
+
+
+ 3 Layout 代数
+
+对应代码：03_la...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Mon Jun 08 2026 22:13:32 GMT+0800">
+                
+                    2026-06-08
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/06/08/cute(3)Layout%E4%BB%A3%E6%95%B0/">阅读全文<span class="seo-reader-text">cute（3）Layout代数</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1259,183 +1423,11 @@ GitHub Pag...
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/05/29/SGLang%E4%B9%8BMambaRadixCache%E6%9C%BA%E5%88%B6%E8%A7%A3%E6%9E%90/">
-                            SGLang之MambaRadixCache机制
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            本文详细解析 SGLang 中 MambaRadixCache 的内存空间布局、KV Cache 与 SSM Cache 的缓存机制原理、Prefill 和 Decode 的完整流程，并通过端到端的例子串联所有概念。
- 1. 内存空间布局
- 1.1 三大内存池
-MambaRadixCache 管理三块独立的 GPU 显存池：每 256 token 做一次 track（不是为了 tree 缓存...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Fri May 29 2026 23:50:00 GMT+0800">
-                
-                    2026-05-29
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM-infra/">LLM infra</a>&nbsp;
-                        </li>
-                    
-                    
-                
-                    
-                        
-                            <li>></li>
-                        
-                        <li>
-                            <a href="/categories/LLM-infra/SGLang/">SGLang</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM-infra/">LLM infra</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/tags/SGLang/">SGLang</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/05/29/SGLang%E4%B9%8BMambaRadixCache%E6%9C%BA%E5%88%B6%E8%A7%A3%E6%9E%90/">阅读全文<span class="seo-reader-text">SGLang之MambaRadixCache机制</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/05/28/SGLang%E4%B9%8BKV%20Cache%E5%86%85%E5%AD%98%E6%B1%A0%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/">
-                            SGLang之KV Cache内存池机制
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            本文档详细解析 SGLang 的 KV Cache 内存池机制，包括核心数据结构、分配流程，以及 KDA（Kimi Delta Attention）线性注意力的缓存机制。
- 一、整体架构概览
-SGLang 的 KV Cache 内存池分为三层结构（见 python/sglang/srt/mem_cache/memory_pool.py）：
-1234567891011┌────────────...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Thu May 28 2026 23:50:00 GMT+0800">
-                
-                    2026-05-28
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM-infra/">LLM infra</a>&nbsp;
-                        </li>
-                    
-                    
-                
-                    
-                        
-                            <li>></li>
-                        
-                        <li>
-                            <a href="/categories/LLM-infra/SGLang/">SGLang</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM-infra/">LLM infra</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/tags/SGLang/">SGLang</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/05/28/SGLang%E4%B9%8BKV%20Cache%E5%86%85%E5%AD%98%E6%B1%A0%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/">阅读全文<span class="seo-reader-text">SGLang之KV Cache内存池机制</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
         <div class="paginator">
-	<a class="extend prev" rel="prev" href="/"><i class="fa-regular fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/3/"><i class="fa-regular fa-angle-right"></i></a>
+	<a class="extend prev" rel="prev" href="/"><i class="fa-regular fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/3/"><i class="fa-regular fa-angle-right"></i></a>
 </div>
   
     </div>
@@ -1461,7 +1453,7 @@ SGLang 的 KV Cache 内存池分为三层结构（见 python/sglang/srt/mem_cach
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 30 篇文章
+                        共撰写了 32 篇文章
                     </span>
                     
                 </p>
