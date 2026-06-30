@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/06/24/flashqla流水线解析/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FlashQLA流水线解析">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/06/24/FlashQLA%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-24T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-06-30T14:51:32.885Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            FlashQLA流水线解析 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">38</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">FlashQLA流水线解析</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-24 23:50</span>
+        <span class="mobile">2026-06-24 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-30 22:51:32</span>
+            <span class="mobile">2026-06-30 22:51:32</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>链接：<a class="link" target="_blank" rel="noopener" href="https://qwen.ai/blog?id=flashqla">Qwen<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h1 id="tilelang_fused_chunk_gdr_fwd_kernel-流水线机制详解"><a class="markdownIt-Anchor" href="#tilelang_fused_chunk_gdr_fwd_kernel-流水线机制详解"></a> <code>tilelang_fused_chunk_gdr_fwd_kernel</code> 流水线机制详解</h1>
+<p>本文面向第一次接触这个 kernel 的读者，目标不是逐行翻译代码，而是帮助你建立一个清晰的整体心智模型：</p>
+<ul>
+<li>这个 kernel 在算什么</li>
+<li>为什么它要拆成多组线程</li>
+<li>为什么要做双缓冲</li>
+<li>为什么会有这么多 barrier</li>
+<li>一个 chunk 在 kernel 里到底经历了哪些阶段</li>
+</ul>
+<p>文中默认讨论的是：</p>
+<ul>
+<li><code>flash_qla/ops/gated_delta_rule/chunk/hopper/fused_fwd.py</code></li>
+<li>kernel 名称：<code>tilelang_fused_chunk_gdr_fwd_kernel</code></li>
+<li>不重点展开 CP 分支，只把它当作 shape / 写回控制的一部分</li>
+</ul>
+<hr>
+<h2 id="1-先用一句话理解这个-kernel"><a class="markdownIt-Anchor" href="#1-先用一句话理解这个-kernel"></a> 1. 先用一句话理解这个 kernel</h2>
+<p>这个 kernel 的本质是：</p>
+<blockquote>
+<p>对某个 <code>(序列段, head, value-dim 分块)</code>，沿着时间按 chunk 逐块扫描；在扫描过程中，一边维护递推状态 <code>S</code>，一边计算当前 chunk 的输出 <code>O</code>，并且尽量把中间量留在片上（shared / fragment）立即消费，而不是写回 global memory。</p>
+</blockquote>
+<p>这就是它和“多 kernel 拆开做”的最大不同。</p>
+<hr>
+<h2 id="2-这个-kernel-在解决什么问题"><a class="markdownIt-Anchor" href="#2-这个-kernel-在解决什么问题"></a> 2. 这个 kernel 在解决什么问题</h2>
+<p>如果把它写成最直白的版本，逻辑大概会是：</p>
+<ol>
+<li>先读入一个 chunk 的 <code>Q/K/V/A/g/b</code></li>
+<li>用旧状态 <code>S_old</code> 算一些中间量</li>
+<li>算出当前 chunk 的输出 <code>O_chunk</code></li>
+<li>算出新的状态 <code>S_new</code></li>
+<li>把 <code>O_chunk</code>、<code>S_new</code> 写回</li>
+<li>再处理下一个 chunk</li>
+</ol>
+<p>这种“串行版”虽然直观，但会有几个问题：</p>
+<ul>
+<li>读数据的时候，计算线程在等</li>
+<li>算状态的时候，输出线程可能在等</li>
+<li>写回的时候，大量线程又在等</li>
+<li>chunk 与 chunk 之间几乎没有重叠</li>
+</ul>
+<p>所以这个 kernel 的目标是：</p>
+<blockquote>
+<p>让“加载下一块数据”“计算当前块”“写回上一块结果”尽量同时发生。</p>
+</blockquote>
+<p>这就是流水线设计的出发点。</p>
+<hr>
+<h2 id="3-cta-的基本分工"><a class="markdownIt-Anchor" href="#3-cta-的基本分工"></a> 3. CTA 的基本分工</h2>
+<p>kernel launch 是：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">with</span> T.Kernel(T.ceildiv(DV, block_DV) * batch_size * H, threads=<span class="number">512</span>) <span class="keyword">as</span> (bbhv,):</span><br></pre></td></tr></table></figure></div>
+<p>意思是：</p>
+<ul>
+<li>一个 CTA 负责一个 <code>batch/head/value-block</code></li>
+<li><code>DV</code> 维如果太大，会按 <code>block_DV</code> 再切成多个子块</li>
+</ul>
+<p>所以一个 CTA 关注的是：</p>
+<ul>
+<li>哪条序列 / 哪个 varlen 子段</li>
+<li>哪个 head</li>
+<li>哪一段 <code>DV</code></li>
+</ul>
+<p>然后这个 CTA 再沿时间维 <code>chunk by chunk</code> 处理。</p>
+<hr>
+<h2 id="4-一个-cta-里的-512-个线程怎么分工"><a class="markdownIt-Anchor" href="#4-一个-cta-里的-512-个线程怎么分工"></a> 4. 一个 CTA 里的 512 个线程怎么分工</h2>
+<p>这个 kernel 不是 512 个线程都做同一件事，而是硬切成四组：</p>
+<h3 id="41-线程-0-~-127状态路径s-path"><a class="markdownIt-Anchor" href="#41-线程-0-~-127状态路径s-path"></a> 4.1 线程 <code>0 ~ 127</code>：状态路径（S-path）</h3>
+<p>负责：</p>
+<ul>
+<li>维护 recurrent state <code>S</code></li>
+<li>从 <code>S_old</code> 生成 <code>S_new</code></li>
+<li>最后写 <code>final_state</code></li>
+</ul>
+<p>核心公式可以粗略理解成：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S &lt;- g_last * S + K^T @ V'</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h3 id="42-线程-128-~-255值修正路径v-path"><a class="markdownIt-Anchor" href="#42-线程-128-~-255值修正路径v-path"></a> 4.2 线程 <code>128 ~ 255</code>：值修正路径（V-path）</h3>
+<p>负责：</p>
+<ul>
+<li>先从当前状态算出 <code>U = K @ S</code></li>
+<li>再构造 <code>W = V - g * U</code></li>
+<li>再算 <code>Vd = Ag @ W</code></li>
+<li>再算 <code>V' = (g_last / g) * Vd</code></li>
+</ul>
+<p>这一组线程的工作，是给状态更新路径准备“状态增量”。</p>
+<hr>
+<h3 id="43-线程-256-~-383输出路径o-path"><a class="markdownIt-Anchor" href="#43-线程-256-~-383输出路径o-path"></a> 4.3 线程 <code>256 ~ 383</code>：输出路径（O-path）</h3>
+<p>负责：</p>
+<ul>
+<li>算 <code>P = QK^T</code></li>
+<li>构造门控下三角矩阵 <code>G</code></li>
+<li>构造 <code>Ag = G * A * b</code></li>
+<li>算 <code>O = Q @ S</code></li>
+<li>再加上 chunk 内修正项 <code>Pg @ Vd</code></li>
+</ul>
+<p>所以它负责真正的 token 输出。</p>
+<hr>
+<h3 id="44-线程-384-~-511producer-store-路径"><a class="markdownIt-Anchor" href="#44-线程-384-~-511producer-store-路径"></a> 4.4 线程 <code>384 ~ 511</code>：Producer / Store 路径</h3>
+<p>这一组线程不参与主要数学计算，而是负责：</p>
+<ul>
+<li>读取下一个 chunk 的 <code>Q/K</code></li>
+<li>读取下一个 chunk 的 <code>V/beta</code></li>
+<li>读取下一个 chunk 的 <code>A/g</code></li>
+<li>写回上一块的 <code>O</code></li>
+<li>写回上一块的中间状态 <code>h</code></li>
+</ul>
+<p>你可以把它看作 CTA 内专门负责“搬数据”和“落结果”的后勤线程组。</p>
+<hr>
+<h2 id="5-共享内存为什么很多-buffer-都是-2"><a class="markdownIt-Anchor" href="#5-共享内存为什么很多-buffer-都是-2"></a> 5. 共享内存为什么很多 buffer 都是 <code>(2, ...)</code></h2>
+<p>你会看到很多 shared buffer 都带第一维 <code>2</code>：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">q_shared = T.alloc_shared((<span class="number">2</span>, block_S, DK), ...)</span><br><span class="line">k_shared = T.alloc_shared((<span class="number">2</span>, block_S, DK), ...)</span><br><span class="line">v_shared = T.alloc_shared((<span class="number">2</span>, block_S, block_DV), ...)</span><br><span class="line">a_shared = T.alloc_shared((<span class="number">2</span>, block_S, block_S), ...)</span><br><span class="line">g_shared = T.alloc_shared((<span class="number">2</span>, block_S), ...)</span><br><span class="line">b_shared = T.alloc_shared((<span class="number">2</span>, block_S), ...)</span><br></pre></td></tr></table></figure></div>
+<p>这说明 kernel 使用了 <strong>双缓冲（double buffering / ping-pong buffering）</strong>。</p>
+<h3 id="直观理解"><a class="markdownIt-Anchor" href="#直观理解"></a> 直观理解</h3>
+<ul>
+<li><code>slot 0</code>：当前 chunk 正在计算</li>
+<li><code>slot 1</code>：下一 chunk 正在加载</li>
+<li>下一轮交换</li>
+</ul>
+<p>索引通常是：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">i_s % <span class="number">2</span></span><br></pre></td></tr></table></figure></div>
+<p>也就是：</p>
+<ul>
+<li>偶数 chunk 用 buffer 0</li>
+<li>奇数 chunk 用 buffer 1</li>
+</ul>
+<p>这样 Producer 可以在 Consumer 计算 chunk <code>i</code> 的同时，把 chunk <code>i+1</code> 的数据预取到另一个 slot。</p>
+<hr>
+<h2 id="6-为什么要有那么多-barrier"><a class="markdownIt-Anchor" href="#6-为什么要有那么多-barrier"></a> 6. 为什么要有那么多 barrier</h2>
+<p>这是小白最容易被劝退的部分，但其实可以按功能分成两类看。</p>
+<h3 id="61-第一类双缓冲读写协调"><a class="markdownIt-Anchor" href="#61-第一类双缓冲读写协调"></a> 6.1 第一类：双缓冲读写协调</h3>
+<h4 id="data_is_ready"><a class="markdownIt-Anchor" href="#data_is_ready"></a> <code>data_is_ready</code></h4>
+<p>表示：</p>
+<blockquote>
+<p>某个 buffer slot 的输入数据已经装好了，计算线程可以开始用。</p>
+</blockquote>
+<h4 id="data_is_free"><a class="markdownIt-Anchor" href="#data_is_free"></a> <code>data_is_free</code></h4>
+<p>表示：</p>
+<blockquote>
+<p>某个 buffer slot 的数据已经被消费完，Producer 可以安全重用这块 buffer。</p>
+</blockquote>
+<p>这两个 barrier 是双缓冲的基础。</p>
+<hr>
+<h3 id="62-第二类chunk-内部不同线程组之间的依赖同步"><a class="markdownIt-Anchor" href="#62-第二类chunk-内部不同线程组之间的依赖同步"></a> 6.2 第二类：chunk 内部不同线程组之间的依赖同步</h3>
+<p>例如：</p>
+<ul>
+<li>O-path 要等 V-path 先算好 <code>Vd</code></li>
+<li>V-path 要等 S-path 先把 <code>S</code> 搬到 shared</li>
+<li>Store 线程要等 O-path 真正把 <code>o_shared</code> 填好</li>
+</ul>
+<p>这些同步点就用到了：</p>
+<ul>
+<li><code>bar_0</code></li>
+<li><code>bar_1</code></li>
+<li><code>bar_3</code></li>
+<li><code>bar_4</code></li>
+<li><code>bar_5</code></li>
+<li><code>bar_o</code></li>
+</ul>
+<p>你可以先不用记每个 barrier 的名字，而是先记一句话：</p>
+<blockquote>
+<p>这些 barrier 的目的，就是让 CTA 内不同角色线程组在“数据刚好准备好”的那个时刻接上，而不是过早读到脏数据。</p>
+</blockquote>
+<hr>
+<h2 id="7-一个-chunk-在-kernel-里经历了哪些阶段"><a class="markdownIt-Anchor" href="#7-一个-chunk-在-kernel-里经历了哪些阶段"></a> 7. 一个 chunk 在 kernel 里经历了哪些阶段</h2>
+<p>虽然代码里的注释都写成 <code>STAGE 0</code>，但实际上每个 chunk 内部被拆成了多个小阶段。为了理解方便，我们把它们重新编号成：</p>
+<ul>
+<li>Stage A：本 chunk 输入 ready</li>
+<li>Stage B：准备状态与 gate 派生量</li>
+<li>Stage C：生成 <code>U / W / P / G</code></li>
+<li>Stage D：生成 <code>Vd / Pg</code></li>
+<li>Stage E：生成 <code>V'</code>、累加输出</li>
+<li>Stage F：更新 <code>S</code>，提交 <code>O</code></li>
+</ul>
+<p>下面分别说。</p>
+<hr>
+<h2 id="8-stage-a本-chunk-输入-ready"><a class="markdownIt-Anchor" href="#8-stage-a本-chunk-输入-ready"></a> 8. Stage A：本 chunk 输入 ready</h2>
+<p>所有 consumer 线程组一开始都会做：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">T.barrier_wait(data_is_ready[i_s % <span class="number">2</span>], ...)</span><br><span class="line">T.barrier_arrive(bar_0)</span><br><span class="line">T.barrier_wait(bar_0, i_s % <span class="number">2</span>)</span><br></pre></td></tr></table></figure></div>
+<p>意思是：</p>
+<ol>
+<li>先等 Producer 说“这个 shared slot 的数据装好了”</li>
+<li>再让 S/V/O 三组消费者统一从这个 chunk 的入口开始</li>
+</ol>
+<p>你可以把这里理解成：</p>
+<blockquote>
+<p>chunk <code>i</code> 的“发车信号”</p>
+</blockquote>
+<hr>
+<h2 id="9-stage-b准备状态和-gate-派生量"><a class="markdownIt-Anchor" href="#9-stage-b准备状态和-gate-派生量"></a> 9. Stage B：准备状态和 gate 派生量</h2>
+<h3 id="s-path-做什么"><a class="markdownIt-Anchor" href="#s-path-做什么"></a> S-path 做什么</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T.copy(h_fragment, h_shared)</span><br></pre></td></tr></table></figure></div>
+<p>把当前状态 <code>S</code> 从 fragment 拷到 <code>h_shared</code>，让别的线程组也能读。</p>
+<h3 id="v-path-做什么"><a class="markdownIt-Anchor" href="#v-path-做什么"></a> V-path 做什么</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">g_exp_shared[j] = exp2(g[j] * <span class="number">1.442695</span>)</span><br><span class="line">g_rev_exp_shared[j] = exp2((g_last - g[j]) * <span class="number">1.442695</span>)</span><br></pre></td></tr></table></figure></div>
+<p>这一步是把 gate 相关的指数形式提前算好。</p>
+<h3 id="o-path-做什么"><a class="markdownIt-Anchor" href="#o-path-做什么"></a> O-path 做什么</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">P = QK^T</span><br><span class="line">G = lower-triangular gate matrix</span><br><span class="line">Ag = G * A * b</span><br></pre></td></tr></table></figure></div>
+<p>也就是提前准备当前 chunk 输出所需的局部矩阵。</p>
+<hr>
+<h2 id="10-stage-c各条计算主线开始展开"><a class="markdownIt-Anchor" href="#10-stage-c各条计算主线开始展开"></a> 10. Stage C：各条计算主线开始展开</h2>
+<h3 id="v-path先算-u-k-s"><a class="markdownIt-Anchor" href="#v-path先算-u-k-s"></a> V-path：先算 <code>U = K @ S</code></h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">U = K @ S</span><br></pre></td></tr></table></figure></div>
+<p>然后：</p>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">W = V - g * U</span><br></pre></td></tr></table></figure></div>
+<p>这一步的直觉是：</p>
+<ul>
+<li>当前状态 <code>S</code> 可以先预测一部分 <code>V</code></li>
+<li>然后用 <code>V - g*U</code> 得到需要被“新信息”补进去的残差部分</li>
+</ul>
+<h3 id="o-path先算状态项"><a class="markdownIt-Anchor" href="#o-path先算状态项"></a> O-path：先算状态项</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">O = Q @ S</span><br></pre></td></tr></table></figure></div>
+<p>这相当于先算出“旧状态对当前输出的贡献”。</p>
+<h3 id="s-path先衰减旧状态"><a class="markdownIt-Anchor" href="#s-path先衰减旧状态"></a> S-path：先衰减旧状态</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S = g_last * S</span><br></pre></td></tr></table></figure></div>
+<p>表示状态会先经历一个衰减，再加上本 chunk 的新贡献。</p>
+<hr>
+<h2 id="11-stage-d构造-chunk-内修正量"><a class="markdownIt-Anchor" href="#11-stage-d构造-chunk-内修正量"></a> 11. Stage D：构造 chunk 内修正量</h2>
+<h3 id="v-path算-vd-ag-w"><a class="markdownIt-Anchor" href="#v-path算-vd-ag-w"></a> V-path：算 <code>Vd = Ag @ W</code></h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Vd = Ag @ W</span><br></pre></td></tr></table></figure></div>
+<p>这是当前 chunk 局部解的核心。</p>
+<h3 id="o-path算-pg-scale-g-p"><a class="markdownIt-Anchor" href="#o-path算-pg-scale-g-p"></a> O-path：算 <code>Pg = scale * G * P</code></h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pg = scale * G * P</span><br></pre></td></tr></table></figure></div>
+<p>这一步是把 chunk 内 token 间交互矩阵 <code>P</code> 乘上 gate 结构和 scale，变成输出修正项的左侧矩阵。</p>
+<hr>
+<h2 id="12-stage-e生成状态更新增量和输出修正量"><a class="markdownIt-Anchor" href="#12-stage-e生成状态更新增量和输出修正量"></a> 12. Stage E：生成状态更新增量和输出修正量</h2>
+<h3 id="v-path算-v"><a class="markdownIt-Anchor" href="#v-path算-v"></a> V-path：算 <code>V'</code></h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">V<span class="string">' = (g_last / g) * Vd</span></span><br></pre></td></tr></table></figure></div>
+<p>这一步的结果 <code>V'</code> 是给状态递推路径用的。</p>
+<h3 id="o-path累加-chunk-内输出修正"><a class="markdownIt-Anchor" href="#o-path累加-chunk-内输出修正"></a> O-path：累加 chunk 内输出修正</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">O += Pg @ Vd</span><br></pre></td></tr></table></figure></div>
+<p>所以当前输出不是只有 <code>Q @ S</code>，而是：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">O = Q @ S + Pg @ Vd</span><br></pre></td></tr></table></figure></div>
+<p>也就是：</p>
+<ul>
+<li>一部分来自旧状态</li>
+<li>一部分来自当前 chunk 局部交互的增量修正</li>
+</ul>
+<hr>
+<h2 id="13-stage-f更新最终状态并提交结果"><a class="markdownIt-Anchor" href="#13-stage-f更新最终状态并提交结果"></a> 13. Stage F：更新最终状态并提交结果</h2>
+<h3 id="s-path最终更新状态"><a class="markdownIt-Anchor" href="#s-path最终更新状态"></a> S-path：最终更新状态</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S += K^T @ V<span class="string">'</span></span><br></pre></td></tr></table></figure></div>
+<p>所以状态更新可以写成：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S_new = g_last * S_old + K^T @ V'</span><br></pre></td></tr></table></figure></div>
+<h3 id="o-path把当前-chunk-的输出放到-o_shared"><a class="markdownIt-Anchor" href="#o-path把当前-chunk-的输出放到-o_shared"></a> O-path：把当前 chunk 的输出放到 <code>o_shared</code></h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T.copy(o_fragment, o_shared)</span><br></pre></td></tr></table></figure></div>
+<p>之后 store 线程组会负责把它真正写回 global memory。</p>
+<hr>
+<h2 id="14-为什么这套流水看起来很碎"><a class="markdownIt-Anchor" href="#14-为什么这套流水看起来很碎"></a> 14. 为什么这套流水看起来很“碎”</h2>
+<p>因为它不是一个单一 GEMM kernel，而是把 3 条逻辑链揉在一起：</p>
+<ol>
+<li><strong>状态链</strong>：<code>S &lt;- gate * S + ...</code></li>
+<li><strong>值修正链</strong>：<code>U -&gt; W -&gt; Vd -&gt; V'</code></li>
+<li><strong>输出链</strong>：<code>P -&gt; G -&gt; Pg -&gt; O</code></li>
+</ol>
+<p>如果把它们完全串行写，很多线程会长期闲着。<br>
+所以作者把它拆开后，让三组线程：</p>
+<ul>
+<li>在同一个 chunk 内做不同子任务</li>
+<li>通过 barrier 在必要的时候同步</li>
+<li>中间量尽量放 shared/fragment 上直接消费</li>
+</ul>
+<p>这就形成了所谓的“多级流水”。</p>
+<hr>
+<h2 id="15-producer-store-线程组到底在重叠什么"><a class="markdownIt-Anchor" href="#15-producer-store-线程组到底在重叠什么"></a> 15. Producer / Store 线程组到底在重叠什么</h2>
+<p>最后那组线程（<code>tx &gt;= 384</code>）非常关键，它让 kernel 不只是“chunk 内流水”，而是有了 chunk 间重叠。</p>
+<p>它做的事包括：</p>
+<h3 id="151-预取下一个-chunk-的输入"><a class="markdownIt-Anchor" href="#151-预取下一个-chunk-的输入"></a> 15.1 预取下一个 chunk 的输入</h3>
+<p>分成三小组：</p>
+<ul>
+<li>32 线程加载 <code>Q/K</code></li>
+<li>32 线程加载 <code>V/beta</code></li>
+<li>32 线程加载 <code>A/g</code></li>
+</ul>
+<p>所以当 S/V/O 三组线程在算 chunk <code>i</code> 时，Producer 已经在往另一个 shared slot 里装 chunk <code>i+1</code>。</p>
+<h3 id="152-写回上一个-chunk-的结果"><a class="markdownIt-Anchor" href="#152-写回上一个-chunk-的结果"></a> 15.2 写回上一个 chunk 的结果</h3>
+<p>还有一组线程负责：</p>
+<ul>
+<li>把上一 chunk 的 <code>o_shared</code> 写回 <code>o</code></li>
+<li>把上一 chunk 的 <code>h_shared</code> 写回 <code>h</code></li>
+</ul>
+<p>这意味着从全局看，CTA 内部近似在做：</p>
+<ul>
+<li><strong>load chunk i+1</strong></li>
+<li><strong>compute chunk i</strong></li>
+<li><strong>store chunk i-1</strong></li>
+</ul>
+<p>三件事情部分重叠。</p>
+<hr>
+<h2 id="16-这就是多级流水的真正含义"><a class="markdownIt-Anchor" href="#16-这就是多级流水的真正含义"></a> 16. 这就是“多级流水”的真正含义</h2>
+<p>所以这个 kernel 的流水不是一层，而是至少有三层：</p>
+<h3 id="第一层chunk-级双缓冲流水"><a class="markdownIt-Anchor" href="#第一层chunk-级双缓冲流水"></a> 第一层：chunk 级双缓冲流水</h3>
+<ul>
+<li><code>slot 0</code> / <code>slot 1</code> ping-pong</li>
+<li>让下一 chunk 的数据预取和当前 chunk 的计算重叠</li>
+</ul>
+<h3 id="第二层chunk-内多阶段流水"><a class="markdownIt-Anchor" href="#第二层chunk-内多阶段流水"></a> 第二层：chunk 内多阶段流水</h3>
+<ul>
+<li>一个 chunk 内被拆成多个子阶段（B/C/D/E/F）</li>
+<li>各阶段之间通过 barrier 连接</li>
+</ul>
+<h3 id="第三层cta-内角色流水"><a class="markdownIt-Anchor" href="#第三层cta-内角色流水"></a> 第三层：CTA 内角色流水</h3>
+<ul>
+<li>S-path</li>
+<li>V-path</li>
+<li>O-path</li>
+<li>Producer/Store-path</li>
+</ul>
+<p>四组线程不是同时干同一件事，而是像四条小流水线一样协作。</p>
+<hr>
+<h2 id="17-小白最容易迷糊的地方"><a class="markdownIt-Anchor" href="#17-小白最容易迷糊的地方"></a> 17. 小白最容易迷糊的地方</h2>
+<h3 id="171-为什么-bar_0-bar_1-bar_3-bar_4-bar_5-bar_o-这么多"><a class="markdownIt-Anchor" href="#171-为什么-bar_0-bar_1-bar_3-bar_4-bar_5-bar_o-这么多"></a> 17.1 为什么 <code>bar_0 / bar_1 / bar_3 / bar_4 / bar_5 / bar_o</code> 这么多</h3>
+<p>不要把它们当成“很多无意义同步”。</p>
+<p>把它们理解成：</p>
+<ul>
+<li>某个共享变量准备好了</li>
+<li>需要通知另一组线程来取</li>
+</ul>
+<p>例如：</p>
+<ul>
+<li><code>bar_1</code>：<code>h_shared</code>、<code>g_exp_shared</code> 等已经准备好</li>
+<li><code>bar_4</code>：<code>vd_shared</code> 准备好了，O-path 可以拿去算 <code>Pg @ Vd</code></li>
+<li><code>bar_o</code>：所有 chunk 算完后，最后一个 <code>o_shared</code> 可以安全写回</li>
+</ul>
+<hr>
+<h3 id="172-为什么有的路径先-tcopy-shared-再-gemm"><a class="markdownIt-Anchor" href="#172-为什么有的路径先-tcopy-shared-再-gemm"></a> 17.2 为什么有的路径先 <code>T.copy(..., shared)</code> 再 GEMM</h3>
+<p>因为 CTA 内不同线程组要共享这些中间量。</p>
+<p>如果某个量只在寄存器里，别的线程组看不到。<br>
+放到 <code>shared</code> 后，另一路线程才能继续消费。</p>
+<hr>
+<h3 id="173-为什么不是直接一个线程组把所有事都做完"><a class="markdownIt-Anchor" href="#173-为什么不是直接一个线程组把所有事都做完"></a> 17.3 为什么不是直接一个线程组把所有事都做完</h3>
+<p>因为这样：</p>
+<ul>
+<li>读数据时算力浪费</li>
+<li>算输出时 store 线程空着</li>
+<li>整体重叠度差</li>
+</ul>
+<p>现在这种拆法，等于是用编排复杂度换吞吐。</p>
+<hr>
+<h2 id="18-用一句人话概括整个流水线"><a class="markdownIt-Anchor" href="#18-用一句人话概括整个流水线"></a> 18. 用一句人话概括整个流水线</h2>
+<p>如果完全不用公式，而用人话描述：</p>
+<blockquote>
+<p>这个 kernel 把一个大任务拆成四个工种：
+一组人专门维护状态，
+一组人专门准备状态更新量，
+一组人专门计算输出，
+另一组人专门负责搬下一批原料和把上一批结果送出去。<br>
+大家围绕同一个 chunk 分阶段协作，同时还用双缓冲让“下一块数据的加载”和“当前块计算”重叠起来。</p>
+</blockquote>
+<p>这就是它的多级流水机制。</p>
+<hr>
+<h2 id="19-一个可以记住的总图"><a class="markdownIt-Anchor" href="#19-一个可以记住的总图"></a> 19. 一个可以记住的总图</h2>
+<p>你可以把每个 chunk 的一轮计算记成下面这张抽象图：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Producer:    load(Q/K)  load(V/b)  load(A/g) ----------------------&gt;</span><br><span class="line"></span><br><span class="line">S-path:                    read S -&gt; decay S -------------&gt; S += K^T @ V'</span><br><span class="line"></span><br><span class="line">V-path:                    precompute g -&gt; U -&gt; W -&gt; Vd -&gt; V'</span><br><span class="line"></span><br><span class="line">O-path:                    P/G/Ag -&gt; Q@S -&gt; Pg -&gt; O += Pg@Vd -&gt; O_shared</span><br><span class="line"></span><br><span class="line">Store:       &lt;------------------- store old O / old H ----------------</span><br></pre></td></tr></table></figure></div>
+<p>再叠加双缓冲后，时间轴上就会变成：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">chunk i-1 : store</span><br><span class="line">chunk i   : compute</span><br><span class="line">chunk i+1 : preload</span><br></pre></td></tr></table></figure></div>
+<p>虽然不是完全理想重叠，但设计目标就是尽量往这个方向靠。</p>
+<hr>
+<h2 id="20-最后一句总结"><a class="markdownIt-Anchor" href="#20-最后一句总结"></a> 20. 最后一句总结</h2>
+<p><code>tilelang_fused_chunk_gdr_fwd_kernel</code> 的多级流水机制，本质就是：</p>
+<blockquote>
+<p><strong>把一个 chunk 的 forward 拆成“状态更新、值修正、输出生成、数据搬运”四条协作链，再通过双缓冲和多级 barrier，让这些链在一个 CTA 内尽量重叠执行，从而减少空转、提高片上复用和整体吞吐。</strong></p>
+</blockquote>
+<p>如果你后面还想继续深挖，最推荐的下一步不是继续看所有 barrier，而是：</p>
+<ol>
+<li>先把 <code>U / W / Vd / V' / O / S</code> 的数学关系真正看懂</li>
+<li>再回头看 barrier，就会觉得它们只是“把这些公式安排到不同线程组上执行”的调度工具</li>
+</ol>
+<hr>
+<h2 id="附阅读这份-kernel-的建议顺序"><a class="markdownIt-Anchor" href="#附阅读这份-kernel-的建议顺序"></a> 附：阅读这份 kernel 的建议顺序</h2>
+<p>如果你之后还要继续自己读源码，建议按下面顺序：</p>
+<ol>
+<li>先看 CTA 分工：<code>tx &lt; 128 / 256 / 384 / else</code></li>
+<li>再看 shared / fragment 变量分别对应什么数学对象</li>
+<li>再看一个 chunk 内 <code>i_s</code> 循环里三条路径分别做了什么</li>
+<li>最后再看 barrier —— 不要一开始就盯着 barrier 看</li>
+</ol>
+<p>这样更容易读懂。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> FlashQLA流水线解析</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-06-24 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-06-30 22:51:32
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/06/24/FlashQLA流水线解析/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/06/30/replayssm(A)Decode/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">replayssm(A)Decode</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/22/NIKO/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">应无所住，而生其心--CS步枪最长的河NiKo</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">FlashQLA流水线解析</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#tilelang_fused_chunk_gdr_fwd_kernel-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3"><span class="nav-text"> tilelang_fused_chunk_gdr_fwd_kernel 流水线机制详解</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%85%88%E7%94%A8%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%90%86%E8%A7%A3%E8%BF%99%E4%B8%AA-kernel"><span class="nav-text"> 1. 先用一句话理解这个 kernel</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E8%BF%99%E4%B8%AA-kernel-%E5%9C%A8%E8%A7%A3%E5%86%B3%E4%BB%80%E4%B9%88%E9%97%AE%E9%A2%98"><span class="nav-text"> 2. 这个 kernel 在解决什么问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-cta-%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%88%86%E5%B7%A5"><span class="nav-text"> 3. CTA 的基本分工</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E4%B8%80%E4%B8%AA-cta-%E9%87%8C%E7%9A%84-512-%E4%B8%AA%E7%BA%BF%E7%A8%8B%E6%80%8E%E4%B9%88%E5%88%86%E5%B7%A5"><span class="nav-text"> 4. 一个 CTA 里的 512 个线程怎么分工</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E7%BA%BF%E7%A8%8B-0-~-127%E7%8A%B6%E6%80%81%E8%B7%AF%E5%BE%84s-path"><span class="nav-text"> 4.1 线程 0 ~ 127：状态路径（S-path）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-%E7%BA%BF%E7%A8%8B-128-~-255%E5%80%BC%E4%BF%AE%E6%AD%A3%E8%B7%AF%E5%BE%84v-path"><span class="nav-text"> 4.2 线程 128 ~ 255：值修正路径（V-path）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-%E7%BA%BF%E7%A8%8B-256-~-383%E8%BE%93%E5%87%BA%E8%B7%AF%E5%BE%84o-path"><span class="nav-text"> 4.3 线程 256 ~ 383：输出路径（O-path）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#44-%E7%BA%BF%E7%A8%8B-384-~-511producer-store-%E8%B7%AF%E5%BE%84"><span class="nav-text"> 4.4 线程 384 ~ 511：Producer &#x2F; Store 路径</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E4%B8%BA%E4%BB%80%E4%B9%88%E5%BE%88%E5%A4%9A-buffer-%E9%83%BD%E6%98%AF-2"><span class="nav-text"> 5. 共享内存为什么很多 buffer 都是 (2, ...)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9B%B4%E8%A7%82%E7%90%86%E8%A7%A3"><span class="nav-text"> 直观理解</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%9C%89%E9%82%A3%E4%B9%88%E5%A4%9A-barrier"><span class="nav-text"> 6. 为什么要有那么多 barrier</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-%E7%AC%AC%E4%B8%80%E7%B1%BB%E5%8F%8C%E7%BC%93%E5%86%B2%E8%AF%BB%E5%86%99%E5%8D%8F%E8%B0%83"><span class="nav-text"> 6.1 第一类：双缓冲读写协调</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-%E7%AC%AC%E4%BA%8C%E7%B1%BBchunk-%E5%86%85%E9%83%A8%E4%B8%8D%E5%90%8C%E7%BA%BF%E7%A8%8B%E7%BB%84%E4%B9%8B%E9%97%B4%E7%9A%84%E4%BE%9D%E8%B5%96%E5%90%8C%E6%AD%A5"><span class="nav-text"> 6.2 第二类：chunk 内部不同线程组之间的依赖同步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E4%B8%80%E4%B8%AA-chunk-%E5%9C%A8-kernel-%E9%87%8C%E7%BB%8F%E5%8E%86%E4%BA%86%E5%93%AA%E4%BA%9B%E9%98%B6%E6%AE%B5"><span class="nav-text"> 7. 一个 chunk 在 kernel 里经历了哪些阶段</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-stage-a%E6%9C%AC-chunk-%E8%BE%93%E5%85%A5-ready"><span class="nav-text"> 8. Stage A：本 chunk 输入 ready</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-stage-b%E5%87%86%E5%A4%87%E7%8A%B6%E6%80%81%E5%92%8C-gate-%E6%B4%BE%E7%94%9F%E9%87%8F"><span class="nav-text"> 9. Stage B：准备状态和 gate 派生量</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#s-path-%E5%81%9A%E4%BB%80%E4%B9%88"><span class="nav-text"> S-path 做什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#v-path-%E5%81%9A%E4%BB%80%E4%B9%88"><span class="nav-text"> V-path 做什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#o-path-%E5%81%9A%E4%BB%80%E4%B9%88"><span class="nav-text"> O-path 做什么</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-stage-c%E5%90%84%E6%9D%A1%E8%AE%A1%E7%AE%97%E4%B8%BB%E7%BA%BF%E5%BC%80%E5%A7%8B%E5%B1%95%E5%BC%80"><span class="nav-text"> 10. Stage C：各条计算主线开始展开</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#v-path%E5%85%88%E7%AE%97-u-k-s"><span class="nav-text"> V-path：先算 U &#x3D; K @ S</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#o-path%E5%85%88%E7%AE%97%E7%8A%B6%E6%80%81%E9%A1%B9"><span class="nav-text"> O-path：先算状态项</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#s-path%E5%85%88%E8%A1%B0%E5%87%8F%E6%97%A7%E7%8A%B6%E6%80%81"><span class="nav-text"> S-path：先衰减旧状态</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-stage-d%E6%9E%84%E9%80%A0-chunk-%E5%86%85%E4%BF%AE%E6%AD%A3%E9%87%8F"><span class="nav-text"> 11. Stage D：构造 chunk 内修正量</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#v-path%E7%AE%97-vd-ag-w"><span class="nav-text"> V-path：算 Vd &#x3D; Ag @ W</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#o-path%E7%AE%97-pg-scale-g-p"><span class="nav-text"> O-path：算 Pg &#x3D; scale * G * P</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-stage-e%E7%94%9F%E6%88%90%E7%8A%B6%E6%80%81%E6%9B%B4%E6%96%B0%E5%A2%9E%E9%87%8F%E5%92%8C%E8%BE%93%E5%87%BA%E4%BF%AE%E6%AD%A3%E9%87%8F"><span class="nav-text"> 12. Stage E：生成状态更新增量和输出修正量</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#v-path%E7%AE%97-v"><span class="nav-text"> V-path：算 V&#39;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#o-path%E7%B4%AF%E5%8A%A0-chunk-%E5%86%85%E8%BE%93%E5%87%BA%E4%BF%AE%E6%AD%A3"><span class="nav-text"> O-path：累加 chunk 内输出修正</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-stage-f%E6%9B%B4%E6%96%B0%E6%9C%80%E7%BB%88%E7%8A%B6%E6%80%81%E5%B9%B6%E6%8F%90%E4%BA%A4%E7%BB%93%E6%9E%9C"><span class="nav-text"> 13. Stage F：更新最终状态并提交结果</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#s-path%E6%9C%80%E7%BB%88%E6%9B%B4%E6%96%B0%E7%8A%B6%E6%80%81"><span class="nav-text"> S-path：最终更新状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#o-path%E6%8A%8A%E5%BD%93%E5%89%8D-chunk-%E7%9A%84%E8%BE%93%E5%87%BA%E6%94%BE%E5%88%B0-o_shared"><span class="nav-text"> O-path：把当前 chunk 的输出放到 o_shared</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#14-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E5%A5%97%E6%B5%81%E6%B0%B4%E7%9C%8B%E8%B5%B7%E6%9D%A5%E5%BE%88%E7%A2%8E"><span class="nav-text"> 14. 为什么这套流水看起来很“碎”</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#15-producer-store-%E7%BA%BF%E7%A8%8B%E7%BB%84%E5%88%B0%E5%BA%95%E5%9C%A8%E9%87%8D%E5%8F%A0%E4%BB%80%E4%B9%88"><span class="nav-text"> 15. Producer &#x2F; Store 线程组到底在重叠什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#151-%E9%A2%84%E5%8F%96%E4%B8%8B%E4%B8%80%E4%B8%AA-chunk-%E7%9A%84%E8%BE%93%E5%85%A5"><span class="nav-text"> 15.1 预取下一个 chunk 的输入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#152-%E5%86%99%E5%9B%9E%E4%B8%8A%E4%B8%80%E4%B8%AA-chunk-%E7%9A%84%E7%BB%93%E6%9E%9C"><span class="nav-text"> 15.2 写回上一个 chunk 的结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#16-%E8%BF%99%E5%B0%B1%E6%98%AF%E5%A4%9A%E7%BA%A7%E6%B5%81%E6%B0%B4%E7%9A%84%E7%9C%9F%E6%AD%A3%E5%90%AB%E4%B9%89"><span class="nav-text"> 16. 这就是“多级流水”的真正含义</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E5%B1%82chunk-%E7%BA%A7%E5%8F%8C%E7%BC%93%E5%86%B2%E6%B5%81%E6%B0%B4"><span class="nav-text"> 第一层：chunk 级双缓冲流水</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%BA%8C%E5%B1%82chunk-%E5%86%85%E5%A4%9A%E9%98%B6%E6%AE%B5%E6%B5%81%E6%B0%B4"><span class="nav-text"> 第二层：chunk 内多阶段流水</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%89%E5%B1%82cta-%E5%86%85%E8%A7%92%E8%89%B2%E6%B5%81%E6%B0%B4"><span class="nav-text"> 第三层：CTA 内角色流水</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#17-%E5%B0%8F%E7%99%BD%E6%9C%80%E5%AE%B9%E6%98%93%E8%BF%B7%E7%B3%8A%E7%9A%84%E5%9C%B0%E6%96%B9"><span class="nav-text"> 17. 小白最容易迷糊的地方</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#171-%E4%B8%BA%E4%BB%80%E4%B9%88-bar_0-bar_1-bar_3-bar_4-bar_5-bar_o-%E8%BF%99%E4%B9%88%E5%A4%9A"><span class="nav-text"> 17.1 为什么 bar_0 &#x2F; bar_1 &#x2F; bar_3 &#x2F; bar_4 &#x2F; bar_5 &#x2F; bar_o 这么多</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#172-%E4%B8%BA%E4%BB%80%E4%B9%88%E6%9C%89%E7%9A%84%E8%B7%AF%E5%BE%84%E5%85%88-tcopy-shared-%E5%86%8D-gemm"><span class="nav-text"> 17.2 为什么有的路径先 T.copy(..., shared) 再 GEMM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#173-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF%E7%9B%B4%E6%8E%A5%E4%B8%80%E4%B8%AA%E7%BA%BF%E7%A8%8B%E7%BB%84%E6%8A%8A%E6%89%80%E6%9C%89%E4%BA%8B%E9%83%BD%E5%81%9A%E5%AE%8C"><span class="nav-text"> 17.3 为什么不是直接一个线程组把所有事都做完</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#18-%E7%94%A8%E4%B8%80%E5%8F%A5%E4%BA%BA%E8%AF%9D%E6%A6%82%E6%8B%AC%E6%95%B4%E4%B8%AA%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="nav-text"> 18. 用一句人话概括整个流水线</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#19-%E4%B8%80%E4%B8%AA%E5%8F%AF%E4%BB%A5%E8%AE%B0%E4%BD%8F%E7%9A%84%E6%80%BB%E5%9B%BE"><span class="nav-text"> 19. 一个可以记住的总图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#20-%E6%9C%80%E5%90%8E%E4%B8%80%E5%8F%A5%E6%80%BB%E7%BB%93"><span class="nav-text"> 20. 最后一句总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E9%98%85%E8%AF%BB%E8%BF%99%E4%BB%BD-kernel-%E7%9A%84%E5%BB%BA%E8%AE%AE%E9%A1%BA%E5%BA%8F"><span class="nav-text"> 附：阅读这份 kernel 的建议顺序</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 38 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
