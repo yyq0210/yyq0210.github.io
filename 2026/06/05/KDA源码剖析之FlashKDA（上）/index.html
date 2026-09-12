@@ -183,7 +183,65 @@
   max-width: 100%;
   height: auto !important;
 }
+.article-content .mermaid {
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+.article-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Mermaid labels inherit page color; dark mode becomes white-on-white */
+.article-content .mermaid foreignObject,
+.article-content .mermaid foreignObject *,
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel {
+  color: #213547 !important;
+}
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel,
+.article-content .mermaid .label,
+.article-content .mermaid text,
+.article-content .mermaid tspan {
+  fill: #213547 !important;
+}
 </style>
+
+                
+    
+            
+                
+                    <script data-swup-reload-script>
+(function () {
+  function renderMermaid() {
+    if (!window.mermaid) return;
+    var nodes = document.querySelectorAll(".mermaid");
+    if (!nodes.length) return;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "default",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, useMaxWidth: true }
+    });
+    nodes.forEach(function (el) {
+      el.removeAttribute("data-processed");
+      var original = el.getAttribute("data-original-code");
+      if (original) el.innerHTML = original;
+    });
+    mermaid.run({ querySelector: ".mermaid" }).catch(function (err) {
+      console.error("mermaid.run failed", err);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: false });
+  });
+  window.addEventListener("load", renderMermaid);
+  document.addEventListener("swup:page:view", renderMermaid);
+  if (window.swup && window.swup.hooks) {
+    window.swup.hooks.on("page:view", renderMermaid);
+  }
+})();
+</script>
 
                 
     
