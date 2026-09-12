@@ -93,8 +93,8 @@
 <meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
-<meta property="article:published_time" content="2026-09-12T14:00:00.000Z">
-<meta property="article:modified_time" content="2026-09-12T14:41:43.128Z">
+<meta property="article:published_time" content="2026-09-12T15:51:00.000Z">
+<meta property="article:modified_time" content="2026-09-12T15:52:56.753Z">
 <meta property="article:author" content="鱿鱼圈">
 <meta property="article:tag" content="LLM">
 <meta name="twitter:card" content="summary">
@@ -558,15 +558,15 @@ mjx-container[display="true"] + br {
 					<div class="article-meta-info">
     <span class="article-date article-meta-item">
         <i class="fa-regular fa-pen-fancy"></i>&nbsp;
-        <span class="desktop">2026-09-12 22:00</span>
-        <span class="mobile">2026-09-12 22:00</span>
+        <span class="desktop">2026-09-12 23:51</span>
+        <span class="mobile">2026-09-12 23:51</span>
         <span class="hover-info">创建</span>
     </span>
     
         <span class="article-date article-meta-item">
             <i class="fa-regular fa-wrench"></i>&nbsp;
-            <span class="desktop">2026-09-12 22:41:43</span>
-            <span class="mobile">2026-09-12 22:41:43</span>
+            <span class="desktop">2026-09-12 23:52:56</span>
+            <span class="mobile">2026-09-12 23:52:56</span>
             <span class="hover-info">更新</span>
         </span>
     
@@ -682,17 +682,17 @@ flowchart TB
 
     subgraph SD["Self-Decoder：前 L/2 层"]
         direction TB
-        ESA["高效 Causal Self-Attention&lt;br/&gt;gRet / Sliding-Window Attention"]
+        ESA["高效 Causal Self-Attention&lt;br/>gRet / Sliding-Window Attention"]
         SFFN["RMSNorm + SwiGLU FFN"]
-        ESA --&gt; SFFN
+        ESA --> SFFN
     end
 
-    SS[("每层局部状态&lt;br/&gt;gRet：递归状态 S&lt;br/&gt;SWA：窗口 KV")]
+    SS[("每层局部状态&lt;br/>gRet：递归状态 S&lt;br/>SWA：窗口 KV")]
     M["中间表示 M = X^(L/2)"]
-    PROJ["共享投影&lt;br/&gt;K̂ = LN(M)W_K&lt;br/&gt;V̂ = LN(M)W_V"]
-    GKV[("唯一全局 KV Cache&lt;br/&gt;K̂₁…K̂ₙ，V̂₁…V̂ₙ&lt;br/&gt;随 N 线性增长")]
+    PROJ["共享投影&lt;br/>K̂ = LN(M)W_K&lt;br/>V̂ = LN(M)W_V"]
+    GKV[("唯一全局 KV Cache&lt;br/>K̂₁…K̂ₙ，V̂₁…V̂ₙ&lt;br/>随 N 线性增长")]
 
-    CUR["送入 Cross-Decoder 的当前位置&lt;br/&gt;Prefill：最后一个 prompt 位置&lt;br/&gt;Decode：当前新 token"]
+    CUR["送入 Cross-Decoder 的当前位置&lt;br/>Prefill：最后一个 prompt 位置&lt;br/>Decode：当前新 token"]
 
     subgraph CD["Cross-Decoder：后 L/2 层"]
         direction TB
@@ -703,26 +703,26 @@ flowchart TB
         QL["第 L/2 层生成自己的 Query：Qᴸ"]
         AL["Causal Cross-Attention"]
         FL["FFN"]
-        Q1 --&gt; A1 --&gt; F1 --&gt; MID --&gt; QL --&gt; AL --&gt; FL
+        Q1 --> A1 --> F1 --> MID --> QL --> AL --> FL
     end
 
     HEAD["LM Head"]
     NEXT["生成下一个 Token"]
 
-    X --&gt; ESA
-    SFFN --&gt; M
-    SS &lt;--&gt;|"每个 token 更新&lt;br/&gt;大小不随 N 增长"| ESA
+    X --> ESA
+    SFFN --> M
+    SS &lt;-->|"每个 token 更新&lt;br/>大小不随 N 增长"| ESA
 
-    M --&gt; PROJ
-    PROJ --&gt;|"每个 token 追加一对 K/V"| GKV
-    M --&gt;|"只取当前位置的表示"| CUR
-    CUR --&gt; Q1
+    M --> PROJ
+    PROJ -->|"每个 token 追加一对 K/V"| GKV
+    M -->|"只取当前位置的表示"| CUR
+    CUR --> Q1
 
-    GKV --&gt;|"所有层共享相同 K̂、V̂"| A1
-    GKV --&gt;|"再次读取相同 K̂、V̂"| AL
+    GKV -->|"所有层共享相同 K̂、V̂"| A1
+    GKV -->|"再次读取相同 K̂、V̂"| AL
 
-    FL --&gt; HEAD --&gt; NEXT
-    NEXT -. "下一步自回归" .-&gt; X
+    FL --> HEAD --> NEXT
+    NEXT -. "下一步自回归" .-> X
 </div>
 <p>给定输入：</p>
 
@@ -886,25 +886,25 @@ flowchart TB
 <div class="mermaid">
 flowchart TB
     P["Prompt：x₁ ... xₙ"]
-    EMB["Embedding&lt;br/&gt;X₁ ... Xₙ"]
+    EMB["Embedding&lt;br/>X₁ ... Xₙ"]
 
     subgraph SELF["Self-Decoder：前 L/2 层"]
         direction TB
-        S1["第 1 层 Efficient Self-Attention&lt;br/&gt;gRet chunkwise / Sliding Window"]
+        S1["第 1 层 Efficient Self-Attention&lt;br/>gRet chunkwise / Sliding Window"]
         F1["FFN"]
         SDOT["⋮"]
         SM["第 L/2 层 Efficient Self-Attention + FFN"]
-        S1 --&gt; F1 --&gt; SDOT --&gt; SM
+        S1 --> F1 --> SDOT --> SM
     end
 
-    STATE[("Prefill 结束后保留&lt;br/&gt;gRet：每层最终状态 Sₙ&lt;br/&gt;SWA：每层最后 C 个 KV")]
+    STATE[("Prefill 结束后保留&lt;br/>gRet：每层最终状态 Sₙ&lt;br/>SWA：每层最后 C 个 KV")]
 
-    M["所有位置的边界表示&lt;br/&gt;M₁ ... Mₙ"]
+    M["所有位置的边界表示&lt;br/>M₁ ... Mₙ"]
     KP["共享投影 W_K"]
     VP["共享投影 W_V"]
-    GKV[("唯一全局 KV Cache&lt;br/&gt;K̂₁...K̂ₙ&lt;br/&gt;V̂₁...V̂ₙ")]
+    GKV[("唯一全局 KV Cache&lt;br/>K̂₁...K̂ₙ&lt;br/>V̂₁...V̂ₙ")]
 
-    SKIP["M₁ ... Mₙ₋₁&lt;br/&gt;不进入 Cross-Decoder"]
+    SKIP["M₁ ... Mₙ₋₁&lt;br/>不进入 Cross-Decoder"]
     LAST["只取最后位置 Mₙ"]
 
     subgraph CROSS["第一次 next-token 计算"]
@@ -913,27 +913,27 @@ flowchart TB
         A1["Qₙ¹ 查询全部 K̂₁:ₙ、V̂₁:ₙ"]
         F2["FFN"]
         DOT["⋮"]
-        AL["最后一个 Cross 层&lt;br/&gt;再次查询同一份全局 KV"]
-        Q1 --&gt; A1 --&gt; F2 --&gt; DOT --&gt; AL
+        AL["最后一个 Cross 层&lt;br/>再次查询同一份全局 KV"]
+        Q1 --> A1 --> F2 --> DOT --> AL
     end
 
-    LOGIT["LM Head&lt;br/&gt;得到 p(xₙ₊₁ | x₁:ₙ)"]
+    LOGIT["LM Head&lt;br/>得到 p(xₙ₊₁ | x₁:ₙ)"]
 
-    P --&gt; EMB --&gt; S1
-    SM --&gt; M
-    SM --&gt; STATE
+    P --> EMB --> S1
+    SM --> M
+    SM --> STATE
 
-    M --&gt; KP --&gt; GKV
-    M --&gt; VP --&gt; GKV
+    M --> KP --> GKV
+    M --> VP --> GKV
 
-    M -.-&gt; SKIP
-    M --&gt;|"选择 Mₙ"| LAST
-    LAST --&gt; Q1
+    M -.-> SKIP
+    M -->|"选择 Mₙ"| LAST
+    LAST --> Q1
 
-    GKV --&gt;|"所有 Cross 层共享"| A1
-    GKV --&gt;|"再次扫描"| AL
+    GKV -->|"所有 Cross 层共享"| A1
+    GKV -->|"再次扫描"| AL
 
-    AL --&gt; LOGIT
+    AL --> LOGIT
 </div>
 <h3 id="72-第一步全部-prompt-token-经过-self-decoder"><a class="markdownIt-Anchor" href="#72-第一步全部-prompt-token-经过-self-decoder"></a> 7.2 第一步：全部 prompt token 经过 Self-Decoder</h3>
 <p>所有 <span class="mathjax-svg math-inline"><svg style="vertical-align: 0;" xmlns="http://www.w3.org/2000/svg" width="2.009ex" height="1.545ex" role="img" focusable="false" viewBox="0 -683 888 683"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="mi"><path data-c="1D441" d="M234 637Q231 637 226 637Q201 637 196 638T191 649Q191 676 202 682Q204 683 299 683Q376 683 387 683T401 677Q612 181 616 168L670 381Q723 592 723 606Q723 633 659 637Q635 637 635 648Q635 650 637 660Q641 676 643 679T653 683Q656 683 684 682T767 680Q817 680 843 681T873 682Q888 682 888 672Q888 650 880 642Q878 637 858 637Q787 633 769 597L620 7Q618 0 599 0Q585 0 582 2Q579 5 453 305L326 604L261 344Q196 88 196 79Q201 46 268 46H278Q284 41 284 38T282 19Q278 6 272 0H259Q228 2 151 2Q123 2 100 2T63 2T46 1Q31 1 31 10Q31 14 34 26T39 40Q41 46 62 46Q130 49 150 85Q154 91 221 362L289 634Q287 635 234 637Z"></path></g></g></g></svg></span> 个 token 进入前 <span class="mathjax-svg math-inline"><svg style="vertical-align: -0.566ex;" xmlns="http://www.w3.org/2000/svg" width="3.803ex" height="2.262ex" role="img" focusable="false" viewBox="0 -750 1681 1000"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="mi"><path data-c="1D43F" d="M228 637Q194 637 192 641Q191 643 191 649Q191 673 202 682Q204 683 217 683Q271 680 344 680Q485 680 506 683H518Q524 677 524 674T522 656Q517 641 513 637H475Q406 636 394 628Q387 624 380 600T313 336Q297 271 279 198T252 88L243 52Q243 48 252 48T311 46H328Q360 46 379 47T428 54T478 72T522 106T564 161Q580 191 594 228T611 270Q616 273 628 273H641Q647 264 647 262T627 203T583 83T557 9Q555 4 553 3T537 0T494 -1Q483 -1 418 -1T294 0H116Q32 0 32 10Q32 17 34 24Q39 43 44 45Q48 46 59 46H65Q92 46 125 49Q139 52 144 61Q147 65 216 339T285 628Q285 635 228 637Z"></path></g><g data-mml-node="TeXAtom" data-mjx-texclass="ORD" transform="translate(681,0)"><g data-mml-node="mo"><path data-c="2F" d="M423 750Q432 750 438 744T444 730Q444 725 271 248T92 -240Q85 -250 75 -250Q68 -250 62 -245T56 -231Q56 -221 230 257T407 740Q411 750 423 750Z"></path></g></g><g data-mml-node="mn" transform="translate(1181,0)"><path data-c="32" d="M109 429Q82 429 66 447T50 491Q50 562 103 614T235 666Q326 666 387 610T449 465Q449 422 429 383T381 315T301 241Q265 210 201 149L142 93L218 92Q375 92 385 97Q392 99 409 186V189H449V186Q448 183 436 95T421 3V0H50V19V31Q50 38 56 46T86 81Q115 113 136 137Q145 147 170 174T204 211T233 244T261 278T284 308T305 340T320 369T333 401T340 431T343 464Q343 527 309 573T212 619Q179 619 154 602T119 569T109 550Q109 549 114 549Q132 549 151 535T170 489Q170 464 154 447T109 429Z"></path></g></g></g></svg></span> 层：</p>
@@ -1154,54 +1154,54 @@ flowchart TB
     XT["当前 token xₜ"]
     EMB["Embedding Xₜ"]
 
-    OLDSTATE[("上一步 Self 状态&lt;br/&gt;Sₜ₋₁¹ ... Sₜ₋₁ᴸᐟ²")]
-    OLDKV[("已有全局 KV&lt;br/&gt;K̂₁:ₜ₋₁、V̂₁:ₜ₋₁")]
+    OLDSTATE[("上一步 Self 状态&lt;br/>Sₜ₋₁¹ ... Sₜ₋₁ᴸᐟ²")]
+    OLDKV[("已有全局 KV&lt;br/>K̂₁:ₜ₋₁、V̂₁:ₜ₋₁")]
 
     subgraph SELF["Self-Decoder：只处理一个 token"]
         direction TB
-        R1["第 1 层&lt;br/&gt;更新 Sₜ¹，产生 hₜ¹"]
+        R1["第 1 层&lt;br/>更新 Sₜ¹，产生 hₜ¹"]
         RF1["FFN"]
         RDOT["⋮"]
-        RL["第 L/2 层&lt;br/&gt;更新 Sₜᴸᐟ²，产生 Mₜ"]
-        R1 --&gt; RF1 --&gt; RDOT --&gt; RL
+        RL["第 L/2 层&lt;br/>更新 Sₜᴸᐟ²，产生 Mₜ"]
+        R1 --> RF1 --> RDOT --> RL
     end
 
-    NEWSTATE[("保存新状态&lt;br/&gt;Sₜ¹ ... Sₜᴸᐟ²")]
+    NEWSTATE[("保存新状态&lt;br/>Sₜ¹ ... Sₜᴸᐟ²")]
     KNEW["K̂ₜ = LN(Mₜ)W_K"]
     VNEW["V̂ₜ = LN(Mₜ)W_V"]
-    NEWKV[("更新后的全局 KV&lt;br/&gt;K̂₁:ₜ、V̂₁:ₜ")]
+    NEWKV[("更新后的全局 KV&lt;br/>K̂₁:ₜ、V̂₁:ₜ")]
 
     subgraph CROSS["Cross-Decoder：当前位置逐层执行"]
         direction TB
         CQ1["Qₜ¹ = LN(Mₜ)W_Q¹"]
-        CA1["Attention 1&lt;br/&gt;扫描全部 K̂₁:ₜ、V̂₁:ₜ"]
+        CA1["Attention 1&lt;br/>扫描全部 K̂₁:ₜ、V̂₁:ₜ"]
         CF1["FFN → 当前隐藏状态 hₜ²"]
         CDOT["⋮"]
         CQL["生成 Qₜᴸ"]
-        CAL["Attention L/2&lt;br/&gt;再次扫描相同全局 KV"]
+        CAL["Attention L/2&lt;br/>再次扫描相同全局 KV"]
         CFL["FFN"]
-        CQ1 --&gt; CA1 --&gt; CF1 --&gt; CDOT --&gt; CQL --&gt; CAL --&gt; CFL
+        CQ1 --> CA1 --> CF1 --> CDOT --> CQL --> CAL --> CFL
     end
 
     HEAD["LM Head"]
     SAMPLE["采样 xₜ₊₁"]
 
-    XT --&gt; EMB --&gt; R1
-    OLDSTATE --&gt;|"读取并更新"| R1
-    RL --&gt; NEWSTATE
+    XT --> EMB --> R1
+    OLDSTATE -->|"读取并更新"| R1
+    RL --> NEWSTATE
 
-    RL --&gt; KNEW
-    RL --&gt; VNEW
-    OLDKV --&gt; NEWKV
-    KNEW --&gt;|"append"| NEWKV
-    VNEW --&gt;|"append"| NEWKV
+    RL --> KNEW
+    RL --> VNEW
+    OLDKV --> NEWKV
+    KNEW -->|"append"| NEWKV
+    VNEW -->|"append"| NEWKV
 
-    RL --&gt; CQ1
-    NEWKV --&gt;|"第 1 次读取"| CA1
-    NEWKV --&gt;|"第 L/2 次读取"| CAL
+    RL --> CQ1
+    NEWKV -->|"第 1 次读取"| CA1
+    NEWKV -->|"第 L/2 次读取"| CAL
 
-    CFL --&gt; HEAD --&gt; SAMPLE
-    SAMPLE -. "下一轮 Decode" .-&gt; XT
+    CFL --> HEAD --> SAMPLE
+    SAMPLE -. "下一轮 Decode" .-> XT
 </div>
 <h3 id="102-第一步self-decoder-递归更新"><a class="markdownIt-Anchor" href="#102-第一步self-decoder-递归更新"></a> 10.2 第一步：Self-Decoder 递归更新</h3>
 <p>Decode 时不再重新处理全部历史 token，只输入当前 token <span class="mathjax-svg math-inline"><svg style="vertical-align: -0.357ex;" xmlns="http://www.w3.org/2000/svg" width="2.059ex" height="1.357ex" role="img" focusable="false" viewBox="0 -442 910.3 599.8"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="msub"><g data-mml-node="mi"><path data-c="1D465" d="M52 289Q59 331 106 386T222 442Q257 442 286 424T329 379Q371 442 430 442Q467 442 494 420T522 361Q522 332 508 314T481 292T458 288Q439 288 427 299T415 328Q415 374 465 391Q454 404 425 404Q412 404 406 402Q368 386 350 336Q290 115 290 78Q290 50 306 38T341 26Q378 26 414 59T463 140Q466 150 469 151T485 153H489Q504 153 504 145Q504 144 502 134Q486 77 440 33T333 -11Q263 -11 227 52Q186 -10 133 -10H127Q78 -10 57 16T35 71Q35 103 54 123T99 143Q142 143 142 101Q142 81 130 66T107 46T94 41L91 40Q91 39 97 36T113 29T132 26Q168 26 194 71Q203 87 217 139T245 247T261 313Q266 340 266 352Q266 380 251 392T217 404Q177 404 142 372T93 290Q91 281 88 280T72 278H58Q52 284 52 289Z"></path></g><g data-mml-node="mi" transform="translate(605,-150) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g></g></g></svg></span>。</p>
@@ -1897,11 +1897,11 @@ flowchart TB
         <li><strong>标题:</strong> YOCO_论文与推理数据流详解</li>
         <li><strong>作者:</strong> 鱿鱼圈</li>
         <li><strong>创建于
-                :</strong> 2026-09-12 22:00:00</li>
+                :</strong> 2026-09-12 23:51:00</li>
         
             <li>
                 <strong>更新于
-                    :</strong> 2026-09-12 22:41:43
+                    :</strong> 2026-09-12 23:52:56
             </li>
         
         <li>
@@ -1952,9 +1952,9 @@ flowchart TB
 			
 			
 			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
-				<a class="next" rel="next" href="/2026/07/22/bwd-ncu-and-optimization-playbook/">
+				<a class="next" rel="next" href="/2026/09/12/cp_optimization/">
 					<span class="title flex justify-center items-center">
-						<span class="post-nav-title-item truncate max-w-48">bwd-ncu-and-optimization-playbook</span>
+						<span class="post-nav-title-item truncate max-w-48">cp_optimization</span>
 						<span class="post-nav-item">下一篇</span>
 					</span>
 					<span class="right arrow-icon flex justify-center items-center">
