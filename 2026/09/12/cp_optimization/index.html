@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/09/12/cp_optimization/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cp_optimization">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/09/12/cp_optimization/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-09-12T14:50:00.000Z">
+<meta property="article:modified_time" content="2026-09-12T14:26:40.758Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            cp_optimization | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">48</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">cp_optimization</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-09-12 22:50</span>
+        <span class="mobile">2026-09-12 22:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-09-12 22:26:40</span>
+            <span class="mobile">2026-09-12 22:26:40</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="flashkda-context-parallelism-cp-优化"><a class="markdownIt-Anchor" href="#flashkda-context-parallelism-cp-优化"></a> FlashKDA Context Parallelism (CP) 优化</h1>
+<h2 id="1-概述"><a class="markdownIt-Anchor" href="#1-概述"></a> 1. 概述</h2>
+<h3 id="问题"><a class="markdownIt-Anchor" href="#问题"></a> 问题</h3>
+<p>FlashKDA 是一个带循环状态的注意力 kernel。对于长序列（如 64K tokens），单次前向的 kernel2 中状态递推是串行的，GPU SM 利用率低。</p>
+<h3 id="为什么需要-cp-flashkda-vs-fla_chunk_kda-基线对比"><a class="markdownIt-Anchor" href="#为什么需要-cp-flashkda-vs-fla_chunk_kda-基线对比"></a> 为什么需要 CP？—— FlashKDA vs fla_chunk_kda 基线对比</h3>
+<p>FlashKDA 的前向计算包含一个 <strong>串行的状态递推过程</strong>（<code>S_t = A_t · S_{t-1} + b_t</code>），这意味着：</p>
+<ul>
+<li><strong>无 CP 时</strong>：整个序列的状态必须从头到尾<strong>逐 chunk 串行计算</strong>，GPU 大部分 SM 空闲等待</li>
+<li><strong>有 CP 时</strong>：将长序列切分为多个 sub-segment，每个 sub-segment 可以<strong>并行处理</strong>，大幅提升 SM 利用率</li>
+</ul>
+<h4 id="无-cp-时-flashkda-vs-fla_chunk_kda-对比h20-gpu-d128-无-cp"><a class="markdownIt-Anchor" href="#无-cp-时-flashkda-vs-fla_chunk_kda-对比h20-gpu-d128-无-cp"></a> 无 CP 时 FlashKDA vs fla_chunk_kda 对比（H20 GPU, D=128, 无 CP）</h4>
+<p>以下数据展示了 <strong>不开启 CP</strong> 时，FlashKDA 相对于 fla_chunk_kda（FlashAttention 风格的 chunk KDA 实现）的性能差距。这个差距正是 CP 优化要解决的核心动机。</p>
+<table>
+<thead>
+<tr>
+<th>Batch</th>
+<th>SeqLen</th>
+<th>FlashKDA (ms)</th>
+<th>fla_chunk_kda (ms)</th>
+<th>Speedup vs fla</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>8K</td>
+<td>1.235</td>
+<td>0.907</td>
+<td><strong>0.73×（慢 37%）</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>8K</td>
+<td>2.871</td>
+<td>6.380</td>
+<td><strong>2.22×（快）</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>8K</td>
+<td>5.650</td>
+<td>12.718</td>
+<td><strong>2.25×（快）</strong></td>
+</tr>
+<tr>
+<td>32</td>
+<td>8K</td>
+<td>10.413</td>
+<td>25.456</td>
+<td><strong>2.44×（快）</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td>16K</td>
+<td>2.429</td>
+<td>1.710</td>
+<td><strong>0.70×（慢 43%）</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>16K</td>
+<td>5.728</td>
+<td>12.866</td>
+<td><strong>2.25×（快）</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>16K</td>
+<td>11.241</td>
+<td>25.848</td>
+<td><strong>2.30×（快）</strong></td>
+</tr>
+<tr>
+<td>32</td>
+<td>16K</td>
+<td>21.161</td>
+<td>51.703</td>
+<td><strong>2.44×（快）</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td>64K</td>
+<td>9.509</td>
+<td>6.626</td>
+<td><strong>0.70×（慢 43%）</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>64K</td>
+<td>22.625</td>
+<td>52.095</td>
+<td><strong>2.30×（快）</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>64K</td>
+<td>45.017</td>
+<td>104.981</td>
+<td><strong>2.33×（快）</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td>256K</td>
+<td>37.860</td>
+<td>26.484</td>
+<td><strong>0.70×（慢 43%）</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td>512K</td>
+<td>75.675</td>
+<td>52.968</td>
+<td><strong>0.70×（慢 43%）</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键观察</strong>：</p>
+<ul>
+<li><strong>Batch=1 时 FlashKDA 比 fla 慢 ~30-43%</strong>：因为单条长序列的串行状态递推无法充分利用 GPU 并行度，SM 利用率低</li>
+<li><strong>Batch≥8 时 FlashKDA 反超 fla 2.2-2.4x</strong>：batch 足够大时，不同 batch 的序列可以并行处理，SM 利用率上来后 FlashKDA 的 kernel 效率优势显现</li>
+<li><strong>Batch=1 + 长序列是最坏场景</strong>：T=512K, B=1 时 FlashKDA 需要 75.7ms，而 fla 只需 53.0ms，差距达 <strong>43%</strong></li>
+<li><strong>Speedup vs fla 与 Batch 强相关，与 SeqLen 弱相关</strong>：B=1 时恒定 ~0.70x，B≥8 时恒定 ~2.3x</li>
+</ul>
+<blockquote>
+<p>💡 <strong>这就是 CP 要解决的问题</strong>：当 Batch 较小（尤其是 B=1）且序列较长时，FlashKDA 因串行瓶颈比 fla 还慢。CP 通过切分序列让多个 sub-segment 并行执行，使 B=1 场景下也能获得接近 B≥8 时的 SM 利用率。</p>
+</blockquote>
+<blockquote>
+<p>📖 <strong>CP 优化的数学原理详见博客</strong>：<a class="link" target="_blank" rel="noopener" href="https://yywangcs.notion.site/DeltaNet-2a9fc9f5d8058013a498f34e0b25bd52">DeltaNet 状态递推与 Context Parallelism<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</blockquote>
+<h3 id="方案"><a class="markdownIt-Anchor" href="#方案"></a> 方案</h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>计算量</th>
+<th>原理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无 CP</td>
+<td>100% (基线)</td>
+<td>整个序列串行递推状态</td>
+</tr>
+<tr>
+<td><strong>CP (warmup + correct)</strong></td>
+<td><strong>~105-110%</strong></td>
+<td>只跑末尾几个 chunk 的 state_only（计算 ht）+ 一次完整 fwd</td>
+</tr>
+</tbody>
+</table>
+<p>核心思路：</p>
+<ol>
+<li><strong>Warmup 阶段</strong>：对每个 sub-segment，只处理末尾少量 chunk，计算出"数据驱动的终态" <code>ht</code></li>
+<li><strong>修正阶段</strong>：利用线性性质 <code>S_final = mt · h0 + ht</code>，链式求解每段的正确初始状态</li>
+<li><strong>并行执行</strong>：所有 sub-segment 用修正后的 h0 并行跑完整前向</li>
+</ol>
+<hr>
+<h2 id="2-性能实测-h20-gpu-b1-h16-d128"><a class="markdownIt-Anchor" href="#2-性能实测-h20-gpu-b1-h16-d128"></a> 2. 性能实测 (H20 GPU, B=1, H=16, D=128)</h2>
+<h3 id="强-decay-对比-lb-50-生产参数"><a class="markdownIt-Anchor" href="#强-decay-对比-lb-50-生产参数"></a> 强 decay 对比 (lb=-5.0, 生产参数)</h3>
+<table>
+<thead>
+<tr>
+<th>序列长度</th>
+<th>无 CP</th>
+<th>CP 优化</th>
+<th>加速比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T=4K</td>
+<td>0.63ms</td>
+<td>0.35ms</td>
+<td><strong>1.82x</strong></td>
+</tr>
+<tr>
+<td>T=8K</td>
+<td>1.24ms</td>
+<td>0.54ms</td>
+<td><strong>2.29x</strong></td>
+</tr>
+<tr>
+<td>T=16K</td>
+<td>2.45ms</td>
+<td>0.99ms</td>
+<td><strong>2.47x</strong></td>
+</tr>
+<tr>
+<td>T=32K</td>
+<td>4.87ms</td>
+<td>1.76ms</td>
+<td><strong>2.77x</strong></td>
+</tr>
+<tr>
+<td>T=64K</td>
+<td>9.64ms</td>
+<td>3.91ms</td>
+<td><strong>2.46x</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="weak-decay-对比-lb-10"><a class="markdownIt-Anchor" href="#weak-decay-对比-lb-10"></a> Weak decay 对比 (lb=-1.0)</h3>
+<table>
+<thead>
+<tr>
+<th>序列长度</th>
+<th>无 CP</th>
+<th>CP 优化</th>
+<th>加速比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T=4K</td>
+<td>0.63ms</td>
+<td>0.35ms</td>
+<td><strong>1.82x</strong></td>
+</tr>
+<tr>
+<td>T=8K</td>
+<td>1.23ms</td>
+<td>0.54ms</td>
+<td><strong>2.29x</strong></td>
+</tr>
+<tr>
+<td>T=16K</td>
+<td>2.44ms</td>
+<td>0.99ms</td>
+<td><strong>2.47x</strong></td>
+</tr>
+<tr>
+<td>T=32K</td>
+<td>4.84ms</td>
+<td>1.75ms</td>
+<td><strong>2.76x</strong></td>
+</tr>
+<tr>
+<td>T=64K</td>
+<td>9.65ms</td>
+<td>3.91ms</td>
+<td><strong>2.47x</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="very-weak-decay-对比-lb-05"><a class="markdownIt-Anchor" href="#very-weak-decay-对比-lb-05"></a> Very weak decay 对比 (lb=-0.5)</h3>
+<table>
+<thead>
+<tr>
+<th>序列长度</th>
+<th>无 CP</th>
+<th>CP 优化</th>
+<th>加速比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T=4K</td>
+<td>0.63ms</td>
+<td>0.35ms</td>
+<td><strong>1.82x</strong></td>
+</tr>
+<tr>
+<td>T=8K</td>
+<td>1.23ms</td>
+<td>0.54ms</td>
+<td><strong>2.30x</strong></td>
+</tr>
+<tr>
+<td>T=16K</td>
+<td>2.44ms</td>
+<td>0.99ms</td>
+<td><strong>2.47x</strong></td>
+</tr>
+<tr>
+<td>T=32K</td>
+<td>4.84ms</td>
+<td>1.76ms</td>
+<td><strong>2.76x</strong></td>
+</tr>
+<tr>
+<td>T=64K</td>
+<td>9.64ms</td>
+<td>3.91ms</td>
+<td><strong>2.47x</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键结论</strong>：</p>
+<ul>
+<li><strong>CP 在所有 decay 强度下均稳定提供 ~1.8x-2.8x 加速</strong></li>
+<li>序列越长，加速越明显（T=64K 时稳定 ~2.5x）</li>
+<li>加速比不随 decay 强度退化，这是 warmup + correct 方案的核心优势</li>
+<li>额外开销仅 ~5-10%（warmup chunks 的 state_only 计算 + 串行修正）</li>
+</ul>
+<hr>
+<h2 id="3-数学原理"><a class="markdownIt-Anchor" href="#3-数学原理"></a> 3. 数学原理</h2>
+<blockquote>
+<p>📖 <strong>详细推导见博客</strong>：<a class="link" target="_blank" rel="noopener" href="https://yywangcs.notion.site/DeltaNet-2a9fc9f5d8058013a498f34e0b25bd52">DeltaNet 状态递推与 Context Parallelism<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+</blockquote>
+<h3 id="31-kda-状态递推"><a class="markdownIt-Anchor" href="#31-kda-状态递推"></a> 3.1 KDA 状态递推</h3>
+<p>每个 chunk（16 tokens）的状态更新：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S_new = diag(g_total) · S_old + k_restored^T · INV · ((v - k_decayed · S_old) · β)</span><br></pre></td></tr></table></figure></div>
+<p>整理为关于 <code>S_old</code> 的仿射变换 <code>S_new = A · S_old + b</code>：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A = diag(g_total) - k_restored^T · INV · diag(β) · k_decayed    [D×D]</span><br><span class="line">b = k_restored^T · INV · diag(β) · v                            [D×D]</span><br></pre></td></tr></table></figure></div>
+<h3 id="32-ht-数据驱动的终态"><a class="markdownIt-Anchor" href="#32-ht-数据驱动的终态"></a> 3.2 ht —— 数据驱动的终态</h3>
+<p>从零状态出发，经过所有 chunk 后的状态：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">初始化: S = 0</span><br><span class="line">每个 chunk: S = A · S + b</span><br><span class="line">输出: ht = S_final</span><br></pre></td></tr></table></figure></div>
+<p><strong>含义</strong>：如果这个 segment 从空白开始，纯靠 k/v/β 数据能积累出什么状态。</p>
+<h3 id="33-mt-初始状态的转移矩阵"><a class="markdownIt-Anchor" href="#33-mt-初始状态的转移矩阵"></a> 3.3 mt —— 初始状态的转移矩阵</h3>
+<p>从单位矩阵出发，只追踪 h0 如何传播：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">初始化: M = I</span><br><span class="line">每个 chunk: M = A · M = [diag(g) - kr^T · INV · diag(β) · kd] · M</span><br><span class="line">输出: mt = A_n · A_{n-1} · ... · A_0</span><br></pre></td></tr></table></figure></div>
+<p><strong>含义</strong>：初始状态 h0 经过该 segment 后变为 <code>mt · h0</code>。</p>
+<h3 id="34-线性性质"><a class="markdownIt-Anchor" href="#34-线性性质"></a> 3.4 线性性质</h3>
+<p>最终状态对 h0 是线性的：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">S_final = mt · h0 + ht</span><br></pre></td></tr></table></figure></div>
+<p>这是 CP 能够工作的<strong>核心数学基础</strong>。</p>
+<h3 id="35-串行修正"><a class="markdownIt-Anchor" href="#35-串行修正"></a> 3.5 串行修正</h3>
+<p>CP 将序列分为 sub-segment 0, 1, …, N-1，利用线性性质链式求解每段的 h0：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">h0[0] = raw_h0                    (用户提供，或 0)</span><br><span class="line">h0[1] = mt[0] · h0[0] + ht[0]</span><br><span class="line">h0[2] = mt[1] · h0[1] + ht[1]</span><br><span class="line">...</span><br><span class="line">h0[i+1] = mt[i] · h0[i] + ht[i]</span><br></pre></td></tr></table></figure></div>
+<h3 id="36-为什么-mt-通常不需要"><a class="markdownIt-Anchor" href="#36-为什么-mt-通常不需要"></a> 3.6 为什么 mt 通常不需要？</h3>
+<p>当 gate decay 强时（<code>lower_bound = -5</code>），per-chunk：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">||mt|| ≈ exp(16 × (-5) × 1.4427 × 0.5) = exp(-57.7) ≈ 10^{-25} ≈ 0</span><br></pre></td></tr></table></figure></div>
+<p>此时 <code>h0[i+1] ≈ ht[i]</code>，不需要计算 mt。这就是生产环境下 CP 开销极低的原因。</p>
+<hr>
+<h2 id="4-架构与调用链"><a class="markdownIt-Anchor" href="#4-架构与调用链"></a> 4. 架构与调用链</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">用户代码</span><br><span class="line">  │</span><br><span class="line">  ▼</span><br><span class="line">flash_kda/__init__.py               ← Python 入口</span><br><span class="line">  ├── fwd()                         → C++ kernel（无 CP）</span><br><span class="line">  ├── state_only(calc_mt=True/False)→ C++ kernel</span><br><span class="line">  └── fwd_cp()                      → flash_kda/cp.py</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">flash_kda/cp.py                     ← CP 编排（纯 Python）</span><br><span class="line">  ├── _calc_cp_seqs()               切分序列为 sub-segments</span><br><span class="line">  ├── get_warmup_chunks()           确定 warmup 长度</span><br><span class="line">  ├── correct_initial_states()      串行修正 h0</span><br><span class="line">  ├── → state_only()                调 C++ 计算 ht (+ mt)</span><br><span class="line">  └── → fwd()                       调 C++ 做完整前向</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">flash_kda_C (pybind11)              ← csrc/flash_kda.cpp</span><br><span class="line">  ├── fwd()                         → launch_kernel1 + launch_kernel2</span><br><span class="line">  └── state_only()                  → launch_kernel1_warmup_only</span><br><span class="line">                                      + launch_state_only (ht)</span><br><span class="line">                                      + launch_mt_only (mt, if requested)</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">csrc/smxx/                          ← CUDA Kernels</span><br><span class="line">  ├── fwd_kernel1.cuh              workspace 预计算 (k_decayed, k_restored, g_total, INV)</span><br><span class="line">  ├── fwd_kernel2.cuh              完整前向（输出 + 状态更新）</span><br><span class="line">  └── fwd_state_only.cuh           仅状态递推 (ht/mt)</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="5-cp-流程详解-fwd_cp"><a class="markdownIt-Anchor" href="#5-cp-流程详解-fwd_cp"></a> 5. CP 流程详解 (<code>fwd_cp</code>)</h2>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">fwd_cp</span>(<span class="params">q, k, v, g, beta, scale, out, A_log, dt_bias, lower_bound, ...</span>):</span><br></pre></td></tr></table></figure></div>
+<h3 id="step-0-判断是否启用-cp"><a class="markdownIt-Anchor" href="#step-0-判断是否启用-cp"></a> Step 0: 判断是否启用 CP</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">use_cp, cp_cu_seqlens, seq_map_r2c, seq_map_c2r = _calc_cp_seqs(cu_seqlens, H)</span><br></pre></td></tr></table></figure></div>
+<p>基于 SM 数量和序列长度，判断 CP 是否有收益。将长序列切分为 sub-segments。</p>
+<p>例：T=65536, H=16 → 切为 64 个 sub-segment，每段 1024 tokens。</p>
+<h3 id="step-1-确定-warmup-长度"><a class="markdownIt-Anchor" href="#step-1-确定-warmup-长度"></a> Step 1: 确定 warmup 长度</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 快速路径：lower_bound * 1.4427 * 0.25 * 16 &lt; -10 → 1 chunk 就够</span></span><br><span class="line">per_chunk_decay_bound = lower_bound * <span class="number">1.4426950408889634</span> * <span class="number">0.25</span> * CHUNK_SIZE</span><br><span class="line"><span class="keyword">if</span> per_chunk_decay_bound &lt; -<span class="number">10.0</span>:</span><br><span class="line">    num_warmup = torch.ones(cp_N, ...)    <span class="comment"># 每段只需 1 chunk</span></span><br><span class="line">    fallback_mask = torch.zeros(cp_N, ...) <span class="comment"># 不需要 mt</span></span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    num_warmup, fallback_mask = get_warmup_chunks(...)</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>快速路径触发条件</strong>：<code>lower_bound &lt; -1.73</code>（覆盖所有生产场景）</li>
+<li><strong>不需要考虑 per-head</strong>：因为 <code>exp(A_log) &lt; 1</code> 只会把 sigmoid 推向 0.5</li>
+</ul>
+<h4 id="025-的由来"><a class="markdownIt-Anchor" href="#025-的由来"></a> 0.25 的由来</h4>
+<p>gate 公式中的 sigmoid 输入为 <code>exp(A_log) × (g + dt_bias)</code>。代码中 <code>get_warmup_chunks</code> 使用 D=128 维上的均值：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sigmoid_input = exp(A_log) × mean_D(g + dt_bias)</span><br></pre></td></tr></table></figure></div>
+<p>由中心极限定理，D=128 个独立 bf16 值的均值标准差为：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">std(mean_D(g)) ≈ 1/√128 ≈ 0.088</span><br><span class="line">std(mean_D(dt_bias)) ≈ 1/√128 ≈ 0.088</span><br><span class="line">合计: std(mean_D(g + dt_bias)) ≈ √(0.088² + 0.088²) ≈ 0.125</span><br></pre></td></tr></table></figure></div>
+<p>因此 <code>mean_D(g + dt_bias)</code> 的 99.7% 区间约 [-0.37, 0.37]，乘以 <code>exp(A_log) ≈ 0.9</code> 后 sigmoid 输入在 [-0.33, 0.33]：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sigmoid(-0.33) = 0.42</span><br><span class="line">sigmoid(0)     = 0.50</span><br><span class="line">sigmoid(0.33)  = 0.58</span><br></pre></td></tr></table></figure></div>
+<p><strong>实际 sigmoid 输出几乎恒在 [0.42, 0.58]</strong>。取 0.25 = 0.5/2 作为下界，提供了 ~2x 安全余量。</p>
+<p>即使在最极端情况下（sigmoid = 0.25 确实不成立），快速路径真正失败的条件是 sigmoid &lt; 0.087（推导：<code>-10 / (lb × 1.4427 × 16)</code> 当 lb=-5），对应 sigmoid 输入 &lt; -2.35。这要求 <code>mean_D(g + dt_bias) &lt; -2.6</code>（距均值 &gt;20σ），概率可忽略。</p>
+<p><strong>总结</strong>：0.25 不是严格数学下界，是 “典型值 0.5 的一半” 的工程选择，实际安全余量远超 2x。</p>
+<h3 id="step-2-state-only-kernel"><a class="markdownIt-Anchor" href="#step-2-state-only-kernel"></a> Step 2: State-only kernel</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> need_mt:</span><br><span class="line">    ht_buffer, mt_buffer = state_only(..., calc_mt=<span class="literal">True</span>)   <span class="comment"># C++ 内跑两次 kernel</span></span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    ht_buffer = state_only(..., calc_mt=<span class="literal">False</span>)             <span class="comment"># C++ 内跑一次 kernel</span></span><br><span class="line">    mt_buffer = <span class="literal">None</span></span><br></pre></td></tr></table></figure></div>
+<p>C++ 端实际执行：</p>
+<ol>
+<li><code>launch_kernel1_warmup_only</code>：只计算 warmup 后缀对应 tile 的 workspace</li>
+<li><code>launch_state_only</code>：CalcMt=false，从 0 开始递推 → ht</li>
+<li><code>launch_mt_only</code>（如需要）：CalcMt=true，从 I 开始递推 → mt</li>
+</ol>
+<h3 id="step-3-串行修正"><a class="markdownIt-Anchor" href="#step-3-串行修正"></a> Step 3: 串行修正</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cp_h0 = correct_initial_states(initial_state, ht_buffer, mt_buffer, fallback_mask, seq_map_r2c)</span><br></pre></td></tr></table></figure></div>
+<p>三种路径：</p>
+<ul>
+<li><strong>无 mt, 无 h0（最常见）</strong>：<code>cp_h0[i+1] = ht[i]</code>，一个 slice 赋值</li>
+<li><strong>无 mt, 有 h0</strong>：第一段用 h0，后续 <code>cp_h0[i+1] = ht[i]</code></li>
+<li><strong>有 mt（罕见）</strong>：<code>cp_h0[i+1] = mt[i] @ cp_h0[i] + ht[i]</code>，逐段矩阵乘</li>
+</ul>
+<h3 id="step-4-带修正-h0-的完整前向"><a class="markdownIt-Anchor" href="#step-4-带修正-h0-的完整前向"></a> Step 4: 带修正 h0 的完整前向</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">fwd(q, k, v, g, beta, scale, out, A_log, dt_bias, lower_bound,</span><br><span class="line">    initial_state=cp_h0, cu_seqlens=cp_cu_seqlens)</span><br></pre></td></tr></table></figure></div>
+<p>使用 cp_cu_seqlens（多段）和 cp_h0（每段正确的初始状态），一次完整前向得到最终输出。</p>
+<hr>
+<h2 id="6-cuda-kernel-详解-_flash_kda_state_only"><a class="markdownIt-Anchor" href="#6-cuda-kernel-详解-_flash_kda_state_only"></a> 6. CUDA Kernel 详解 (<code>_flash_kda_state_only</code>)</h2>
+<h3 id="61-grid-与-warp-分工"><a class="markdownIt-Anchor" href="#61-grid-与-warp-分工"></a> 6.1 Grid 与 Warp 分工</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Grid: (N_segments, H_heads)     — 每个 CTA 处理一个 segment 的一个 head</span><br><span class="line">Block: 160 threads = 128(MMA) + 32(LOAD)</span><br><span class="line"></span><br><span class="line">Warp 0-3: MMA 计算（状态递推）</span><br><span class="line">Warp 4:   TMA 加载（异步 HBM→SMEM）</span><br></pre></td></tr></table></figure></div>
+<h3 id="62-共享内存布局"><a class="markdownIt-Anchor" href="#62-共享内存布局"></a> 6.2 共享内存布局</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">SharedStorageStateOnly</span> {</span><br><span class="line">    state_acc[D×D] bf16;           <span class="comment">// 状态累积器 (ht 或 mt)</span></span><br><span class="line">    <span class="keyword">union</span> {</span><br><span class="line">        InputStorage input[<span class="number">3</span>];     <span class="comment">// 3-stage 流水线</span></span><br><span class="line">        state_fp32_buf[D×D] f32;   <span class="comment">// 最终 bf16→fp32 转换用</span></span><br><span class="line">    };</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">InputStorage</span> {</span><br><span class="line">    v[<span class="number">16</span>×<span class="number">128</span>] bf16;        <span class="comment">// value 数据</span></span><br><span class="line">    beta[<span class="number">32</span>] bf16;         <span class="comment">// 门控 logit</span></span><br><span class="line">    k_decayed[<span class="number">16</span>×<span class="number">128</span>] bf16; <span class="comment">// kernel1 预计算</span></span><br><span class="line">    k_restored[<span class="number">16</span>×<span class="number">128</span>] bf16;</span><br><span class="line">    g_total[<span class="number">128</span>] f32;      <span class="comment">// per-dim chunk 累积 gate</span></span><br><span class="line">    INV[<span class="number">16</span>×<span class="number">16</span>] bf16;       <span class="comment">// chunk 内逆矩阵</span></span><br><span class="line">};</span><br></pre></td></tr></table></figure></div>
+<h3 id="63-初始化"><a class="markdownIt-Anchor" href="#63-初始化"></a> 6.3 初始化</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">if</span> <span class="title">constexpr</span> <span class="params">(!CalcMt)</span> </span>{</span><br><span class="line">    state_acc = <span class="number">0</span>;        <span class="comment">// ht: 从零开始</span></span><br><span class="line">} <span class="keyword">else</span> {</span><br><span class="line">    state_acc = I;        <span class="comment">// mt: 从单位矩阵开始</span></span><br><span class="line">    <span class="comment">// 通过逻辑坐标 s_acc(d, d) = 1.0 设置对角线，自动处理 swizzle</span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="64-每个-chunk-的计算流水线"><a class="markdownIt-Anchor" href="#64-每个-chunk-的计算流水线"></a> 6.4 每个 Chunk 的计算流水线</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">LOAD warp 异步加载 chunk t 的数据 → smem stage</span><br><span class="line">  ↓ (pipeline barrier)</span><br><span class="line">MMA warps 消费该 stage，执行 Phase 1→2/3→6</span><br><span class="line">  ↓ (compute barrier)</span><br><span class="line">释放 stage，LOAD warp 复用该 slot</span><br></pre></td></tr></table></figure></div>
+<h3 id="65-phase-1-u-k_decayed-s_acc"><a class="markdownIt-Anchor" href="#65-phase-1-u-k_decayed-s_acc"></a> 6.5 Phase 1: <code>U = k_decayed @ S_acc</code></h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[16, D] @ [D, D] → [16, D]</span><br><span class="line">分 K_BLOCKS=8 次 16×16 GEMM 累积</span><br><span class="line">每个 warp 负责 S_acc 的 2 列（共 4 warp × 2 × 16 = 128 = D）</span><br></pre></td></tr></table></figure></div>
+<p>含义：把当前状态通过 k_decayed “读出”。</p>
+<h3 id="66-phase-23-中间变量-inv-变换"><a class="markdownIt-Anchor" href="#66-phase-23-中间变量-inv-变换"></a> 6.6 Phase 2/3: 中间变量 + INV 变换</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// CalcMt=false (ht):</span></span><br><span class="line">U = INV @ ((v - U) * β)     <span class="comment">// 数据增量 × 门控 × 逆矩阵</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// CalcMt=true (mt):</span></span><br><span class="line">U = INV @ (U * β)           <span class="comment">// 只有状态传播项，没有 v（v 和 h0 无关）</span></span><br></pre></td></tr></table></figure></div>
+<p>关键区别：mt 没有 <code>v -</code> 是因为 <code>v</code> 是纯数据项，不参与 h0 的传播。</p>
+<h3 id="67-phase-6-状态更新"><a class="markdownIt-Anchor" href="#67-phase-6-状态更新"></a> 6.7 Phase 6: 状态更新</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 对 S_acc 的每 16 行块 (共 D/16 = 8 块):</span></span><br><span class="line">R = k_restored^T @ U        <span class="comment">// [D,16] @ [16,D/warp] → [D,D/warp]</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// CalcMt=false (ht):</span></span><br><span class="line">S_acc[d] = g_total[d] * S_acc[d] + R[d]     <span class="comment">// 衰减 + 新贡献</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// CalcMt=true (mt):</span></span><br><span class="line">M_acc[d] = g_total[d] * M_acc[d] - R[d]     <span class="comment">// A = diag(g) - kr^T·INV·β·kd</span></span><br></pre></td></tr></table></figure></div>
+<p>减号来源：<code>A = diag(g) - kr^T·INV·β·kd</code> 中的减号。</p>
+<h3 id="68-精度处理"><a class="markdownIt-Anchor" href="#68-精度处理"></a> 6.8 精度处理</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Phase 6 的 mixed-precision:</span></span><br><span class="line"><span class="built_in">BF16</span>(<span class="built_in">bf16_to_f32</span>(S_old) * g0_f32 + R_f32)</span><br><span class="line"><span class="comment">//    ↑ 提升到fp32       ↑ fp32乘   ↑ fp32加    ↑ 截断回bf16存储</span></span><br></pre></td></tr></table></figure></div>
+<p>计算在 fp32，存储在 bf16。最终输出时 <code>smem_cvt_bf16_to_fp32</code> 转换为 fp32 通过 TMA 写回 gmem。</p>
+<hr>
+<h2 id="7-get_warmup_chunks-算法"><a class="markdownIt-Anchor" href="#7-get_warmup_chunks-算法"></a> 7. <code>get_warmup_chunks</code> 算法</h2>
+<h3 id="目标"><a class="markdownIt-Anchor" href="#目标"></a> 目标</h3>
+<p>对每个 CP sub-segment，确定从末尾开始需要处理多少个 chunk 才能让 h0 的影响衰减到阈值以下。</p>
+<h3 id="gate-公式"><a class="markdownIt-Anchor" href="#gate-公式"></a> Gate 公式</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">per_token_decay = lower_bound × log2(e) × sigmoid(exp(A_log) × (g + dt_bias))</span><br><span class="line">per_chunk_decay = per_token_decay × 16   (累积 16 tokens)</span><br></pre></td></tr></table></figure></div>
+<h3 id="快速路径向量化"><a class="markdownIt-Anchor" href="#快速路径向量化"></a> 快速路径（向量化）</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 只看每段末尾 1 个 token，批量判断所有段</span></span><br><span class="line">g_at_end = g[last_token_of_each_seg].mean(dim=-<span class="number">1</span>)     <span class="comment"># [N, H]</span></span><br><span class="line">per_seg_decay = gate_scale * sigmoid(...) * chunk_size  <span class="comment"># [N, H]</span></span><br><span class="line">converges_in_1 = per_seg_decay.<span class="built_in">max</span>(dim=-<span class="number">1</span>).values &lt; threshold  <span class="comment"># [N]</span></span><br></pre></td></tr></table></figure></div>
+<p>如果最慢的 head 都已收敛 → 1 chunk 足够。</p>
+<h3 id="慢路径逐-chunk-扫描仅对未收敛的段"><a class="markdownIt-Anchor" href="#慢路径逐-chunk-扫描仅对未收敛的段"></a> 慢路径（逐 chunk 扫描，仅对未收敛的段）</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> c <span class="keyword">in</span> <span class="built_in">range</span>(num_chunks):           <span class="comment"># 从末尾第 0 个 chunk 往前</span></span><br><span class="line">    g_cumsum += g_activated * <span class="number">16</span>      <span class="comment"># 累积 decay（负值）</span></span><br><span class="line">    <span class="keyword">if</span> g_cumsum.<span class="built_in">max</span>() &lt; threshold:    <span class="comment"># 所有 head 都超过阈值</span></span><br><span class="line">        warmup = c + <span class="number">1</span></span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"><span class="comment"># 扫完没收敛 → fallback_mask = True，需要 mt</span></span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="8-cuda-get_warmup_chunks-kernel"><a class="markdownIt-Anchor" href="#8-cuda-get_warmup_chunks-kernel"></a> 8. CUDA <code>get_warmup_chunks</code> Kernel</h2>
+<h3 id="动机"><a class="markdownIt-Anchor" href="#动机"></a> 动机</h3>
+<p>Python 版 <code>get_warmup_chunks</code> 在 weak decay (lb=-0.5) 下需要扫描大量 chunk，耗时 ~12-16ms（成为整条 CP 流水线的瓶颈）。CUDA 版将其降到恒定 ~0.03ms。</p>
+<h3 id="架构"><a class="markdownIt-Anchor" href="#架构"></a> 架构</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">文件: csrc/warmup_chunks.cu</span><br><span class="line">Grid: (N_segments,)     — 每个 block 处理一个 segment</span><br><span class="line">Block: (H_heads,)       — 每个 thread 处理一个 head</span><br><span class="line">共享内存: float[H]      — 用于跨 head tree reduction 求 max</span><br></pre></td></tr></table></figure></div>
+<h3 id="算法"><a class="markdownIt-Anchor" href="#算法"></a> 算法</h3>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 每个 thread (= 一个 head) 从 segment 末尾往前扫描</span><br><span class="line">for (int c = 0; c &lt; num_chunks &amp;&amp; !found; c++) {</span><br><span class="line">    // 1. 计算 g[chunk_end_token, h, :] 的 mean</span><br><span class="line">    float g_mean = mean(g_ptr[token * H * D + h * D : +D]);</span><br><span class="line"></span><br><span class="line">    // 2. Gate activation</span><br><span class="line">    float x = exp(A_log[h]) * (g_mean + dt_bias_mean[h]);</span><br><span class="line">    float decay = gate_scale * sigmoid(x) * chunk_size;</span><br><span class="line">    g_cumsum += decay;  // 累积（负值）</span><br><span class="line"></span><br><span class="line">    // 3. 跨 head 求 max (tree reduction in shared memory)</span><br><span class="line">    smem[h] = g_cumsum;</span><br><span class="line">    __syncthreads();</span><br><span class="line">    for (stride = blockDim.x/2; stride &gt; 0; stride &gt;&gt;= 1)</span><br><span class="line">        smem[h] = fmax(smem[h], smem[h + stride]);</span><br><span class="line"></span><br><span class="line">    // 4. 检查收敛: max(所有 head 累积) &lt; threshold</span><br><span class="line">    if (smem[0] &lt; threshold) {</span><br><span class="line">        result_warmup = c + 1;</span><br><span class="line">        found = true;</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<h3 id="性能-h20-gpu"><a class="markdownIt-Anchor" href="#性能-h20-gpu"></a> 性能 (H20 GPU)</h3>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>Python</th>
+<th>CUDA</th>
+<th>加速</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T=8K, H=16, N=16, lb=-1</td>
+<td>1.2ms</td>
+<td>0.03ms</td>
+<td>39x</td>
+</tr>
+<tr>
+<td>T=64K, H=16, N=64, lb=-0.5</td>
+<td>16.1ms</td>
+<td>0.03ms</td>
+<td>623x</td>
+</tr>
+<tr>
+<td>T=64K, H=32, N=64, lb=-0.5</td>
+<td>17.8ms</td>
+<td>0.03ms</td>
+<td>694x</td>
+</tr>
+</tbody>
+</table>
+<h3 id="集成"><a class="markdownIt-Anchor" href="#集成"></a> 集成</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># flash_kda/cp.py 中的调用:</span></span><br><span class="line"><span class="keyword">from</span> flash_kda_C <span class="keyword">import</span> get_warmup_chunks <span class="keyword">as</span> _get_warmup_chunks_cuda</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_warmup_chunks_cuda</span>(<span class="params">g, A_log, dt_bias, lower_bound, cu_seqlens, chunk_size</span>):</span><br><span class="line">    N = cu_seqlens.numel() - <span class="number">1</span></span><br><span class="line">    num_warmup = torch.empty(N, dtype=torch.int32, device=g.device)</span><br><span class="line">    fallback = torch.empty(N, dtype=torch.<span class="built_in">bool</span>, device=g.device)</span><br><span class="line">    threshold = -<span class="number">10.0</span></span><br><span class="line">    _get_warmup_chunks_cuda(g, A_log, dt_bias, lower_bound, cu_seqlens,</span><br><span class="line">                            chunk_size, threshold, num_warmup, fallback)</span><br><span class="line">    <span class="keyword">return</span> num_warmup, fallback</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h2 id="9-correct_initial_states-算法"><a class="markdownIt-Anchor" href="#9-correct_initial_states-算法"></a> 9. <code>correct_initial_states</code> 算法</h2>
+<h3 id="无-mt生产常态~01ms"><a class="markdownIt-Anchor" href="#无-mt生产常态~01ms"></a> 无 mt（生产常态，~0.1ms）</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># gate decay 足够强，mt ≈ 0，所以 h0[i+1] ≈ ht[i]</span></span><br><span class="line">cp_h0[seg_start] = raw_h0[raw_idx]  或 <span class="number">0</span></span><br><span class="line">cp_h0[seg_start+<span class="number">1</span> : seg_end] = ht_buffer[seg_start : seg_end-<span class="number">1</span>]  <span class="comment"># slice 赋值</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="有-mtweak-decay罕见"><a class="markdownIt-Anchor" href="#有-mtweak-decay罕见"></a> 有 mt（weak decay，罕见）</h3>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(seg_start, seg_end - <span class="number">1</span>):</span><br><span class="line">    <span class="keyword">if</span> fallback_mask[i]:</span><br><span class="line">        h = einsum(<span class="string">'hdk,hkv-&gt;hdv'</span>, mt[i], h) + ht[i]   <span class="comment"># H 个 [D,D]@[D,D] 矩阵乘</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        h = ht[i]</span><br><span class="line">    cp_h0[i + <span class="number">1</span>] = h</span><br></pre></td></tr></table></figure></div>
+<p><code>einsum('hdk,hkv-&gt;hdv')</code> = 每个 head 独立做 128×128 矩阵乘。</p>
+<hr>
+<h2 id="10-kernel1-warmup-only-优化"><a class="markdownIt-Anchor" href="#10-kernel1-warmup-only-优化"></a> 10. Kernel1 Warmup-Only 优化</h2>
+<h3 id="问题-2"><a class="markdownIt-Anchor" href="#问题-2"></a> 问题</h3>
+<p>kernel1 为每个 tile 预计算 workspace（k_decayed, k_restored, g_total, INV）。state_only 只需要 warmup 后缀的 tile。</p>
+<h3 id="解决"><a class="markdownIt-Anchor" href="#解决"></a> 解决</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;..., <span class="type">bool</span> WarmupOnly = <span class="literal">false</span>&gt;</span><br><span class="line">__global__ <span class="type">void</span> _flash_kda_fwd_prepare(..., <span class="type">int</span> <span class="type">const</span>* num_warmup_chunks_ptr) {</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">constexpr</span> (WarmupOnly) {</span><br><span class="line">        <span class="type">int</span> warmup = num_warmup_chunks_ptr[seq_idx];</span><br><span class="line">        <span class="type">int</span> t_start = t_tiles_this_seq - <span class="built_in">min</span>(warmup, t_tiles_this_seq);</span><br><span class="line">        <span class="keyword">if</span> (<span class="type">local_t</span> &lt; t_start) <span class="keyword">return</span>;  <span class="comment">// 非 warmup tile 直接退出</span></span><br><span class="line">    }</span><br><span class="line">    ...</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>Grid 不变（所有 tile 都启动 CTA），但非 warmup 的 CTA 只执行一个 branch 后 return，开销可忽略。Workspace 索引布局不变，state_only 照常读取。</p>
+<hr>
+<h2 id="11-使用方式"><a class="markdownIt-Anchor" href="#11-使用方式"></a> 11. 使用方式</h2>
+<div class="code-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> flash_kda <span class="keyword">import</span> fwd_cp</span><br><span class="line"></span><br><span class="line"><span class="comment"># 自动 CP（推荐，对用户透明）</span></span><br><span class="line">fwd_cp(q, k, v, g, beta, scale, out, A_log, dt_bias, lower_bound, auto_cp=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 带初始/终态</span></span><br><span class="line">fwd_cp(..., initial_state=h0, final_state=hn, auto_cp=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># varlen 模式</span></span><br><span class="line">cu_seqlens = torch.tensor([<span class="number">0</span>, <span class="number">2048</span>, <span class="number">6144</span>, <span class="number">8192</span>], dtype=torch.int64, device=<span class="string">"cuda"</span>)</span><br><span class="line">fwd_cp(..., cu_seqlens=cu_seqlens, auto_cp=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 禁用 CP（等价于 fwd()）</span></span><br><span class="line">fwd_cp(..., auto_cp=<span class="literal">False</span>)</span><br></pre></td></tr></table></figure></div>
+<h3 id="cp-自动生效条件"><a class="markdownIt-Anchor" href="#cp-自动生效条件"></a> CP 自动生效条件</h3>
+<ul>
+<li><code>B = 1</code>（batch 维度为 1）</li>
+<li>序列够长，使得 CP 切分后 SM 利用率提升</li>
+<li><code>_calc_cp_seqs</code> 内部判断：<code>Be * H &lt;= SM_COUNT / 4</code></li>
+</ul>
+<hr>
+<h2 id="12-文件清单"><a class="markdownIt-Anchor" href="#12-文件清单"></a> 12. 文件清单</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>修改内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>csrc/smxx/fwd_kernel1.cuh</code></td>
+<td><code>WarmupOnly</code> 模板参数，非 warmup tile early-exit</td>
+</tr>
+<tr>
+<td><code>csrc/smxx/fwd_state_only.cuh</code></td>
+<td><code>CalcMt</code> 模板参数，mt 用 Identity 初始化 + 减号更新</td>
+</tr>
+<tr>
+<td><code>csrc/smxx/fwd_launch.cu</code></td>
+<td><code>launch_kernel1_warmup_only</code>、<code>launch_mt_only</code></td>
+</tr>
+<tr>
+<td><code>csrc/warmup_chunks.cu</code></td>
+<td>CUDA <code>get_warmup_chunks</code> kernel (跨 head tree reduction)</td>
+</tr>
+<tr>
+<td><code>csrc/fwd.h</code></td>
+<td>新函数声明</td>
+</tr>
+<tr>
+<td><code>csrc/flash_kda.cpp</code></td>
+<td><code>state_only</code> + <code>get_warmup_chunks</code> pybind11 接口</td>
+</tr>
+<tr>
+<td><code>flash_kda/__init__.py</code></td>
+<td><code>state_only</code> 返回 (ht, mt)</td>
+</tr>
+<tr>
+<td><code>flash_kda/cp.py</code></td>
+<td>CP 编排：warmup + correct + single fwd；CUDA scan 集成</td>
+</tr>
+<tr>
+<td><code>tests/test_warmup_cuda.py</code></td>
+<td>CUDA vs Python 正确性测试 + 性能基准</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="13-关键设计决策"><a class="markdownIt-Anchor" href="#13-关键设计决策"></a> 13. 关键设计决策</h2>
+<table>
+<thead>
+<tr>
+<th>决策</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warmup 1 chunk 快速路径</td>
+<td>生产参数下 <code>lower_bound=-5</code>，decay 极强，1 chunk 必然收敛</td>
+</tr>
+<tr>
+<td>kernel1 early-exit 而非 compact grid</td>
+<td>简单正确，workspace 索引不变，多余 CTA 开销可忽略</td>
+</tr>
+<tr>
+<td>mt 单独 launch 而非合并到 ht kernel</td>
+<td>简化实现；生产中 mt 几乎不触发，ROI 低</td>
+</tr>
+<tr>
+<td>correct_initial_states 用 Python</td>
+<td>段数少（~64），串行开销 0.1ms，不值得写 CUDA kernel</td>
+</tr>
+<tr>
+<td>state_acc 用 bf16</td>
+<td>和 kernel2 共用 SharedStorage；mt 只在 weak decay 时触发，此时值接近 1 不会下溢</td>
+</tr>
+<tr>
+<td>get_warmup_chunks 用 CUDA</td>
+<td>Python 版在 weak decay 下 12-16ms，成为流水线瓶颈；CUDA 恒定 0.03ms</td>
+</tr>
+<tr>
+<td>Tree reduction 而非 atomicMax</td>
+<td>负浮点数的 atomicMax 需要 CAS 循环，tree reduction 更简洁高效</td>
+</tr>
+</tbody>
+</table>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> cp_optimization</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-09-12 22:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-09-12 22:26:40
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/09/12/cp_optimization/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/09/12/k1_bwd_prepare_deep_dive/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">k1_bwd_prepare_deep_dive</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">cp_optimization</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#flashkda-context-parallelism-cp-%E4%BC%98%E5%8C%96"><span class="nav-text"> FlashKDA Context Parallelism (CP) 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%A6%82%E8%BF%B0"><span class="nav-text"> 1. 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98"><span class="nav-text"> 问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-cp-flashkda-vs-fla_chunk_kda-%E5%9F%BA%E7%BA%BF%E5%AF%B9%E6%AF%94"><span class="nav-text"> 为什么需要 CP？—— FlashKDA vs fla_chunk_kda 基线对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%96%B9%E6%A1%88"><span class="nav-text"> 方案</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%80%A7%E8%83%BD%E5%AE%9E%E6%B5%8B-h20-gpu-b1-h16-d128"><span class="nav-text"> 2. 性能实测 (H20 GPU, B&#x3D;1, H&#x3D;16, D&#x3D;128)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%BA-decay-%E5%AF%B9%E6%AF%94-lb-50-%E7%94%9F%E4%BA%A7%E5%8F%82%E6%95%B0"><span class="nav-text"> 强 decay 对比 (lb&#x3D;-5.0, 生产参数)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#weak-decay-%E5%AF%B9%E6%AF%94-lb-10"><span class="nav-text"> Weak decay 对比 (lb&#x3D;-1.0)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#very-weak-decay-%E5%AF%B9%E6%AF%94-lb-05"><span class="nav-text"> Very weak decay 对比 (lb&#x3D;-0.5)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%95%B0%E5%AD%A6%E5%8E%9F%E7%90%86"><span class="nav-text"> 3. 数学原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-kda-%E7%8A%B6%E6%80%81%E9%80%92%E6%8E%A8"><span class="nav-text"> 3.1 KDA 状态递推</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-ht-%E6%95%B0%E6%8D%AE%E9%A9%B1%E5%8A%A8%E7%9A%84%E7%BB%88%E6%80%81"><span class="nav-text"> 3.2 ht —— 数据驱动的终态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-mt-%E5%88%9D%E5%A7%8B%E7%8A%B6%E6%80%81%E7%9A%84%E8%BD%AC%E7%A7%BB%E7%9F%A9%E9%98%B5"><span class="nav-text"> 3.3 mt —— 初始状态的转移矩阵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-%E7%BA%BF%E6%80%A7%E6%80%A7%E8%B4%A8"><span class="nav-text"> 3.4 线性性质</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#35-%E4%B8%B2%E8%A1%8C%E4%BF%AE%E6%AD%A3"><span class="nav-text"> 3.5 串行修正</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#36-%E4%B8%BA%E4%BB%80%E4%B9%88-mt-%E9%80%9A%E5%B8%B8%E4%B8%8D%E9%9C%80%E8%A6%81"><span class="nav-text"> 3.6 为什么 mt 通常不需要？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%9E%B6%E6%9E%84%E4%B8%8E%E8%B0%83%E7%94%A8%E9%93%BE"><span class="nav-text"> 4. 架构与调用链</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-cp-%E6%B5%81%E7%A8%8B%E8%AF%A6%E8%A7%A3-fwd_cp"><span class="nav-text"> 5. CP 流程详解 (fwd_cp)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#step-0-%E5%88%A4%E6%96%AD%E6%98%AF%E5%90%A6%E5%90%AF%E7%94%A8-cp"><span class="nav-text"> Step 0: 判断是否启用 CP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#step-1-%E7%A1%AE%E5%AE%9A-warmup-%E9%95%BF%E5%BA%A6"><span class="nav-text"> Step 1: 确定 warmup 长度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#step-2-state-only-kernel"><span class="nav-text"> Step 2: State-only kernel</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#step-3-%E4%B8%B2%E8%A1%8C%E4%BF%AE%E6%AD%A3"><span class="nav-text"> Step 3: 串行修正</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#step-4-%E5%B8%A6%E4%BF%AE%E6%AD%A3-h0-%E7%9A%84%E5%AE%8C%E6%95%B4%E5%89%8D%E5%90%91"><span class="nav-text"> Step 4: 带修正 h0 的完整前向</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-cuda-kernel-%E8%AF%A6%E8%A7%A3-_flash_kda_state_only"><span class="nav-text"> 6. CUDA Kernel 详解 (_flash_kda_state_only)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-grid-%E4%B8%8E-warp-%E5%88%86%E5%B7%A5"><span class="nav-text"> 6.1 Grid 与 Warp 分工</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="nav-text"> 6.2 共享内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-text"> 6.3 初始化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-%E6%AF%8F%E4%B8%AA-chunk-%E7%9A%84%E8%AE%A1%E7%AE%97%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="nav-text"> 6.4 每个 Chunk 的计算流水线</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#65-phase-1-u-k_decayed-s_acc"><span class="nav-text"> 6.5 Phase 1: U &#x3D; k_decayed @ S_acc</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#66-phase-23-%E4%B8%AD%E9%97%B4%E5%8F%98%E9%87%8F-inv-%E5%8F%98%E6%8D%A2"><span class="nav-text"> 6.6 Phase 2&#x2F;3: 中间变量 + INV 变换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#67-phase-6-%E7%8A%B6%E6%80%81%E6%9B%B4%E6%96%B0"><span class="nav-text"> 6.7 Phase 6: 状态更新</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#68-%E7%B2%BE%E5%BA%A6%E5%A4%84%E7%90%86"><span class="nav-text"> 6.8 精度处理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-get_warmup_chunks-%E7%AE%97%E6%B3%95"><span class="nav-text"> 7. get_warmup_chunks 算法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9B%AE%E6%A0%87"><span class="nav-text"> 目标</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#gate-%E5%85%AC%E5%BC%8F"><span class="nav-text"> Gate 公式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BF%AB%E9%80%9F%E8%B7%AF%E5%BE%84%E5%90%91%E9%87%8F%E5%8C%96"><span class="nav-text"> 快速路径（向量化）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%85%A2%E8%B7%AF%E5%BE%84%E9%80%90-chunk-%E6%89%AB%E6%8F%8F%E4%BB%85%E5%AF%B9%E6%9C%AA%E6%94%B6%E6%95%9B%E7%9A%84%E6%AE%B5"><span class="nav-text"> 慢路径（逐 chunk 扫描，仅对未收敛的段）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-cuda-get_warmup_chunks-kernel"><span class="nav-text"> 8. CUDA get_warmup_chunks Kernel</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8A%A8%E6%9C%BA"><span class="nav-text"> 动机</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84"><span class="nav-text"> 架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%97%E6%B3%95"><span class="nav-text"> 算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD-h20-gpu"><span class="nav-text"> 性能 (H20 GPU)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E6%88%90"><span class="nav-text"> 集成</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-correct_initial_states-%E7%AE%97%E6%B3%95"><span class="nav-text"> 9. correct_initial_states 算法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%97%A0-mt%E7%94%9F%E4%BA%A7%E5%B8%B8%E6%80%81~01ms"><span class="nav-text"> 无 mt（生产常态，~0.1ms）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%89-mtweak-decay%E7%BD%95%E8%A7%81"><span class="nav-text"> 有 mt（weak decay，罕见）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-kernel1-warmup-only-%E4%BC%98%E5%8C%96"><span class="nav-text"> 10. Kernel1 Warmup-Only 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98-2"><span class="nav-text"> 问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3"><span class="nav-text"> 解决</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F"><span class="nav-text"> 11. 使用方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#cp-%E8%87%AA%E5%8A%A8%E7%94%9F%E6%95%88%E6%9D%A1%E4%BB%B6"><span class="nav-text"> CP 自动生效条件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-%E6%96%87%E4%BB%B6%E6%B8%85%E5%8D%95"><span class="nav-text"> 12. 文件清单</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-%E5%85%B3%E9%94%AE%E8%AE%BE%E8%AE%A1%E5%86%B3%E7%AD%96"><span class="nav-text"> 13. 关键设计决策</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 48 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

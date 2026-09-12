@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/07/21/bwd-kernela-beginner-guide-full/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="bwd-kernelA-beginner-guide-full">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/07/21/bwd-kernelA-beginner-guide-full/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-07-21T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-09-12T14:26:40.719Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            bwd-kernelA-beginner-guide-full | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">48</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">bwd-kernelA-beginner-guide-full</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-07-21 23:50</span>
+        <span class="mobile">2026-07-21 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-09-12 22:26:40</span>
+            <span class="mobile">2026-09-12 22:26:40</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="反向-a-kernel-优化全解析小白版从零讲起"><a class="markdownIt-Anchor" href="#反向-a-kernel-优化全解析小白版从零讲起"></a> 反向 A Kernel 优化全解析（小白版，从零讲起）</h1>
+<p>日期：2026-07-21
+GPU：H20-3e（sm_90a，Hopper）。
+本文对象 = <strong>反向传播的 Kernel A</strong>（串行 dstate 反向扫描），当前冠军源码
+<code>csrc/smxx/bwd_a_dstate_scan_s12.cuh</code>（= 优化日志 <code>docs/20260715-bwd-kernelA-optimization-log.md</code>
+里的 s12 = 阶段 11）。姊妹篇是 Kernel B 的 <code>docs/bwd-kernelB-beginner-guide-full.md</code>。</p>
+<p><strong>目标读者</strong>：不懂 cute、swizzle、寄存器、occupancy、bank conflict、coalescing、Tensor Core 的人。
+所有术语从第一性原理讲明白，再讲每一步优化在干什么、为什么有用。</p>
+<p><strong>上游材料</strong>：</p>
+<ul>
+<li><code>docs/20260715-bwd-kernelA-optimization-log.md</code>（Kernel A 从基线到 s12 的全部 11 个阶段）</li>
+<li>Kernel B 的优化史见 <code>docs/20260714/0716/0719-*.md</code>，小白版见 <code>bwd-kernelB-beginner-guide-full.md</code>。</li>
+<li>惯用法源头 <code>csrc/smxx/fwd_kernel2.cuh</code>（前向 K2：Kernel A 的寄存器 MMA / swizzle / STSM 全部照抄它）。</li>
+</ul>
+<blockquote>
+<p>术语扫盲（GPU 硬件层级、三种内存、occupancy、bank conflict、coalescing、向量化访存、cp.async、
+Tensor Core / MMA / cute / swizzle / LDSM、warp shuffle、ncu / roofline / stall reason）在 Kernel B
+小白版 <code>bwd-kernelB-beginner-guide-full.md</code> <strong>第 0 部分</strong>已从零讲透。<strong>本文默认你已读过那一节</strong>，
+只在 Kernel A 特有的地方（<code>MOVM_T</code> 寄存器转置、split-V、INTER vs SW32、4-way bank 地板）重新展开。</p>
+</blockquote>
+<hr>
+<h2 id="第-0-部分kernel-a-是什么在整个反向里处于什么位置"><a class="markdownIt-Anchor" href="#第-0-部分kernel-a-是什么在整个反向里处于什么位置"></a> 第 0 部分：Kernel A 是什么，在整个反向里处于什么位置</h2>
+<h3 id="01-一句话定义"><a class="markdownIt-Anchor" href="#01-一句话定义"></a> 0.1 一句话定义</h3>
+<p>Kernel A = <code>_flash_kda_bwd_dstate_scan</code>（源码 L166-689），grid <code>(N, H[, VSplit])</code>。
+它干一件事：<strong>沿时间反向，把"状态梯度" <code>dS[D,D]</code> 一个 chunk 一个 chunk 地往回传</strong>（D=128，
+一个 chunk=CHUNK=16 个 token）。</p>
+<p>打个比方：前向时状态 <code>S</code> 像滚雪球，从第 0 个 chunk 滚到最后一个，每个 chunk 都在它上面叠一层。
+反向时要算"最终损失对每一层的敏感度"，就得<strong>倒着</strong>把这个雪球拆回去 —— 从最后一个 chunk 的
+<code>dS</code> 出发，一步步推到第 0 个 chunk。这条<strong>倒着推的链</strong>就是 Kernel A 的串行扫描
+（源码主循环 <code>for (int t = t_tiles - 1; t &gt;= 0; --t)</code>，L288）。</p>
+<h3 id="02-为什么它是一块独立的-kernel拆分背景"><a class="markdownIt-Anchor" href="#02-为什么它是一块独立的-kernel拆分背景"></a> 0.2 为什么它是一块独立的 kernel（拆分背景）</h3>
+<p>反向原本有个巨大的融合 kernel <code>_flash_kda_bwd_recurrence</code>，把两件<strong>逻辑上分开</strong>的事塞一起
+（源码注释 L50-67 白纸黑字）：</p>
+<ol>
+<li><strong>串行</strong>部分：反向 scan，把 <code>dS[D,D]</code> 从后往前传（chunk 之间有依赖，天生串行）。</li>
+<li><strong>大规模并行</strong>部分：每个 tile 独立算一堆 per-token 梯度（dv/dbeta/dq/dk/dg…），它们<strong>唯一</strong>的
+跨-chunk 输入就是"进入该 tile 时的 dS"。</li>
+</ol>
+<p>拆分方案：<strong>Kernel A</strong> 只跑串行 scan，并且对每个 tile 把"进入时的 dS"<strong>快照</strong>存进一块 per-tile
+缓冲（fp32，<code>[H*total_tiles, D, D]</code>）；<strong>Kernel B</strong> 再用一个 CTA/tile <strong>完全并行</strong>地读这个快照 +
+前向存的中间量，复现所有 per-token 梯度。<strong>用"多写一趟 dS 快照到显存"换"把并行部分彻底解耦、
+各自打满占用率"。</strong> 本文只讲 Kernel A（串行 scan 那半）。</p>
+<h3 id="03-kernel-a-每个-tile-算什么5-个-gemm-1-个-combine"><a class="markdownIt-Anchor" href="#03-kernel-a-每个-tile-算什么5-个-gemm-1-个-combine"></a> 0.3 Kernel A 每个 tile 算什么：5 个 GEMM + 1 个 combine</h3>
+<p>每个 chunk（tile）里，Kernel A 做 5 个小矩阵乘（GEMM）加一个逐元素"粘合"（源码注释 L81-87）：</p>
+<table>
+<thead>
+<tr>
+<th>GEMM</th>
+<th>公式</th>
+<th>形状（TN，fp32 累加）</th>
+<th>干什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td><code>dU  = Mqk^T @ do</code></td>
+<td>M=C N=Dv K=C</td>
+<td>do 经注意力矩阵回传</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><code>dU += kr    @ dS</code></td>
+<td>M=C N=Dv K=D</td>
+<td><strong>dS 在这里进来</strong>（唯一读入 dS 的 GEMM）</td>
+</tr>
+<tr>
+<td>G3</td>
+<td><code>dvcorr = INV^T @ dU</code></td>
+<td>M=C N=Dv K=C</td>
+<td>解逆矩阵得 v 修正梯度</td>
+</tr>
+<tr>
+<td>G4</td>
+<td><code>T1  = qd^T  @ do</code></td>
+<td>M=D N=Dv K=C</td>
+<td>组装新 dS 的第一项</td>
+</tr>
+<tr>
+<td>G5</td>
+<td><code>T1 -= kd^T  @ (beta·dvcorr)</code></td>
+<td>M=D N=Dv K=C</td>
+<td>组装新 dS 的第二项</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>dS = exp2(gT)·dS + T1</code>（combine，bf16 存回）</td>
+<td>逐元素</td>
+<td><strong>更新 dS，传给上一个 chunk</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>"TN"是什么</strong>：MMA 硬件约定 <code>sC[M,N] = sA[M,K] @ sB[N,K]^T</code> —— A 正着放、B 转置放、沿 K 收缩。
+所以表里每个 GEMM 都要指明 M/N/K 三个维度各是谁。</p>
+<p><strong>combine 是链的关键</strong>（源码 L656-672）：<code>dS_new = exp2(gT)·dS_old + T1</code>。<code>exp2(gT)</code> 是这个 chunk 的
+门控衰减（gate decay），<code>gT</code> 是每个 feature 一个值 → <strong>对角缩放</strong>（每行 k 乘自己的 <code>exp2(gT[k])</code>）。
+算完 <code>dS_new</code> 就是"传给上一个 chunk 的 dS"，写回 smem，下一轮循环（t-1）接着用。</p>
+<h3 id="04-c-轴旋转-为什么需要寄存器内转置-movm_t"><a class="markdownIt-Anchor" href="#04-c-轴旋转-为什么需要寄存器内转置-movm_t"></a> 0.4 c 轴旋转 —— 为什么需要"寄存器内转置 <code>MOVM_T</code>"</h3>
+<p>这是 Kernel A 最"绕"的一点，务必讲清。看 G1/G3：</p>
+<ul>
+<li>G1 产出 <code>dU</code>，形状 <code>[c, v]</code>（M=c，行是 token c，列是状态列 v）。</li>
+<li>G3 要用 <code>dU</code>，但它沿 <strong>c 收缩</strong>（<code>INV^T @ dU</code>，K=c）→ 需要 <code>dU</code> 的<strong>转置</strong> <code>[v, c]</code> 当 B 操作数。</li>
+</ul>
+<p>朴素做法：把 dU 写进 smem，再按转置读回来 —— <strong>一来一回浪费</strong>（smem 往返 + 一个 barrier）。
+硬件有条专门指令 <strong><code>SM75_U32x1_MOVM_T</code></strong>：直接在 <strong>32 个线程的寄存器内部</strong>把一个小矩阵块转置，
+<strong>不碰 smem</strong>。于是（源码 L590-599）：<code>dU 累加器（本就在寄存器）→ cast bf16 → MOVM_T 转置 → 直接当 G3 的 B 操作数</code>。G3→G5 之间的 <code>bdv</code>（=−beta·dvcorr）也用<strong>第二次 MOVM_T</strong>（L624-632）转置留在
+寄存器。这就是注释里反复出现的 <strong>“c 轴旋转 / MOVM_T 寄存器内转置”</strong>，源自前向 K2 的 <code>u_acc</code> 惯用法。</p>
+<blockquote>
+<p><strong><code>MOVM_T</code> 到底是什么（小白版）</strong>：<code>ldmatrix</code>/<code>stmatrix</code> 那一族里，有个变体能把一个 warp 寄存器里
+持有的 8×8 bf16 小块"就地转置"—— 输入是"每线程持有矩阵的某几个元素"的 fragment 布局，输出是
+转置后的 fragment 布局，<strong>全程在寄存器</strong>。省掉"写 smem→同步→按转置读回"整套动作。</p>
+</blockquote>
+<h3 id="05-kernel-a-的基线诊断为什么值得优化"><a class="markdownIt-Anchor" href="#05-kernel-a-的基线诊断为什么值得优化"></a> 0.5 Kernel A 的基线诊断（为什么值得优化）</h3>
+<p>基线 per-launch µs（<code>bench_kernelA.py</code>，3 个配置，日志 §0）：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>基线</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>107252</td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>122213</td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>90464</td>
+</tr>
+</tbody>
+</table>
+<p>基线 ncu（日志 §0）：</p>
+<ul>
+<li>理论占用率 <strong>12.5%</strong>，被 <strong>shared memory 卡死 → 1 block/SM</strong>。</li>
+<li>动态 smem/block = <strong>124.48 KB</strong>（放 2 块要 249 &gt; 227KB 上限，放不下）。</li>
+<li><strong>延迟受限</strong>：每 tile 串行 5 个 cooperative_gemm + ~8 个 <code>__syncthreads</code>，warp 太少
+（Active Warps/Sched 2.01）掩盖不了 barrier/GEMM 延迟。</li>
+<li>首要 stall = <strong>MIO throttle 31.4%</strong>；DRAM 仅 ~4%（<strong>非</strong>带宽受限）。</li>
+<li>标注的最大杠杆：把 smem 砍到 ~113KB 以下放下 <strong>2 block/SM</strong>。“大象” = <code>T1_smem</code>
+（D×Dv fp32，VSplit=1 时 64KB）。</li>
+</ul>
+<p><strong>端到端占比</strong>：Kernel A ≈ <strong>总 bwd 时间的 30%</strong>（日志 §4 明确纠正了早先"1-2%"的错估）。所以把它
+砍 50%+ ≈ 端到端 −15%，值得追。</p>
+<hr>
+<h2 id="第-1-部分第一场硬仗-消灭-t1_smem占用率-12550阶段-1-2"><a class="markdownIt-Anchor" href="#第-1-部分第一场硬仗-消灭-t1_smem占用率-12550阶段-1-2"></a> 第 1 部分：第一场硬仗 —— 消灭 <code>T1_smem</code>，占用率 12.5%→50%（阶段 1-2）</h2>
+<p>整个 Kernel A 优化史分<strong>两大战役</strong>：先靠"寄存器融合"打赢<strong>占用率</strong>（阶段 1-2，本部分），再靠
+"swizzle/padding"打赢 <strong>bank conflict</strong>（阶段 3-11，第 2 部分）。这个顺序不是随意的 —— 先修占用率
+（让 SM 上住满 warp），bank conflict 才会浮出水面成为新瓶颈；反过来先修 conflict，会被低占用率
+的延迟盖住看不出收益。</p>
+<h3 id="11-病根fp32-中间缓冲吃光了-smem"><a class="markdownIt-Anchor" href="#11-病根fp32-中间缓冲吃光了-smem"></a> 1.1 病根：fp32 中间缓冲吃光了 smem</h3>
+<p>基线的 5 个 GEMM 是"cooperative_gemm"（cute 提供的、整个 block 协作的 GEMM）。它们把中间结果
+<code>dU</code>、<code>dvcorr</code>、<code>T1</code> 全都写进 <strong>fp32 的 smem 缓冲</strong>再读回来。其中最大的一块是
+<strong><code>T1_smem</code>（D×Dv fp32 = VSplit=1 时 128×128×4 = 64KB）</strong>—— 日志称之为**“大象”**。
+124.48KB 的 smem 里，光这头大象就占一半，直接把"能不能塞下第 2 个 block"给否了。</p>
+<h3 id="12-先讲透两件事大象是怎么来的-又是怎么被干掉的零-cute-术语版"><a class="markdownIt-Anchor" href="#12-先讲透两件事大象是怎么来的-又是怎么被干掉的零-cute-术语版"></a> 1.2 先讲透两件事：大象是怎么来的、又是怎么被干掉的（零 cute 术语版）</h3>
+<p>小白最容易卡在这两句话：<strong>“干掉大象 T1_smem”</strong> 和 <strong>“每个 warp 无内部同步、无跨 warp 共享”</strong>。
+下面用完全不带 cute 的大白话，从"一群人砌墙"的比喻讲清楚。</p>
+<h4 id="a-一个矩阵乘有两种分工方式"><a class="markdownIt-Anchor" href="#a-一个矩阵乘有两种分工方式"></a> (a) 一个矩阵乘有两种分工方式</h4>
+<p>Kernel A 每个 tile 要算 5 个矩阵乘。<strong>一个矩阵乘 = 算一块输出矩阵 C = A×B。</strong> 一个 block 有
+256 个线程（8 个 warp，每 warp 32 线程）。这 256 人算一块 C，有两种分工：</p>
+<ul>
+<li>
+<p><strong>方式一：全员合砌一面墙（旧代码，“cooperative_gemm”）。</strong>
+256 个人一起砌<strong>同一面大墙</strong>（同一块输出 C）。既然大家都往同一面墙上贴砖，这面墙就必须放在
+<strong>所有人都够得着的公共场地</strong> = <strong>shared memory（smem）</strong>。T1 这块输出是 <code>[128, 128]</code> 的 fp32
+矩阵 = 128×128×4 字节 = <strong>64KB</strong>。这 64KB 就是那头<strong>大象 <code>T1_smem</code></strong> —— 它之所以在 smem，
+纯粹是因为"全员合砌一面墙，墙必须放公共场地"。</p>
+</li>
+<li>
+<p><strong>方式二：把墙切成 8 段，一人一段（新代码，“每 warp 一个 MMA”）。</strong>
+把这面 128 列宽的大墙，按列切成 <strong>8 段、每段 16 列</strong>，8 个 warp 一人包一段：</p>
+<p>warp0 只砌第 0–15 列，warp1 只砌第 16–31 列……<strong>各砌各的、互不重叠。</strong> 既然每个 warp 只砌自己
+那一小段（16 列 × 128 行的一条），这一小段的中间结果小到<strong>能全部塞进这 32 个线程自己的口袋
+（寄存器）里</strong>，根本不用放到公共场地 smem。→ <strong>大象没了。</strong></p>
+<p><strong>【图 1】旧"全员合砌一面墙" vs 新"一人一段"</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">┌─────────── 旧代码 (cooperative_gemm) ───────────┐</span><br><span class="line">│                                                  │</span><br><span class="line">│   256 个线程  ──全都往同一面墙贴砖──▶            │</span><br><span class="line">│                                                  │</span><br><span class="line">│        ┌────────────────────────────┐            │</span><br><span class="line">│        │      T1_smem  [128 × 128]   │            │</span><br><span class="line">│        │        fp32 = 64KB          │ ◀── 🐘 大象│</span><br><span class="line">│        │   （必须放公共场地 smem，    │    住在 smem│</span><br><span class="line">│        │     因为 256 人共写一块）    │            │</span><br><span class="line">│        └────────────────────────────┘            │</span><br><span class="line">└──────────────────────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">┌─────────── 新代码 (每 warp 一个 MMA) ────────────┐</span><br><span class="line">│  T1 / dS  (128 行 k  ×  128 列 v) 按列切 8 段:    │</span><br><span class="line">│                                                  │</span><br><span class="line">│   列: 0–15 |16–31|32–47|48–63|...|96–111|112–127 │</span><br><span class="line">│       ┌────┬────┬────┬────┬───┬─────┬──────┐     │</span><br><span class="line">│  行   │ w0 │ w1 │ w2 │ w3 │...│ w6  │  w7  │     │</span><br><span class="line">│  k    │ 寄 │ 寄 │ 寄 │ 寄 │   │ 寄  │  寄  │     │</span><br><span class="line">│ 0–127 │ 存 │ 存 │ 存 │ 存 │...│ 存  │  存  │     │</span><br><span class="line">│       │ 器 │ 器 │ 器 │ 器 │   │ 器  │  器  │     │</span><br><span class="line">│       └────┴────┴────┴────┴───┴─────┴──────┘     │</span><br><span class="line">│   每 warp 只管自己 16 列 → 塞进自己寄存器 →       │</span><br><span class="line">│   smem 里一头大象都没有 ✔                         │</span><br><span class="line">└──────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+</li>
+</ul>
+<h4 id="b-为什么寄存器就等于省-smem-升占用率"><a class="markdownIt-Anchor" href="#b-为什么寄存器就等于省-smem-升占用率"></a> (b) 为什么"寄存器"就等于"省 smem、升占用率"</h4>
+<ul>
+<li>
+<p><strong>smem 是每个 SM 一池固定的公共场地（~228KB），住在这个 SM 上的所有 block 共用。</strong> 一个 block 占的
+smem 越大，这个 SM 能同时住的 block 就越少 → 活跃 warp 越少 → 一个 warp 卡住时没别人顶上 → SM 空转。</p>
+</li>
+<li>
+<p><strong>寄存器是每个线程自己的口袋</strong>，不占 smem 那池公共场地。只要口袋没爆（本例 64 寄存器/线程，0 spill），
+把中间结果放寄存器就<strong>等于凭空省下那 64KB smem</strong>。</p>
+</li>
+<li>
+<p>账一算：smem/block 从 <strong>124KB 掉到 50KB</strong> → 一个 SM 能住的 block 从 <strong>1 个变 4 个</strong>（<code>228÷50≈4</code>）→
+活跃 warp ×4 → 占用率 <strong>12.5%→50%</strong>。这就是 −37% 的来源:<strong>不是算得更快,是 SM 不空转了。</strong></p>
+<p><strong>【图 3】一个 SM 的 smem 池（~228KB）能住几个 block</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">旧: 每 block 吃 124KB                新: 每 block 吃 50KB</span><br><span class="line">┌──────── SM smem 池 228KB ────┐    ┌──────── SM smem 池 228KB ────┐</span><br><span class="line">│ ┌──────────────────────────┐ │    │ ┌────────┐ ┌────────┐        │</span><br><span class="line">│ │  block #1   124KB        │ │    │ │block#1 │ │block#2 │        │</span><br><span class="line">│ │                          │ │    │ │  50KB  │ │  50KB  │        │</span><br><span class="line">│ └──────────────────────────┘ │    │ └────────┘ └────────┘        │</span><br><span class="line">│  ……剩 104KB 塞不下第 2 个……  │    │ ┌────────┐ ┌────────┐        │</span><br><span class="line">│        （浪费）               │    │ │block#3 │ │block#4 │        │</span><br><span class="line">│                              │    │ │  50KB  │ │  50KB  │        │</span><br><span class="line">└──────────────────────────────┘    │ └────────┘ └────────┘        │</span><br><span class="line">   1 block/SM  占用率 12.5%          └──────────────────────────────┘</span><br><span class="line">   ↑ 这 1 个 block 的 warp 一卡          4 block/SM  占用率 50%</span><br><span class="line">     住,整个 SM 就空转                   ↑ 一个 block 卡住,还有 3 个</span><br><span class="line">                                          block 的 warp 顶上,SM 不空转</span><br></pre></td></tr></table></figure></div>
+</li>
+</ul>
+<h4 id="为什么切成-8-段顺便消掉了几乎所有-__syncthreads"><a class="markdownIt-Anchor" href="#为什么切成-8-段顺便消掉了几乎所有-__syncthreads"></a> © 为什么"切成 8 段"顺便消掉了几乎所有 <code>__syncthreads</code></h4>
+<p>先说 <strong><code>__syncthreads</code> 是什么</strong>：它是一道"<strong>全体 256 线程都到齐才能继续</strong>"的栅栏。什么时候必须用它?
+<strong>当线程 A 往 smem 写了个东西、线程 B 要读它时</strong> —— B 必须等 A 写完,否则读到旧值。栅栏很贵:
+快的线程要干等慢的线程到齐。</p>
+<ul>
+<li>
+<p><strong>旧代码(全员合砌一面墙)为什么栅栏多</strong>:5 个矩阵乘是<strong>接力</strong>的(G1 的产出 dU 喂给 G2,G2 喂 G3……)。
+每次接力都要经过公共场地 smem:<strong>G1 全员把 dU 写进 smem → 一道栅栏(等所有人写完)→ G2 全员从 smem
+读 dU</strong>。每一次"经 smem 交接"就是一道栅栏,一条链下来 ~8 道。</p>
+</li>
+<li>
+<p><strong>新代码(一人一段)为什么不用栅栏</strong>:warp0 从头到尾(G1→G2→G3→G4→G5→combine)<strong>只在自己那 16 列上
+折腾,全程在自己口袋(寄存器)里接力</strong>。它读的旧 dS 是<strong>自己那 16 列</strong>、写的新 dS 也是<strong>自己那 16 列</strong>,
+<strong>从不去读 warp1、warp2 产出的任何东西</strong>。既然 warp 之间没有"你写我读"的交接,自然<strong>谁也不用等谁</strong>
+→ 中间<strong>一道栅栏都不需要</strong>。这就是"<strong>无跨 warp 共享 → 无内部 <code>__syncthreads</code></strong>"。</p>
+</li>
+</ul>
+<h4 id="c-2-关键为什么偏偏能按列切被切的那根轴不能被求和"><a class="markdownIt-Anchor" href="#c-2-关键为什么偏偏能按列切被切的那根轴不能被求和"></a> (c-2) 关键:为什么偏偏能"按列切"?——被切的那根轴不能被求和</h4>
+<p>有人会问:那我按<strong>行</strong>切成 8 段行不行?<strong>不行。</strong> 但准确的原因<strong>不是"列可以、行不可以"这条通用规律</strong>,
+而是<strong>这条特定的链里,v 列轴从头到尾都没被"求和"掉,而 k 行轴在 G2 被求和掉了</strong>。先分清两种轴:</p>
+<ul>
+<li><strong>自由轴(free)</strong>:直接落到输出上、不参与求和。比如 <code>C[c,v] = A[c,k] @ B[k,v]</code> 里的 <code>c</code> 和 <code>v</code>。</li>
+<li><strong>收缩轴(contract)</strong>:被 <code>Σ</code> 求和掉、不出现在输出里。上面的 <code>k</code>。</li>
+</ul>
+<p><strong>规律:切一根自由轴 → 各段天然独立、最后拼接即可;切一根收缩轴 → 每段都要读别人的数据来求和 →
+必须跨 warp 共享 + 栅栏。</strong> dS/T1 的形状是 <code>[D_k 行, D_v 列]</code>,我们切的是 <strong>v 列</strong>。逐 GEMM 看两根轴的角色:</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>运算</th>
+<th>v 轴(列)</th>
+<th>k 轴(行)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td><code>dU = Mqk^T @ do</code></td>
+<td><strong>自由</strong>(do 的 v 直落)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><code>dU += kr @ dS</code></td>
+<td><strong>自由</strong></td>
+<td><strong>收缩</strong>(dS 的 k 被 Σ 掉)</td>
+</tr>
+<tr>
+<td>G3</td>
+<td><code>dvcorr = INV^T @ dU</code></td>
+<td><strong>自由</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>G4</td>
+<td><code>T1 = qd^T @ do</code></td>
+<td><strong>自由</strong></td>
+<td>自由(输出行)</td>
+</tr>
+<tr>
+<td>G5</td>
+<td><code>T1 -= kd^T @ bdv</code></td>
+<td><strong>自由</strong></td>
+<td>自由(输出行)</td>
+</tr>
+<tr>
+<td>combine</td>
+<td><code>dS = exp2(gT)·dS + T1</code></td>
+<td><strong>自由</strong>(逐元素)</td>
+<td>自由(逐元素)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>看最右那列 v:从 G1 到 combine 全是"自由",一次都没被求和。</strong> 所以 warp0 只要拿 do、dS、bdv 的
+第 0–15 <strong>列</strong>,就能独立算出输出的第 0–15 列,谁也不用问 → 列切成立、最后拼接。而 k 行轴在 <strong>G2 被整根
+求和</strong>(<code>dU[c,v] = Σ_k kr[c,k]·dS[k,v]</code>):若按行切,warp0 只有 dS 的 0–15 行,算 G2 却要 dS <strong>全 128 行</strong>
+求和 → 必须去读别的 warp 的行 → 跨 warp 共享 + 落 smem + 加栅栏,独立性就没了。</p>
+<p><strong>【图 4】按列切(v,成立) vs 按行切(k,G2 就崩)</strong></p>
+  <div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">┌──────── 按列切 v (新代码,成立) ────────┐</span><br><span class="line">│  warp0 只拿各张量的第 0–15 "列":         │</span><br><span class="line">│                                          │</span><br><span class="line">│   do[:,0:16]  dS[:,0:16]  bdv[:,0:16]    │</span><br><span class="line">│       │           │           │          │</span><br><span class="line">│       ▼           ▼           ▼          │</span><br><span class="line">│  G1→G2→G3→G4→G5→combine  全在 warp0 寄存器│</span><br><span class="line">│       │                                  │</span><br><span class="line">│       ▼  输出 dS[:,0:16]  ← 自成一体      │</span><br><span class="line">│  (G2 的 Σ_k 在"行"方向做,warp0 手里的     │</span><br><span class="line">│   每一列都是完整 128 行 → 求和自给自足 ✔) │</span><br><span class="line">└──────────────────────────────────────────┘</span><br><span class="line"></span><br><span class="line">┌──────── 按行切 k (假想,G2 崩) ──────────┐</span><br><span class="line">│  warp0 只拿 dS 的第 0–15 "行":            │</span><br><span class="line">│                                          │</span><br><span class="line">│   dS[0:16, :]   ← 只有 16 行              │</span><br><span class="line">│       │                                  │</span><br><span class="line">│       ▼  G2: dU[c,v] = Σ_k kr[c,k]·dS[k,v]│</span><br><span class="line">│             需要 dS 的全部 128 行!        │</span><br><span class="line">│       │                                  │</span><br><span class="line">│   → warp0 手里只有 0–15 行,             │</span><br><span class="line">│       缺 16–127 行 → 必须去读             │</span><br><span class="line">│       warp1..warp7 的行                   │</span><br><span class="line">│       ▼                                  │</span><br><span class="line">│   → 跨 warp 共享 → 落 smem → 加栅栏 ✗     │</span><br><span class="line">└──────────────────────────────────────────┘</span><br></pre></td></tr></table></figure></div>
+<blockquote>
+<p>一句话:<strong>是"被切的轴在链里是否被收缩"决定的,不是"列/行"这个名字。</strong> 若链里哪一步出现了 <code>Σ_v</code>
+(对 v 求和),那即使按列切也照样要跨 warp 归约。本链恰好 v 全程自由、k 在 G2 收缩 → 只能沿 v(列)切。</p>
+</blockquote>
+<p><strong>【图 5】整条链每个矩阵在哪里(smem 全宽共享 / warp 寄存器切分)</strong></p>
+<p><strong>先说清三根轴是什么</strong>(否则 c/k/v 光看字母看不懂)——这是一个 chunk 内的反向计算,涉及三根轴:</p>
+  <div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">c  = chunk 内的 token 数 = CHUNK = 16。一个 chunk 里有 16 个时间步(token),c 就数这 16 个。</span><br><span class="line">k  = D_k = 状态矩阵的"行"维 = 128。可理解为 key/query 的特征维(dS 的第一维)。</span><br><span class="line">v  = D_v = 状态矩阵的"列"维 = 128。可理解为 value 的特征维(dS 的第二维)。</span><br><span class="line">─────────────────────────────────────────────────────────────────────────</span><br><span class="line">状态 dS 的形状 = [k=128 行, v=128 列]。★ 我们沿 v(列) 切成 8 段,每段 16 列。</span><br><span class="line">"收缩轴" = 那根被 Σ 求和掉、不出现在输出里的轴:</span><br><span class="line">    · 收缩 c = 把 chunk 内 16 个 token 加起来(时间方向求和)。</span><br><span class="line">    · 收缩 k = 把状态的 128 个 k-行加起来(G2 就是它: dU=Σ_k kr·dS)。</span><br><span class="line">关键: 我们切的 v 从来不是收缩轴 → 切了不影响任何求和 → 每段独立。</span><br></pre></td></tr></table></figure></div>
+<p>再约定三种"位置标签"(看懂链路的关键):</p>
+  <div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">【S 】smem·全宽·共享 : 存在 shared memory, 宽度满 128, 8 个 warp 共读同一份, 不切分。</span><br><span class="line">                      —— 都是 MMA 的"左操作数 A"(不带 v 轴): Mqk / INV / kr / qd / kd,</span><br><span class="line">                         外加标量表 beta / gT。R1 阶段一次性建好, 全 warp 复用。</span><br><span class="line">【S→R】smem·但按列切 : 本体在 smem, 但每个 warp 只用 LDSM 读走自己那 16 列切片进寄存器。</span><br><span class="line">                      —— do(输入) 和 dS(状态): 带 v 轴, warp_w 只碰 [:,16w:16w+16]。</span><br><span class="line">【 R 】纯 warp 寄存器 : 从不落 smem, 每个 warp 独占自己 16 宽的那份, 全程在寄存器接力。</span><br><span class="line">                      —— 中间量 dU / dvcorr / bdv / T1(累加器)。这些就是被消灭的"大象"。</span><br></pre></td></tr></table></figure></div>
+<p>贴着标签走一遍整条链(warp_w 视角, S = 它的列区间 [16w,16w+16), c=16, D_k=D_v=128):</p>
+  <div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">步骤   输出              =       A(左, 全在 smem)   @   B(带 v, 按列切)   收缩轴(被Σ的轴)</span><br><span class="line">───────────────────────────────────────────────────────────────────────────────</span><br><span class="line">G1  【R】dU[:,S] 16×16   =  【S 】Mqk^T[16,16]    @ 【S→R】do[:,S] 16×16    c(16个token)</span><br><span class="line">G2  【R】dU[:,S] 16×16  +=  【S 】kr   [16,128k]  @ 【S→R】dS[:,S] 128k×16   k(128个k行)←关键</span><br><span class="line">G3  【R】dvc[:,S] 16×16  =  【S 】INV^T[16,16]    @ 【R  】dU[:,S] 16×16     c(16个token)</span><br><span class="line">    【R】bdv[:,S] = beta⊙dvc          (beta 从【S】读标量, 逐元素, 无收缩)</span><br><span class="line">G4  【R】T1[:,S] 128k×16 =  【S 】qd^T [128k,16]  @ 【S→R】do[:,S] 16×16     c(16个token)</span><br><span class="line">G5  【R】T1[:,S] 128k×16 = -【S 】kd^T [128k,16]  @ 【R  】bdv[:,S] 16×16     c(16个token)</span><br><span class="line">    【S→R】dS[:,S] = exp2(gT)⊙dS[:,S] + 【R】T1[:,S]   (LDSM 读旧 dS, STSM 写回)</span><br><span class="line">───────────────────────────────────────────────────────────────────────────────</span><br><span class="line">读法: 左操作数 A 永远是【S】全宽共享(不带 v); 带 v 的 do/dS 是【S→R】各取各的 16 列;</span><br><span class="line">      真正的中间结果 dU/dvc/bdv/T1 是【R】纯寄存器 → 这就是"大象没了"。</span><br><span class="line">      收缩轴那列全是 c 或 k, 从来没有 v → 切 v 不碰任何求和。特别看 G2: 收缩轴是 k,</span><br><span class="line">      而 dS 的 k 轴(纵向 128)完整落在 warp 自己的 16 列条里 → 自给自足。</span><br></pre></td></tr></table></figure></div>
+<p><strong>【图 6】决定性的 G2:<code>dU = kr @ dS</code>(收缩 k)——标注每块在哪</strong></p>
+  <div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">● 按列切 v(新代码, 成立): 切的是"自由轴"v</span><br><span class="line">      A = kr  【S】smem全宽        B = dS 【S→R】按v列切       dU 【R】寄存器·按v列切</span><br><span class="line">    ┌──────────────┐            ┌───┬───┬─────┬───┐         ┌───┬───┬─────┬───┐</span><br><span class="line"> 16c│ 全 warp 共读  │     @      │w0 │w1 │ ... │w7 │ 128k  = │w0 │w1 │ ... │w7 │ 16c</span><br><span class="line">    │ (不切分)      │            │↕满│↕满│     │↕满│         │各自│各自│     │各自│</span><br><span class="line">    └──────────────┘            │128│128│     │128│         └───┴───┴─────┴───┘</span><br><span class="line">                                └───┴───┴─────┴───┘         每 warp 在自己寄存器里</span><br><span class="line">    收缩轴 k(纵向)完整躺在每个 warp 的 16 列条内 → 每 warp 独立算完 Σ_k → 零跨 warp ✔</span><br><span class="line"></span><br><span class="line">● 按行切 k(假想, 崩): 切的正好是"收缩轴"k</span><br><span class="line">      A = kr 【?】k 被切散         B = dS 若按 k 横切           dU 需要完整 k 求和</span><br><span class="line">    ┌───┬───┬─────┬───┐          ┌──────────────┐          ┌──────────────┐</span><br><span class="line"> 16c│w0 │w1 │ ... │w7 │    @      │w0: dS 行 0-15 │ 128k   = │  每 warp 只得到 │ 16c</span><br><span class="line">    └───┴───┴─────┴───┘          ├──────────────┤          │  一个"部分和"   │</span><br><span class="line">     kr 的 k 也得跟着切散          │w1: dS 行16-31 │          │  (少了别人的行) │</span><br><span class="line">                                 ├──────────────┤          └──────────────┘</span><br><span class="line">                                 │     ...       │          → 8 个 warp 的部分和</span><br><span class="line">                                 ├──────────────┤            必须再相加才是真值</span><br><span class="line">                                 │w7: dS行112-127│          → 跨 warp 归约 + 栅栏 ✗</span><br><span class="line">                                 └──────────────┘</span><br><span class="line">    收缩轴 k 被横切到 8 个 warp, 谁都只有 dS 的 1/8 行 → 无法独立完成 Σ_k, 必须互相要数据。</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>
+<p><strong>那结尾那一道栅栏(源码 L676)干嘛的</strong>:8 个 warp 各砌完自己那段后,<strong>下一个 tile 开头的"快照"步骤
+(源码 L377-393)会把整块 dS(全 128 列)一次性读出来存到显存</strong> —— 这一步是 256 线程不分 warp 地扫全表,
+会读到"别的 warp 刚写的列"。所以必须在这里<strong>同步一次</strong>,保证 8 个 warp 的写全部落地、对所有人可见,
+下一个 tile 才能安全地读整块 dS。<strong>整条链只剩这一道结尾栅栏。</strong></p>
+<p><strong>【图 2】旧代码 ~8 道栅栏 vs 新代码 1 道</strong></p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">旧 (全员合砌,接力都过 smem):        新 (一人一段,全程在寄存器):</span><br><span class="line">────────────────────────────       ────────────────────────────</span><br><span class="line">G1 全员写 dU→smem                   warp0: G1→G2→G3→G4→G5→combine  ┐</span><br><span class="line">   ══ 栅栏1(等所有人写完)══             (只碰自己那 16 列,全在寄存器) │ 8 个 warp</span><br><span class="line">G2 全员读 dU / 写 dvcorr            warp1: G1→G2→G3→G4→G5→combine  │ 并行跑,</span><br><span class="line">   ══ 栅栏2 ══                         (只碰自己那 16 列)          │ 互不读写</span><br><span class="line">G3 ...                              ...                            │ 对方 →</span><br><span class="line">   ══ 栅栏3 ══                      warp7: G1→G2→G3→G4→G5→combine  ┘ 零栅栏</span><br><span class="line">G4 ...</span><br><span class="line">   ══ 栅栏4 ══                      ─────────────────────────────</span><br><span class="line">G5 ...                              ══ 唯一栅栏(L676) ══</span><br><span class="line">   ══ ... 一条链 ~8 道 ══             ↑ 发布整块 dS,给下一 tile</span><br><span class="line">combine ...                            的"快照"(扫全 128 列)读</span><br></pre></td></tr></table></figure></div>
+</li>
+</ul>
+<blockquote>
+<p><strong>一句话</strong>:大象 = “全员合砌一面墙,墙必须放 smem 公共场地”。把墙<strong>按列切成 8 段一人一段</strong>,同时办成
+三件事 ——(1)每段小到能塞进寄存器 → 大象没了、省 64KB、占用率翻 4 倍;(2)warp 之间不共享数据 →
+中间零栅栏;(3)结尾只留一道栅栏发布整块 dS 给下一 tile。</p>
+</blockquote>
+<h3 id="13-具体怎么搬照抄前向-k2-的惯用法"><a class="markdownIt-Anchor" href="#13-具体怎么搬照抄前向-k2-的惯用法"></a> 1.3 具体怎么搬(照抄前向 K2 的惯用法)</h3>
+<p>关键洞察（日志 §0 策略）：<strong>前向 K2 根本没有 D×D 的 fp32 累加器</strong> —— 它的状态更新全程是
+“寄存器 MMA + STSM 写 swizzled bf16 smem”。把这套惯用法搬到 Kernel A，就能把 dU/dvcorr/bdv/T1
+<strong>全部留在寄存器</strong>，fp32 中间缓冲一个不剩。</p>
+<p><strong>阶段 1（日志 §1）</strong>：先把 <strong>C×Dv 链</strong>（G1→G2→dU→G3→dvcorr→bdv）搬进寄存器。做法：</p>
+<ul>
+<li>用<strong>单 warp MMA 惯用法</strong>（<code>MMA_Atom&lt;SM80_16x8x16_F32BF16BF16F32_TN&gt;</code> + <code>Tile&lt;16,16,16&gt;</code>），
+每个 warp 拥有一个 16 宽的 v-block <code>vb = warp_id</code>（源码 L516-520 现在的形态）。</li>
+<li><code>dU</code> 在寄存器累加（G1 <code>Mqk^T@do</code>，再 G2 循环 <code>kr@dS</code>），cast bf16，<code>MOVM_T</code> 转置成 B 操作数，
+G3 <code>INV^T@dU</code> 在寄存器，<code>beta·dvcorr</code> 也在寄存器算完。</li>
+<li><strong>消除</strong>：<code>dU_smem</code>/<code>dvcorr_smem</code>（fp32）、<code>dU_bf</code> 暂存循环、3 个 <code>__syncthreads</code>。</li>
+<li>本阶段 G4/G5 <strong>仍用 cooperative_gemm</strong>（大象 T1 留到阶段 2 处理）。</li>
+<li><strong>结果</strong>：−6.7% / −6.9% / −11.9%。gradcheck L0 PASS，cos 0.99993，0 spill。</li>
+</ul>
+<p><strong>阶段 2（日志 §2，大赢）</strong>：把寄存器链延伸到 <strong>D×Dv 链</strong>（G4/G5/combine），干掉大象。看现在的源码
+L634-673 —— 每个 m-block 里：</p>
+<ul>
+<li>G4 <code>T1 = qd^T @ do</code>、G5 <code>T1 -= kd^T @ bdv</code> 都是<strong>寄存器 MMA</strong>（<code>T1_acc</code> 是 MMA 累加器，在寄存器）。</li>
+<li>combine <code>dS = exp2(gT)·dS_old + T1</code> <strong>在寄存器完成</strong>：LDSM 读旧 dS 入 fragment（L658），与寄存器
+<code>T1_acc</code> 融合（L661-669，<code>gk0/gk1</code> 是 <code>gT</code> 按 M-row 分的对角缩放），STSM 写回（L672）。<strong>T1 全程不落 smem。</strong></li>
+<li>G5 的减号靠<strong>预取负 beta</strong> 实现：<code>b = -beta</code>（源码 L614-615 <code>-beta_smem[...]</code>），让寄存器
+<code>gemm</code>（<code>C += A@B</code>）自然得到 <code>T1 = qd@do − kd@(beta·dvcorr)</code>。</li>
+</ul>
+<p><strong>为什么每个 warp 能无内部同步地跑完整条链</strong>：见上面 §1.2© 的"一人一段"解释 —— 每个 warp 独占
+它那 16 宽的 <code>v</code> 列，G2 只读 <code>dS[vb,·]</code>、combine 只写 <code>dS[vb,·]</code>，warp 之间不共享数据 → 中间零
+<code>__syncthreads</code>，只在循环末尾一道 barrier（源码 L676）把整块 dS 发布给下一个 tile。</p>
+<ul>
+<li><strong>消除的 smem</strong>：<code>dU_smem</code>/<code>dvcorr_smem</code>/<code>T1_smem</code>（fp32）+ <code>dU_bf</code>/<code>bdv_bf</code>（bf16），全没了。</li>
+<li><strong>新 smem</strong> = <code>dS[D·Dv]</code> bf16 + <code>(D+CHUNK+…)</code> fp32 + 几块 bf16 MMA 操作数。启动器
+<code>KDA_LAUNCH_K2A</code> 的 <code>smem_</code> 公式相应删掉 fp32 里的 <code>CHUNK·Dv + D·Dv</code> 两项。</li>
+</ul>
+<h3 id="14-阶段-2-的战果占用率翻两番"><a class="markdownIt-Anchor" href="#14-阶段-2-的战果占用率翻两番"></a> 1.4 阶段 2 的战果：占用率翻两番</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>基线</th>
+<th>阶段 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>动态 smem/block</td>
+<td>124.48 KB</td>
+<td><strong>50.75 KB</strong></td>
+</tr>
+<tr>
+<td>Block Limit Shared Mem</td>
+<td>1</td>
+<td><strong>4</strong></td>
+</tr>
+<tr>
+<td>理论占用率</td>
+<td>12.5%</td>
+<td><strong>50%</strong></td>
+</tr>
+<tr>
+<td>实测占用率</td>
+<td>~16%</td>
+<td><strong>32.3%</strong></td>
+</tr>
+<tr>
+<td>Active Warps/Sched</td>
+<td>2.01</td>
+<td><strong>5.17</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>结果</strong>：<strong>66301 / 76413 / 57098</strong> = 相对基线 <strong>−38% / −37.5% / −37%</strong>，三配置<strong>统一</strong>下降（不只 B1），
+与占用率跃升吻合。gradcheck L0 PASS，cos 0.99993。<strong>所有 VSplit 变体 64 regs、0 spill</strong>。</p>
+<p><strong>但瓶颈转移了</strong>：首要 stall 仍是 MIO throttle（现 16.3 cyc = 51%），<strong>L1/TEX 吞吐 96.69%</strong> 钉死。
+瓶颈<strong>从"占用率受限"转成"shared-memory-pipe 受限"</strong> —— 也就是 bank conflict 登场，引出第 2 部分。</p>
+<blockquote>
+<p><strong>小白记住</strong>：阶段 1-2 的招 = <strong>“把 fp32 中间缓冲从 smem 挪进寄存器”</strong>。收益不是来自算得更快，
+而是<strong>腾出 smem → 一个 SM 从住 1 个 block 变住 4 个 → 延迟被藏住</strong>。这是典型的"占用率优化"。
+前提是这些中间量本来就只在 warp 内用、不跨 warp 共享，才能安全地纯寄存器化。</p>
+</blockquote>
+<hr>
+<h2 id="第-2-部分第二场硬仗-swizzle-消灭-bank-conflict阶段-3a-3d"><a class="markdownIt-Anchor" href="#第-2-部分第二场硬仗-swizzle-消灭-bank-conflict阶段-3a-3d"></a> 第 2 部分：第二场硬仗 —— swizzle 消灭 bank conflict（阶段 3a-3d）</h2>
+<p>占用率修好后，L1/TEX 吞吐钉在 96.69% = <strong>smem 访存管线打满</strong>。病根是 <strong>bank conflict</strong>：MMA 要按
+"fragment 布局"从 smem 读小矩阵块，但 smem 若朴素行主序摆放，这种读法会撞 bank，硬件排队。
+本部分的主线：<strong>用 swizzle 布局让每个操作数的 <code>ldmatrix</code> 读无冲突</strong>。</p>
+<h3 id="21-先失败一次普通布局的-ldsm阶段-3a"><a class="markdownIt-Anchor" href="#21-先失败一次普通布局的-ldsm阶段-3a"></a> 2.1 先失败一次：普通布局的 LDSM（阶段 3a）</h3>
+<p>阶段 2 的 ncu 假设：转置视图上的通用标量 <code>copy</code> 无法向量化 → 每个 16×16 tile 约 8 次窄 LDS →
+MIO throttle。ncu 直接建议用 <code>ldmatrix</code>（更少更宽的载入）。于是阶段 3a 把<strong>全部 6 个操作数载入</strong>
+换成 <code>ldmatrix</code> tiled-copy（源码现在 L539-552 那套 <code>make_tiled_copy_A/B/C</code> 机器）。</p>
+<p><strong>证明了一件事</strong>：<code>LDSM_T</code> 在<strong>普通、非 swizzled 的 MN-major</strong> 视图上就能用，gradcheck bit 一致 ——
+<strong>正确性不需要 swizzle</strong>。但<strong>结果只有 −1.5% / −1.2% / −2.6%</strong>，不理想。</p>
+<p>ncu 揭示原因（日志 §3）：<code>Warp Cycles/Issued</code> 从 32 涨到 <strong>46</strong>（更差！），两个首要 stall
+<code>Short Scoreboard 40.3% + MIO Throttle 32.1% = 72%</code> 全是 smem-pipe。<strong>结论：kernel 不是受指令
+<em>数量</em>限制，而是 shared-memory <em>bank conflict</em> 受限。</strong> 普通布局的 <code>ldmatrix</code> 砍了指令数，但 bank
+冲突（例如 <code>sQd</code> 各行相隔 256B → 别名到同一组 bank → <code>ldmatrix.trans</code> 串行化）让 L1/TEX 仍钉死 97.5%。</p>
+<h4 id="逐句拆开这段-ncu-诊断小白版"><a class="markdownIt-Anchor" href="#逐句拆开这段-ncu-诊断小白版"></a> 👶 逐句拆开这段 ncu 诊断（小白版）</h4>
+<p><strong>① <code>Warp Cycles/Issued</code> 32→46(更差)。</strong> 这个指标 = 平均每发射一条指令、一个 warp 要耗多少周期,
+<strong>越大越堵</strong>(warp 越多时间在干等而非干活)。换 ldmatrix 后指令总数是砍了,但<strong>每条更慢</strong> → 净负 →
+直接推翻"减少指令数就会快"的假设。</p>
+<p><strong>② 两个首要 stall = 72% 全在 smem 管线。</strong> ncu 会告诉你 warp 卡住时<strong>在等什么</strong>:</p>
+<ul>
+<li><strong>Short Scoreboard 40.3%</strong> = 在等一个<strong>短延迟片上访问</strong>的结果回来 —— 几乎总是 <strong>smem 读</strong>(scoreboard
+记分板追踪"数据到了没",卡这儿 = 在等 smem 取数)。</li>
+<li><strong>MIO Throttle 32.1%</strong> = MIO 是所有 smem 指令(LDS/LDSM/STS)走的管线,<strong>Throttle = 管线已排满,新的
+smem 指令发不进去、只能等</strong>。</li>
+<li>两者合 72% 全是 smem 相关 → <strong>病根是 smem bank conflict,不是指令条数、不是算力</strong>。所以砍指令治不了病。</li>
+</ul>
+<p><strong>③ 机制:“sQd 各行相隔 256B → 别名到同一组 bank → ldmatrix.trans 串行化”。</strong> 拆三段:</p>
+<ul>
+<li><strong>各行相隔 256B</strong>:<code>sQd</code> 是普通 [D,C] bf16,一行 128 个 bf16 = 128×2 = <strong>256 字节</strong> → 相邻行起点每隔 256B。</li>
+<li><strong>别名到同一组 bank</strong>:bank 一圈 = 32 bank × 4 字节 = <strong>128 字节</strong>。256B = <strong>正好 2 整圈</strong>(256/128=2) →
+隔整数圈 = 回到<strong>完全相同的 bank</strong>。于是不同行的对应元素 bank 号一模一样 = “别名(alias)”:不同行却映射
+到同一组 bank。ldmatrix 要跨多行取一个 8×8 小块,这些行 bank 全重合 → 挤同几个 bank → 冲突。</li>
+<li><strong>ldmatrix.trans 串行化</strong>:带转置的 ldmatrix 本该一条指令<strong>并行</strong>搬一个小块进寄存器,但 bank 全重合 →
+硬件无法一拍完成 → 只能<strong>一组 bank 一组 bank 地串行搬</strong> = 串行化,一条并行指令被拉成好几拍。</li>
+</ul>
+<p><strong>④ “L1/TEX 仍钉死 97.5%”。</strong> L1/TEX 是含 smem/MIO 的存取单元,97.5% = 它几乎全程在忙 —— 但<strong>不是在高效
+搬数据,而是在反复串行处理 bank 冲突(忙于重试,不是干活)</strong>。所以换了 ldmatrix、砍了指令数,L1/TEX 因 bank
+冲突照样钉死 97.5%、warp 全卡等 smem → 净负。这正是逼出下一步(s3b/3c 上 swizzle)的直接证据。</p>
+<blockquote>
+<p><strong>教训</strong>：<code>ldmatrix</code> 本身不解决 bank conflict —— 它只是把"很多窄 LDS"合成"一条宽 ldmatrix"。
+如果那条宽 ldmatrix 读的 smem 布局仍撞 bank，照样串行化。<strong>必须配 swizzle 才有用。</strong></p>
+</blockquote>
+<h3 id="22-分诊只-swizzle-r1-产出的操作数阶段-3b-3c"><a class="markdownIt-Anchor" href="#22-分诊只-swizzle-r1-产出的操作数阶段-3b-3c"></a> 2.2 分诊：只 swizzle "R1 产出"的操作数（阶段 3b-3c）</h3>
+<p>关键分诊（日志 §4）：不是所有操作数都能 swizzle。</p>
+<ul>
+<li><strong>R1 产出</strong>的操作数（qd/kd/kr）：由 R1 <strong>逐元素写</strong>进 smem → 写地址可自由重排 → <strong>swizzle 友好</strong>。</li>
+<li><strong>cp.async 载入</strong>的操作数（do/mqk/inv）：向量化 16B 载入会被 swizzle 打碎，<strong>且</strong>每 tile 只用一次
+（1 次 LDSM → 冲突代价可忽略）→ 保持普通布局。</li>
+</ul>
+<h4 id="向量化-16b-载入会被-swizzle-打碎是什么意思"><a class="markdownIt-Anchor" href="#向量化-16b-载入会被-swizzle-打碎是什么意思"></a> 👶 "向量化 16B 载入会被 swizzle 打碎"是什么意思</h4>
+<p><strong>先看两拨操作数进 smem 的方式完全不同</strong>:</p>
+<ul>
+<li><code>qd/kd/kr</code> 是 R1 在 kernel 里<strong>逐个元素算出来、逐个写进 smem</strong> 的 → 写到哪个地址完全自由。</li>
+<li><code>do/mqk/inv</code> 是用 <code>cp.async</code> 从<strong>显存整块搬进 smem</strong> 的 → <strong>一次搬 16 字节 = 连续 8 个 bf16</strong>(硬件
+向量化要求,搬运的最小单位就是"连续 16B",不可拆)。</li>
+</ul>
+<p><strong>swizzle 要做的事</strong> = <strong>打乱写入地址</strong>,让相邻元素散到不同 bank(即要求 8 个元素<strong>别再连续摆</strong>):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cp.async 只会这样连续落地:  [a0 a1 a2 a3 a4 a5 a6 a7]   ← 一条 16B,必须连续</span><br><span class="line">swizzle 却想要这样散开:      a0→bank5 a1→bank18 a2→bank3 ...  ← 8 个元素跳到各处,不连续</span><br></pre></td></tr></table></figure></div>
+<p>这两个要求<strong>直接打架</strong>:要把 8 个元素散开,就得<strong>把这一条 16B 拆成 8 次零散写</strong> → cp.async 的"一次搬 16B"
+向量化就<strong>没了</strong>,退化成慢速逐元素搬运。<strong>"被打碎"就是这个意思:swizzle 的散地址会把 16B 向量化拆成 8 次
+小搬运,毁掉 cp.async 的性能。</strong> 而 <code>qd/kd/kr</code> 本就是逐元素写、没有"必须连续 16B"的包袱 → swizzle 随便加。</p>
+<p><strong>再补一刀"只用一次"</strong>:就算不 swizzle、<code>do/mqk/inv</code> 保持普通布局会有点 bank 冲突,但它们每个 tile <strong>只被
+LDSM 读一次</strong>(用完即弃) → 一次读的冲突代价<strong>小到可忽略</strong>;而 <code>qd/kd/kr</code> 在 5 个 GEMM 里被<strong>反复读</strong>,冲突
+被放大 → 值得 swizzle。<strong>结论:冲突代价小(只读 1 次)+ swizzle 代价大(打碎 cp.async)→ do/mqk/inv 保持
+普通布局最划算。</strong> 这也正是后来 s7(硬去 swizzle 它们)回归、被回退的原因。</p>
+<p><strong>什么是 R1</strong>：Kernel A 不直接读前向存的 qd/kd/kr（那是 bf16、有精度损失），而是<strong>在片上用 fp32
+重新算一遍</strong>（reconstruct）。源码 L407-493 就是 R1：从 raw q/k + gc + gT 重建 <code>qd/kd/kr</code>。因为是
+逐元素现算，写到哪个 smem 地址完全自由 → <strong>可以直接写进 swizzled 布局</strong>。</p>
+<p><strong>阶段 3b — swizzle qd/kd</strong>（源码 L118-120 <code>QdKdSw</code> = <code>Layout_MN_INTER_Atom</code> over [D,C]）：
+R1（生产者）写 <code>sQd(col, r_row)</code>，G4/G5（消费者）读同一个布局对象 → <strong>由构造一致</strong>（无论 swizzle
+怎么置换，写读同一对象就对得上，正确性与置换无关）。qd/kd 在 G4/G5 各用 8 次（8 个 m-block）→
+冲突代价大。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 3a</th>
+<th>阶段 3b</th>
+<th>Δ vs 3a</th>
+<th>vs 基线</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>65338</td>
+<td><strong>57531</strong></td>
+<td>−11.9%</td>
+<td>−46.4%</td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>75484</td>
+<td><strong>66173</strong></td>
+<td>−12.3%</td>
+<td>−45.9%</td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>55634</td>
+<td><strong>55595</strong></td>
+<td>−0.1%</td>
+<td>−38.5%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>阶段 3c — swizzle kr</strong>（源码 L124-126 <code>KrSw</code> = <code>Layout_K_INTER_Atom</code> over [C,D]）：
+kr 是 A 操作数、K-major、G2 里用 8 次 → <code>LDSM_N</code>。同样生产者/消费者共享布局对象。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 3b</th>
+<th>阶段 3c</th>
+<th>Δ vs 3b</th>
+<th>vs 基线</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>57531</td>
+<td><strong>53614</strong></td>
+<td>−6.8%</td>
+<td><strong>−50.0%</strong></td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>66173</td>
+<td><strong>61687</strong></td>
+<td>−6.8%</td>
+<td><strong>−49.5%</strong></td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>55595</td>
+<td><strong>54834</strong></td>
+<td>−1.4%</td>
+<td>−39.4%</td>
+</tr>
+</tbody>
+</table>
+<p>两个"8×循环"操作数（qd/kd、kr）承载了大部分冲突代价。<strong>注意 B1 几乎不动</strong>（−0.1%/−1.4%）——
+因为 B1 是 <strong>N=1 占用率饥饿</strong>（grid=128，1 block/SM），瓶颈是并行度不是冲突，swizzle 帮不上它。
+这个"B32/B8 赢、B1 持平"的模式会在后面每个 conflict 阶段重复出现。</p>
+<h3 id="23-最后一个操作数ds-的转置对偶-swizzle阶段-3d"><a class="markdownIt-Anchor" href="#23-最后一个操作数ds-的转置对偶-swizzle阶段-3d"></a> 2.3 最后一个操作数：dS 的转置对偶 swizzle（阶段 3d）</h3>
+<p>qd/kd/kr 都 swizzle 后，ncu 显示冲突<strong>仍高</strong>（<code>op_st.sum 617M</code> → 91% store wavefront 是纯冲突）。
+唯一剩下的普通操作数 —— <strong>dS</strong>（最大的 [128,128]，每 tile 用 8 次）—— 是主导冲突源。</p>
+<p>dS 被<strong>两个正好互为转置的方向</strong>用（源码注释 L128-139）：</p>
+<ul>
+<li>G2 读它当 <strong>B 操作数 <code>[v,k]</code></strong>（源码 L529 <code>DSb</code>）；</li>
+<li>combine 读/写它当 <strong>C 累加器 <code>[k,v]</code></strong>（源码 L530 <code>DSc</code>）。</li>
+</ul>
+<p>这跟前向 K2 的 State/TransposedState 完全同构。所以照抄它的**转置对偶（transpose-dual）**招：</p>
+<ul>
+<li><code>DSb</code> = <code>Layout_K_INTER_Atom</code> over [Dv,D]（B 操作数，<code>LDSM_N</code>，源码 L140-142）</li>
+<li><code>DSc</code> = <code>Layout_MN_INTER_Atom</code> over [D,Dv]（C 累加器，<code>LDSM_T</code> 读 / <code>STSM_T</code> 写，源码 L143-145）</li>
+</ul>
+<p><strong>妙处</strong>：K_INTER 和 MN_INTER 两个 atom <strong>互为转置</strong>，<code>tile_to_shape</code> 一致铺贴 → <code>DSb[v,k]</code> 和
+<code>DSc[k,v]</code> 命中<strong>同一个物理字节</strong>（源码注释 L134-136 说明：方形 VS1 和矩形 VS&gt;1 都成立）。于是 dS
+<strong>只存一份物理数据</strong>，两个方向都能无冲突读/写。全部 5 个 dS 站点（init/snapshot/G2-B/combine-C/
+ds_out）都走这两个视图，一致性自动保证。<strong>cosize == D·Dv（INTER atom 无 padding）→ smem 不变。</strong></p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 3c (s4)</th>
+<th><strong>阶段 3d (s5)</strong></th>
+<th>Δ vs 3c</th>
+<th><strong>vs 基线</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>53614</td>
+<td><strong>41366</strong></td>
+<td><strong>−22.8%</strong></td>
+<td><strong>−61.4%</strong></td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>61687</td>
+<td><strong>50656</strong></td>
+<td><strong>−17.9%</strong></td>
+<td><strong>−58.5%</strong></td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>54834</td>
+<td><strong>54277</strong></td>
+<td>−1.0%</td>
+<td>−40.0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>dS swizzle 是 conflict 战役里最大的单项赢</strong>（−18~23%）—— 因为 dS 是最大操作数、每 tile 复用 8 次。
+<strong>Kernel A 累计相对基线 = −61%/−58%/−40%。</strong></p>
+<blockquote>
+<p><strong>小白记住 transpose-dual</strong>：一个矩阵在两个 GEMM 里被"正着乘"和"转置着乘"。用 INTER 类 swizzle，
+<strong>同一份字节</strong> 既能 K_INTER 正读、又能 MN_INTER 转置读 → <strong>存一次，喂两个方向，零转置、零 padding</strong>。
+这是 cute swizzle 最优雅的用法，Kernel A（dS）和 Kernel B（sin/dS）都靠它。</p>
+</blockquote>
+<hr>
+<h2 id="第-3-部分写侧-gmem-延迟阶段-4s6-6s8-7s9"><a class="markdownIt-Anchor" href="#第-3-部分写侧-gmem-延迟阶段-4s6-6s8-7s9"></a> 第 3 部分：写侧 + gmem 延迟（阶段 4/s6、6/s8、7/s9）</h2>
+<p>阶段 3d 把<strong>读</strong>侧 bank conflict 基本清干净了，但还有两个战场：R1 <strong>写</strong> swizzled smem 的 store 冲突，
+以及 gmem 载入延迟。</p>
+<h3 id="31-阶段-4s6-用-stsm-写-r1-的产出消灭-380m-store-冲突"><a class="markdownIt-Anchor" href="#31-阶段-4s6-用-stsm-写-r1-的产出消灭-380m-store-冲突"></a> 3.1 阶段 4/s6 —— 用 STSM 写 R1 的产出，消灭 380M store 冲突</h3>
+<p>3d 之后<strong>载入</strong>已 swizzled，但 qd/kd/kr <strong>写入</strong>其 swizzled smem 的 R1 生产者 store 仍是通用标量
+<code>copy(...)</code> = 16-way STS bank 冲突（ncu <code>op_st</code> 仍高）。修法 = 用 <code>SM90_U32x4_STSM_N</code>/<code>SM90_U16x8_STSM_T</code>
+（前向 K2 store 惯用法）写这些 store，让生产者写入与 swizzled 消费者布局一致 → 成为真正的 <code>stmatrix</code>。
+看源码 L485-491：R1 phase-2 把 qd/kd 用 <code>STSM_T</code>、kr 用 <code>STSM_N</code> 写进各自 swizzled 目标。<strong>正确性由
+构造保证</strong>（store 和 load 同一布局对象）。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 3d (s5)</th>
+<th><strong>阶段 4 (s6)</strong></th>
+<th>Δ vs s5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>41366</td>
+<td><strong>35403</strong></td>
+<td>−14.4%</td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>50656</td>
+<td><strong>44868</strong></td>
+<td>−11.4%</td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>54277</td>
+<td><strong>51306</strong></td>
+<td>−5.5%</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>读写对称</strong>：swizzle 只做一半（读）等于没做 —— 写侧仍撞 bank 会拖后腿。<code>ldmatrix</code>(读)/<code>stmatrix</code>(写)
+要<strong>成对</strong>用同一 swizzled 布局，才彻底 conflict-free。</p>
+</blockquote>
+<h4 id="逐步拆开讲小白版"><a class="markdownIt-Anchor" href="#逐步拆开讲小白版"></a> 👶 逐步拆开讲（小白版）</h4>
+<p><strong>一块 swizzled smem 有"两端":写进去的生产者、读出来的消费者。</strong></p>
+<ul>
+<li><strong>消费者端(读)</strong>:MMA 用 <code>ldmatrix</code>(LDSM)读它 —— s3~s5(swizzle 那几步)已经把这端配好,读 0 冲突。</li>
+<li><strong>生产者端(写)</strong>:R1 算出 <code>qd/kd/kr</code> 后,得先<strong>写进</strong>这块 swizzled smem —— <strong>这端 s6 之前还没改</strong>。</li>
+</ul>
+<p><strong>病根:读端修好了,写端还在用"通用标量 copy"往 swizzled 地盘上写。</strong>
+R1 phase-2 算完 <code>qd/kd</code>,原先用普通逐元素 <code>copy(...)</code>(一线程写几个元素)store 进 smem。但目标 smem 是
+<strong>swizzled 布局</strong>,而普通 <strong>STS(scalar store)</strong> 对地址的摆法跟"swizzled 消费者读时的摆法"<strong>对不上</strong> →
+32 个 lane 的写地址挤进同一/少数几个 bank → <strong>16-way STS 冲突</strong>(ncu <code>op_st</code>/store-conflict 一直高)。
+即:<strong>读端(LDSM)已无冲突,写端(STS)还在拖后腿。</strong></p>
+<p><strong>修法:把"写"也换成 stmatrix(STSM),让写和读用同一个 layout 对象。</strong>
+<code>STSM = stmatrix</code>,是 ldmatrix 的<strong>孪生写指令</strong>。关键规则:<strong>swizzle 只有在"写和读用同一套 swizzle 变换"
+时才无冲突</strong> —— 读端 ldmatrix 带 swizzle,写端就必须用<strong>配套的 stmatrix(同一 swizzle)</strong>。所以 s6 把 R1
+生产者 store 从"通用 copy"换成前向 K2 早就在用的 STSM 惯用法(源码 <strong>L485-491</strong>):</p>
+<ul>
+<li><code>qd</code>、<code>kd</code> 用 <strong><code>SM90_U16x8_STSM_T</code></strong>(带转置 <code>_T</code> —— 因为 qd/kd 后面要以转置形态喂 MMA);</li>
+<li><code>kr</code> 用 <strong><code>SM90_U32x4_STSM_N</code></strong>(不转置 <code>_N</code>)。</li>
+</ul>
+<p>这样<strong>生产者写入用的 layout 对象</strong>和<strong>消费者读取用的 layout 对象</strong>是<strong>同一个 swizzled layout</strong>(同一个
+CuTe layout 变量):写按它铺、读按它取 → bank 完美错开 → STS 冲突消失,<code>qd/kd/kr</code> 从"半吊子 swizzle
+(读好写差)"升级成<strong>真·stmatrix 通路(读写两端都 swizzle)</strong>。</p>
+<p><strong>为什么"正确性由构造保证"(免验证)。</strong> swizzle 本质是<strong>打乱物理地址</strong>,但只要 <strong>store 和 load 引用同一个
+layout 对象</strong>,"store 把元素 X 按打乱规则塞到某物理 bank"和"load 按同一规则去那个 bank 取 X"就是<strong>一个
+置换 + 它的逆</strong> —— 绕一圈,load 必然拿回原来的 X。swizzle 是对上层<strong>透明</strong>的地址重排,写读同源则数据语义
+<strong>恒等</strong>。所以 s6 不改任何数值、只改物理摆放 → <strong>无需重新验证正确性</strong>。</p>
+<p><strong>和 s11 的分工别搞混</strong>:s11 修的是 R1 <strong>输入</strong> buffer <code>q_sm/k_sm/gc_sm</code> 的<strong>读</strong>冲突(pad stride);
+s6 修的是 R1 <strong>输出</strong> buffer <code>qd/kd/kr</code> 的<strong>写</strong>冲突(STSM)。R1 一头(读输入)一尾(写输出),两处不同战场。</p>
+<h3 id="32-阶段-5s7-生产者-pass-swizzle-mqkinvdo回归已回退"><a class="markdownIt-Anchor" href="#32-阶段-5s7-生产者-pass-swizzle-mqkinvdo回归已回退"></a> 3.2 阶段 5/s7 —— ❌ 生产者 pass swizzle mqk/inv/do：回归，已回退</h3>
+<p>s6 后想顺手也 swizzle 三个 cp.async 载入的操作数（mqk/inv/do）。<strong>plan (b)</strong> 试法：保持 row-major
+cp.async 到 raw buffer，再加一个"每 tile 一次的生产者 pass"把 raw→swizzled 孪生 buffer 复制，消费者
+切到 swizzled buffer。由构造 bit 精确。</p>
+<p><strong>结果：正确但更慢</strong> —— <strong>+3.1% / +3.2% / +14.5%</strong>，已回退。
+<strong>为何输</strong>（日志 §7）：s7 时绑定 stall 仍是 <strong>gmem long_scoreboard(2.39)</strong> —— 805M 的 shared-load 冲突
+数量虽大，但<strong>藏在 gmem 延迟后面</strong>（不在关键路径）。而生产者 pass 增加了一次全 block 复制 +
+1 个 <code>__syncthreads</code>/tile → 净损失；B1（占用率饥饿、延迟受限）被额外 sync 打击最狠（+14.5%）。</p>
+<blockquote>
+<p><strong>第一条"红鲱鱼"</strong>：ncu 报 805M shared-load 冲突，看着吓人，但它<strong>不在关键路径</strong>（被 gmem 延迟盖住）。
+<strong>追一个不在关键路径上的指标 = 白费力气还倒退。</strong> 必须先看"绑定 stall 是谁"。</p>
+</blockquote>
+<h3 id="33-阶段-6s8-cpasync-预取-r1-的-qkgc碾碎-gmem-long_scoreboard"><a class="markdownIt-Anchor" href="#33-阶段-6s8-cpasync-预取-r1-的-qkgc碾碎-gmem-long_scoreboard"></a> 3.3 阶段 6/s8 —— cp.async 预取 R1 的 q/k/gc，碾碎 gmem long_scoreboard</h3>
+<p>s7 失败暴露了真瓶颈 = <strong>gmem 延迟</strong>（long_scoreboard 2.39）。s8 转而攻<strong>它</strong>：把 R1 的输入
+（raw q/k + ws_gc）用 <code>cp.async</code> <strong>异步预取</strong>进 smem，让 gmem 载入和上一 tile 的 GEMM 链重叠。</p>
+<p>看源码 L303-328 的<strong>两组 cp.async</strong>设计（很讲究）：</p>
+<ul>
+<li><strong>Group A（q/k/gc）</strong>：R1 消费 → <strong>先</strong> commit（L328），R1 phase-1 前 <code>wait&lt;1&gt;</code>（L395）→ 它的延迟只
+藏在"快照存储"后面。</li>
+<li><strong>Group B（inv/mqk/do）</strong>：GEMM 链消费 → <strong>后</strong> commit（L357），R1 之后 <code>wait&lt;0&gt;</code>（L496）→ 它的延迟
+藏在"快照 + 整个 R1"后面。</li>
+<li><strong>FIFO 顺序</strong>：A 先提交 ⇒ <code>wait&lt;1&gt;</code> 排空 A（留 B≤1 未完成），<code>wait&lt;0&gt;</code> 稍后排空 B。</li>
+</ul>
+<p><strong>套路精髓</strong>：先发一堆异步搬运 + commit，<strong>不等</strong>、马上干别的（存快照 L377-393、跑 R1），等真要用
+时才 <code>wait</code> → gmem 搬运时间被计算藏住。</p>
+<p>同时修了 varlen 的 12B 寄存器 spill：把每 CTA 一次的 varlen <code>tile_base</code> 累加（int64）抽成
+<code>__noinline__</code> 的 <code>kda_varlen_tile_base</code>（源码 L40-46），让这段冷 prologue 有独立寄存器帧、不和热
+GEMM body 抢寄存器 → <strong>全 6 个变体 0-spill</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 4 (s6)</th>
+<th><strong>阶段 6 (s8)</strong></th>
+<th>Δ vs s6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>35403</td>
+<td><strong>35058</strong></td>
+<td>−1.0%</td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>44868</td>
+<td><strong>43173</strong></td>
+<td>−3.8%</td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>51306</td>
+<td><strong>45911</strong></td>
+<td>−10.5%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ncu：前提翻转</strong>（日志 §8）：long_scoreboard 塌缩 <strong>2.39→0.39</strong>（B32）。gmem 延迟消失后，B32/B8 上
+新的首要 stall 变成 <strong>short_scoreboard</strong>（等 smem LDS/LDSM）= 由仍未 swizzle 的 mqk/inv/do 喂养 ——
+<strong>这翻转了 s7 的结论</strong>：现在 swizzle mqk/inv/do 瞄准的是真正的关键路径了。</p>
+<h3 id="34-阶段-7s9-swizzled-cpasync-scatter-mqkinvdoplan-awin"><a class="markdownIt-Anchor" href="#34-阶段-7s9-swizzled-cpasync-scatter-mqkinvdoplan-awin"></a> 3.4 阶段 7/s9 —— swizzled cp.async scatter mqk/inv/do（plan a）：WIN</h3>
+<p>s8 让 mqk/inv/do 的 swizzle 值得做了 —— 但只通过 <strong>plan (a)</strong>（无生产者 pass）：把 MN_INTER swizzle
+<strong>直接折进 cp.async LOAD</strong>，把每个 16B chunk <strong>scatter 到它的 swizzled smem 槽</strong>，消费者 LDSM_T 直接
+触发真正的 <code>ldmatrix.trans</code>。看源码 L330-357：</p>
+<ul>
+<li>加了 <code>MqkSw</code>/<code>DoSw</code> swizzled 布局（源码 L158-163）；</li>
+<li>LOAD 用 <code>copy16(&amp;sMqk_sw(c,j), &amp;mqk_tile[i])</code> 做 scatter（L340-341），do 尾部在 swizzled 位置清零
+（L362-369）。</li>
+<li><strong>无生产者 pass、无额外 <code>__syncthreads</code>、无 smem 变化</strong>（INTER atom cosize == 普通大小）—— 正是拖垮
+s7 plan (b) 的那些开销<strong>全都不存在</strong>。由构造 bit 精确（scatter 和 load 同一 swizzled 布局）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 6 (s8)</th>
+<th><strong>阶段 7 (s9)</strong></th>
+<th>Δ vs s8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>35058</td>
+<td><strong>34163–34393</strong></td>
+<td>−2.2%</td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>43173</td>
+<td><strong>42325–42356</strong></td>
+<td>−1.9%</td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>45911</td>
+<td><strong>45667</strong></td>
+<td>−0.5%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Kernel A 相对 pre-阶段-1 基线累计 = −68% / −65% / −50%。</strong> 收益如预测精准落地：B32/B8
+（short_scoreboard 受限、冲突被消灭）赢；B1 几乎不动（barrier/占用率受限）。</p>
+<blockquote>
+<p><strong>s7 vs s9 的对比是全篇最重要的一课</strong>：<strong>同一个优化目标（swizzle mqk/inv/do），换个实现方式，
+从 +14.5% 变成 −2.2%。</strong> 差别在：s7 加了一趟额外的 block-复制 + barrier；s9 把 swizzle 白嫖进
+本来就要做的 cp.async scatter，零额外开销。<strong>"做什么"对了不够，“怎么做（有无额外 sync/pass）”
+才决定输赢</strong>，尤其在 latency-bound 场景，任何多余的 barrier 都是纯亏。</p>
+</blockquote>
+<hr>
+<h2 id="第-4-部分终局-打破-bf16-的-4-way-bank-地板阶段-8-11"><a class="markdownIt-Anchor" href="#第-4-部分终局-打破-bf16-的-4-way-bank-地板阶段-8-11"></a> 第 4 部分：终局 —— 打破 bf16 的 4-way bank 地板（阶段 8-11）</h2>
+<p>这是全篇智力密度最高的一段。s9 后 ncu 说"还有 1.89B conf_ld"，但<strong>追这个数字的两次尝试
+（s10 用更大 swizzle、s12-分析用 XOR-swizzle）都被证明是死路</strong>，真正的赢来自一个反直觉的
+“奇数半-stride + 更小拷贝粒度”。</p>
+<h3 id="41-阶段-8s10-ds-intersw32-真-xor-swizzle回归已回退"><a class="markdownIt-Anchor" href="#41-阶段-8s10-ds-intersw32-真-xor-swizzle回归已回退"></a> 4.1 阶段 8/s10 —— ❌ dS INTER→SW32 真 xor-swizzle：回归，已回退</h3>
+<p>s9 ncu 确认 B32/B8 仍有 <code>conf_ld ~1.89B</code>。诊断：<strong>每个</strong> INTER atom 都是 <code>Swizzle&lt;0,4,3&gt;</code> = <strong>零个
+xor 位</strong> = 只交织、<strong>不分散 bank</strong>。真正分散 bank 的 atom 是 SW32/64/128（<code>Swizzle&lt;1/2/3,4,3&gt;</code>）。
+s10 就把最大操作数 dS 从 K_INTER/MN_INTER 升级成 <strong>K_SW32/MN_SW32</strong>。</p>
+<p><code>static_assert(cosize == D*Dv)</code> 成立 → SW32 无 padding，smem 不变，占用率不是变量。gradcheck
+PASS → SW32 也是 transpose-coherent。<strong>正确性 OK，但性能全线回归 +11~12%</strong>，已回退。</p>
+<p><strong>为何输 —— 关键线索是 B1（+12.5%，和 B32/B8 一样）</strong>：B1 <strong>不</strong>受冲突限制（barrier/占用率受限），
+却同样严重回归 → 损失<strong>不是</strong>冲突权衡。SW32 给每次访问加了一个<strong>固定的额外 XOR 地址运算</strong>
+（INTER 的 <code>Swizzle&lt;0&gt;</code> 会被编译器优化掉，SW32 不会），把热 GEMM 循环推过寄存器预算 → <strong>4B spill</strong>。</p>
+<blockquote>
+<p><strong>教训（贯穿 s10 和后面的 s12-分析）</strong>：<strong>对我们的 16 宽 ldmatrix 子 tile，INTER 已经够了。</strong>
+INTER 的"16B-run 交织"就足以让 <code>ldmatrix.trans</code> 触发；SW32 的额外分散在这里几乎买不到冲突缓解，
+却在每次访问都花地址运算 + 寄存器 → 净亏。<strong>不要把操作数"升级"到 SW32/64/128。</strong>
+1.89B 的 conf_ld 计数是真的，但<strong>不能靠更大的 swizzle atom 廉价移除</strong>（和 s7 是同类红鲱鱼）。</p>
+</blockquote>
+<h3 id="42-阶段-9s11-源码级归因真正的冲突源不是-mma-操作数"><a class="markdownIt-Anchor" href="#42-阶段-9s11-源码级归因真正的冲突源不是-mma-操作数"></a> 4.2 阶段 9/s11 —— 源码级归因：真正的冲突源不是 MMA 操作数</h3>
+<p>s10 死路逼出<strong>源码级重新归因</strong>：对 s9 跑 text-mode ncu（<code>--page source</code>），把 1.99B excessive
+shared wavefront 按 SASS 指令拆开（日志 §11）：</p>
+<ul>
+<li><strong><code>LDS.U16</code> = 1.24B (62%)</strong> = R1 对 <code>q_sm</code>/<code>k_sm</code>（bf16）的<strong>标量读</strong>，</li>
+<li><strong><code>LDS</code>(32位) = 336M (17%)</strong> = R1 的 <code>gc_sm</code>（fp32），</li>
+<li><code>LDGSTS</code>(cp.async) = 214M (11%)，</li>
+<li><strong><code>LDSM</code>/<code>STSM</code>（每个 MMA 操作数）= 0 冲突！</strong></li>
+</ul>
+<p><strong>惊人结论：79% 的冲突是 R1 <em>根本没被 swizzle 碰过</em> 的 token-strided 标量读，而所有 ldmatrix 操作数
+早已无冲突。</strong> 这正是<strong>为什么 s10（对 dS 的 LDSM 上 SW32）是纯代价</strong> —— 它去追的那个操作数根本没冲突。</p>
+<p><strong>机制</strong>（日志 §11，务必看懂）：<code>q_sm</code>/<code>k_sm</code>/<code>gc_sm</code> 是 <code>[C, D]</code> row-major，行 stride = D = 128。
+R1 读 <code>q_sm[c*D + kp]</code>：<strong>c（token）在 32 个 lane 间变化，kp（feature）在 fragment 槽内固定</strong>。
+bf16 bank = <code>((c*128 + kp)/2) % 32 = (kp/2)%32</code> → <strong>与 c 完全无关</strong> → 32 个 token 全命中<strong>同一个 bank</strong>
+→ 最坏 32-way 冲突。</p>
+<p><strong>修法（s11）</strong>：只 pad 这 3 个 R1 buffer 的行 stride —— 它们<strong>不是</strong> MMA 操作数（qd/kd/kr 才是），
+所以 padding 对 GEMM 链<strong>不可见</strong>。<code>QK_PAD = D+8 = 136</code>（bf16）、<code>GC_PAD = D+4 = 132</code>（fp32），
+两者仍是 16B cp.async chunk 的倍数。</p>
+<h4 id="上面这段太密逐步拆开讲小白版5-步"><a class="markdownIt-Anchor" href="#上面这段太密逐步拆开讲小白版5-步"></a> 👶 上面这段太密，逐步拆开讲（小白版，5 步）</h4>
+<p><strong>第 0 步 · 什么是 bank(存储体)。</strong> shared memory 被切成 <strong>32 个 bank</strong>(编号 0~31),像 32 个收银窗口。
+一个 warp 有 <strong>32 个 lane(线程)</strong>。黄金规则:一条读指令里,32 个 lane 若分别落到 32 个<strong>不同</strong> bank →
+一拍办完;若有 N 个 lane 挤进<strong>同一个</strong> bank → 排队办 N 次 = <strong>N-way 冲突</strong>,慢 N 倍。bank 按地址算:
+硬件按 <strong>4 字节一格</strong>编号,<code>bank = (字节地址/4) % 32</code>。一格 4 字节 = 2 个 bf16,所以对 bf16 元素:
+<strong><code>bank = (元素下标/2) % 32</code></strong>。</p>
+<p><strong>第 1 步 · 这三个 buffer 长什么样。</strong> <code>q_sm/k_sm/gc_sm</code> 是 <code>[C, D]</code> 的 <strong>row-major</strong> 矩阵:
+<code>C=CHUNK=16</code>(token=行)、<code>D=128</code>(feature=列),元素 <code>[c,kp]</code> 的下标 <code>= c*D+kp = c*128+kp</code>。
+<strong>行 stride = 128</strong>(跨一行,下标跳 128):</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">       feature kp →  0   1   2  ... 127</span><br><span class="line">token  c=0        [   0   1   2  ... 127 ]   ← 第 0 行:下标 0..127</span><br><span class="line">       c=1        [ 128 129 130  ... 255 ]   ← 第 1 行:下标 128..255</span><br><span class="line">       c=2        [ 256 ...              ]</span><br><span class="line">       ...</span><br><span class="line">       c=15       [ ...           ...2047]</span><br></pre></td></tr></table></figure></div>
+<p><strong>第 2 步 · R1 这条读,32 个 lane 读哪些格子。</strong> R1 读 <code>q_sm[c*128+kp]</code>,关键是谁变谁不变:
+<strong><code>c</code>(token)在 32 个 lane 间变化</strong>(lane0 读 token0、lane1 读 token1……),<strong><code>kp</code>(feature)在 fragment
+槽内固定</strong>(同一拍大家读同一列)。所以 32 个 lane 读的是 <code>q_sm[0*128+kp], q_sm[1*128+kp], ...</code>
+—— <strong>同一列 kp、不同行 c = 矩阵里竖着的一列</strong>:</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">       kp 固定这一列 ↓         这 32 个 lane 竖着读同一列:</span><br><span class="line">c=0   [ .. |X| .. ]           lane0 → 下标 kp</span><br><span class="line">c=1   [ .. |X| .. ]           lane1 → 下标 128+kp</span><br><span class="line">c=2   [ .. |X| .. ]           lane2 → 下标 256+kp</span><br><span class="line">...        |X|                 ...</span><br><span class="line">c=15  [ .. |X| .. ]           lane15→ 下标 1920+kp</span><br></pre></td></tr></table></figure></div>
+<p><strong>第 3 步 · 算 bank,灾难发生。</strong> 代入 <code>bank=(下标/2)%32</code>:</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">lane0 (c=0): 下标 kp       → (kp/2)%32</span><br><span class="line">lane1 (c=1): 下标 128+kp   → ((128+kp)/2)%32 = (64 + kp/2)%32 = (kp/2)%32   ← 64 是 32 的倍数,消失!</span><br><span class="line">lane2 (c=2): 下标 256+kp   → (128 + kp/2)%32                  = (kp/2)%32</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<p>每跨一个 token 下标 +128,而 <code>128/2=64</code>,<code>64%32=0</code> —— <strong>加的是 32 的整数倍,对 bank 毫无影响</strong>。
+于是 <strong><code>bank=(kp/2)%32</code> 与 c 完全无关 → 32 个 lane 全撞进同一个 bank → 32-way 冲突</strong>(全 kernel 79%)。</p>
+<blockquote>
+<p>病根一句话:<strong>行 stride=128 是 32 的倍数(128/2=64 是 32 的倍数),竖读一列时行与行 bank 号完美重合。</strong></p>
+</blockquote>
+<p><strong>第 4 步 · s11 的修法:pad 行 stride 打破整除。</strong> 既然病根是"stride 是 32 的倍数",就把 stride 撑成
+<strong>不是</strong> 32 的倍数——给每行<strong>尾部塞几个废元素</strong>:</p>
+<ul>
+<li><code>QK_PAD = D+8 = 136</code>(bf16)。验算:跨一个 token +136,<code>136/2=68</code>,<code>68%32=4</code> → 相邻 token 的 bank
+<strong>错开 4</strong> → token 铺开覆盖多个 bank → 冲突大降。</li>
+<li><code>GC_PAD = D+4 = 132</code>(fp32,每格 1 元素)。<code>132%32=4</code>,同样错开。</li>
+</ul>
+<p>为什么偏选 136/132?<strong>两个约束同时满足</strong>:(1) 打破 <code>%32</code> 整除(错开量≠0);(2) 每行仍是 <strong>16 字节
+(cp.async 最小搬运块)的整数倍</strong>——136 bf16 = 272B = 16×17 ✔、132 fp32 = 528B = 16×33 ✔。既错开又保 cp.async 对齐。</p>
+<p><strong>第 5 步 · 为什么 pad “对 GEMM 链不可见”(最易漏)。</strong> MMA 的 ldmatrix 操作数吃的是 <strong><code>qd/kd/kr</code></strong>,
+<strong>不是</strong> <code>q_sm/k_sm/gc_sm</code>。后三者只是 R1 的<strong>临时输入 buffer</strong>,padding 只加在它们<strong>每行尾巴</strong>,R1 用
+新 stride <code>136/132</code> 索引即可,读到的<strong>有效数据一模一样</strong>,尾部废元素根本不读。所以 padding 停在 R1 内部,
+GEMM 看到的 <code>qd/kd/kr</code> 一个字节没变 → <strong>零风险</strong>。这也顺带解释<strong>为什么 s10 是死路</strong>:它去给 dS(一个
+ldmatrix 操作数)上 swizzle,而那个操作数<strong>本来就 0 冲突</strong> → 追错了目标。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>阶段 7 (s9)</th>
+<th><strong>阶段 9 (s11)</strong></th>
+<th>Δ vs s9</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32/T8192</td>
+<td>34163</td>
+<td>30418–30643</td>
+<td><strong>−10.3%</strong></td>
+</tr>
+<tr>
+<td>B8/T32768</td>
+<td>42325</td>
+<td>37819–37831</td>
+<td><strong>−10.6%</strong></td>
+</tr>
+<tr>
+<td>B1/T131072</td>
+<td>45667</td>
+<td>42153–42159</td>
+<td><strong>−7.7%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>ncu：<code>conf_ld</code> 1.89B→1.16B（−39%），short_scoreboard 2.53→1.20（−53%）。<strong>新冠军。</strong>
+但 —— s11 的 gc（fp32）冲突塌缩 −90%，<strong>q/k（bf16）却几乎没动（1.24B→1.007B，仅 −19%）</strong>。为什么？
+引出 s12。</p>
+<h3 id="43-阶段-10s12-分析-️-xor-swizzle-qk写代码前就被否决"><a class="markdownIt-Anchor" href="#43-阶段-10s12-分析-️-xor-swizzle-qk写代码前就被否决"></a> 4.3 阶段 10/s12-分析 —— ⏭️ XOR-swizzle q/k：写代码前就被否决</h3>
+<p>显而易见的下一步 = XOR-swizzle q/k buffer。但它在<strong>动手前就被分析否决</strong>，因为可证明打不破 s11 的地板
+（日志 §12）：</p>
+<ul>
+<li>q/k 冲突是 <strong>token 变、feature 固定</strong>：32 lane 在同一 feature 读 32 个不同 token（行）。跨 token 的
+bank 展开 = <code>((Δc)·STRIDE/2) % 32</code>。完整 32-bank 分散<strong>需要 <code>STRIDE/2</code> 与 32 互质（奇数）</strong>，
+即 <code>STRIDE ≡ 2 (mod 4)</code>。</li>
+<li>但 <strong>16B cp.async 写强制 <code>STRIDE</code> 是 8 的倍数</strong> → <code>STRIDE/2</code> 是 4 的倍数 → <strong>最多 8 个不同 bank
+= 4-way，硬地板</strong>。s11 pad 到 136：136/2=68 仍是 4 的倍数 → 卡在 4-way（这就是只买到 −19% 的原因）。</li>
+<li><strong>XOR-swizzle 受同一约束</strong>：cutlass 式 XOR 置换整个 16B（8×bf16）块，读地址两项都是 4 的倍数 →
+<strong>仍 ≤8 bank = 4-way</strong>。XOR 无法分散到"16B-coalescing 粒度"以下。</li>
+</ul>
+<blockquote>
+<p><strong>绑定约束是 coalescing 单元，不是 swizzle atom</strong>（和 s10 同类死路）。<strong>只要还用 16B 写，bf16 的
+token-strided 读就永远卡在 4-way。</strong> 想破地板，必须换更小的写粒度。</p>
+</blockquote>
+<h3 id="44-阶段-11s12-奇数半-stride-130-4b-cpasync打破地板当前冠军"><a class="markdownIt-Anchor" href="#44-阶段-11s12-奇数半-stride-130-4b-cpasync打破地板当前冠军"></a> 4.4 阶段 11/s12 —— ✅ 奇数半-stride 130 + 4B cp.async：打破地板（当前冠军）</h3>
+<p>兑现 §12 末尾预言的"唯一破地板的办法"—— <strong>放弃 16B 写单元</strong>（源码 L200-206、L313-327 的注释是全篇
+最精华的解释）：</p>
+<ul>
+<li><strong>q/k 存在 <code>QK_PAD = D+2 = 130</code></strong>（源码 L207）：<code>STRIDE/2 = 65</code> <strong>与 32 互质</strong> → 32 lane 跨 token 读
+散布到<strong>全部 32 个 bank = 无冲突</strong>（不再是 4-way）。</li>
+<li><strong>4B（2×bf16）<a class="link" target="_blank" rel="noopener" href="http://cp.async.ca">cp.async.ca<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></strong>（源码 L318-323 <code>copy4</code>）：130 不是 8 的倍数，16B 写会 misalign；改用
+4B 拷贝（col 步进 2 → 目标字节 4 对齐）。注意 <code>cp.async.cg</code> <strong>只支持 16B</strong>，4B 路径<strong>必须</strong>用
+<code>cp.async.ca</code>（cache-all L1+L2，支持 4/8/16B）—— 这就是源码 L27-30 新增 <code>copy4</code> helper 的原因。
+<strong>代价 = q/k 的 LDGSTS 数量 4×</strong>（16B→4B）。</li>
+<li><strong>gc 不变</strong>（<code>GC_PAD = D+4 = 132</code> + 16B copy，源码 L208、L324-327）：s11 已把 gc 冲突塌缩 −90%，
+不值得为它多付 4× LDGSTS。</li>
+<li>所有 q/k 读点（源码 L416-417 l2norm、L466-467/480 的 qd/kd/kr、L370-374 tail-zero）经 <code>QK_PAD</code>
+常量自动跟随；launcher 的 bf16 smem 项从 <code>2·CHUNK·(D+8)</code> 改成更小的 <code>2·CHUNK·(D+2)</code>。占用率不变。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>cfg</th>
+<th>s11</th>
+<th>s12</th>
+<th>Δ vs s11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B32 T8192</td>
+<td>30418~30643</td>
+<td>30123~30288</td>
+<td><strong>−1.0%</strong></td>
+</tr>
+<tr>
+<td>B8  T32768</td>
+<td>37819~37831</td>
+<td>37455</td>
+<td><strong>−1.0%</strong></td>
+</tr>
+<tr>
+<td>B1  T131072</td>
+<td>42153~42159</td>
+<td>40355~40401</td>
+<td><strong>−4.2%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>为什么 B1 收益最大（−4.2%），B32/B8 只 −1%</strong>（日志 §13）：R1 在 <strong>B1 的关键路径</strong>上（B1 warp 少，
+没法用并行掩盖 LDS 冲突深度）→ 去掉 4-way→无冲突直接缩短关键路径（B1 short_scoreboard 1.14→0.59）。
+B32/B8 占用率充足，<strong>4× LDGSTS 的代价大体抵消了冲突消除的收益</strong> → 只 −1%。这正好命中最重要的配置
+（<strong>B1 = 对 FLA 差距最大处</strong>）。gradcheck L0 PASS，cos 0.99993，0-spill（VS1/2/4 = 80/106/106 regs）。</p>
+<blockquote>
+<p><strong>s12 是一次"精算过的赌博"</strong>：明知 4× LDGSTS 会在富并行配置上吃掉收益，但赌"延迟绑定的 B1 会净赚"。
+赌赢了，且赢在最该赢的地方。<strong>教训：当一个指标（bf16 token 读冲突）被 coalescing 粒度锁死时，
+唯一出路是换粒度（16B→4B）+ 互质 stride 把读散满 32 bank —— 代价（更多 LDGSTS）在延迟绑定处才划算。</strong></p>
+</blockquote>
+<h3 id="45-当前冠军状态"><a class="markdownIt-Anchor" href="#45-当前冠军状态"></a> 4.5 当前冠军状态</h3>
+<ul>
+<li><strong>冠军 = <code>bwd_a_dstate_scan_s12.cuh</code></strong>（<code>bwd_launch.cu</code> 第 12 行 include 它）。</li>
+<li><strong>相对基线累计 ≈ −71.8% / −69.4% / −55.4%</strong>（B32/B8/B1；per-launch us 30.1k / 37.5k / 40.4k）。</li>
+<li>历史快照保留作记录：s4(到3c)/s5(3d)/s6(STSM)/s7(回归)/s8(cp.async 预取)/s9(swizzled cp.async)/
+s10(SW32 回归)/s11(pad R1，前冠军)。</li>
+<li><strong>尚未 promote</strong> 为正式 <code>bwd_a_dstate_scan.cuh</code>（待用户确认）。</li>
+</ul>
+<hr>
+<h2 id="第-5-部分split-v-kernel-a-专属的并行度杠杆"><a class="markdownIt-Anchor" href="#第-5-部分split-v-kernel-a-专属的并行度杠杆"></a> 第 5 部分：split-V —— Kernel A 专属的并行度杠杆</h2>
+<p>前面每个 conflict 阶段 <strong>B1 都持平</strong>，因为 B1（B=1, N=1）<strong>并行度饥饿</strong>：grid = N×H = 128 个 block，
+但 H20 有 78 个 SM 且每 SM 能住多块 → block 太少，SM 填不满。这跟 bank conflict 正交，swizzle 帮不上。</p>
+<p><strong>split-V（源码 L216-217、模板参数 <code>VSplit</code>）</strong> 是给 B1 补并行度的招：把状态的<strong>列轴 v</strong> 切给多个 CTA。
+<code>blockIdx.z = v_split</code> 决定这个 CTA 负责哪 <code>Dv = D/VSplit</code> 列（源码 L189 <code>constexpr int Dv = D/VSplit</code>）。
+所有按 v 索引的 buffer（dS/T1/dU/do）宽度变 Dv；只按收缩轴 k 索引的（mqk/inv/qd/kd/kr）保持全宽 D。
+<code>VSplit=1</code> 时 <code>Dv==D</code>，所有布局塌回原始 monolithic 视图（bit-exact）。</p>
+<ul>
+<li><strong>好处</strong>：grid 从 (N,H) 变 (N,H,VSplit) → block 数 ×VSplit → B1 从 128 block 变 256/512 → 填满 SM。</li>
+<li><strong>代价</strong>：每个 v-band 的 CTA 都要<strong>重算一遍</strong> R1（qd/kd/kr 是全宽、与 v 无关）→ VSplit 越大重复越多。</li>
+<li>基线时 split-V 自动派发：B1 大赢 −33%，饱和 grid（B32/B8）上中性（那里 block 本就够多）。</li>
+<li>VSplit ∈ {1,2,4} 由 grid 占用率在 launcher 里自动决定（<code>ctas_base = N*H &lt; sm_count</code> 时开大）。</li>
+</ul>
+<blockquote>
+<p><strong>小白记住</strong>：conflict 优化（swizzle/pad）修的是"每个 warp 跑多快"；split-V 修的是"有没有足够多
+warp 填满 SM"。<strong>B32/B8 缺的是前者，B1 缺的是后者。</strong> 这就是为什么整个 conflict 战役 B1 一直持平 ——
+它的病在别处（并行度），得用 split-V / grid remap 这类正交杠杆治。<strong>开放杠杆：VSplit&gt;4 / grid remap。</strong></p>
+</blockquote>
+<hr>
+<h2 id="第-6-部分一句话教训总结小白记这几条就够"><a class="markdownIt-Anchor" href="#第-6-部分一句话教训总结小白记这几条就够"></a> 第 6 部分：一句话教训总结（小白记这几条就够）</h2>
+<ol>
+<li>
+<p><strong>先修占用率，再修 conflict</strong>（第 1→2 部分）。占用率没修好时，bank conflict 被延迟盖住看不出；
+反过来也一样。阶段 2 把 fp32 中间量搬进寄存器、干掉大象 <code>T1_smem</code> → 1→4 block/SM → −37%。</p>
+</li>
+<li>
+<p><strong>swizzle 要读写成对、且只对"可自由重排写地址"的操作数做</strong>（第 2-3 部分）。R1 逐元素产出的
+qd/kd/kr/dS 可以 swizzle（<code>ldmatrix</code>+<code>stmatrix</code> 成对）；cp.async 载入的 mqk/inv/do 要么保持普通、
+要么把 swizzle 白嫖进 cp.async scatter（s9 plan-a），<strong>绝不加额外的生产者 pass</strong>（s7 plan-b 因此 +14.5%）。</p>
+</li>
+<li>
+<p><strong>transpose-dual：一份字节喂两个方向</strong>（dS 的 DSb/DSc，第 2.3）。互为转置的 K_INTER/MN_INTER
+atom 命中同一物理字节 → 存一次、正读+转置读都无冲突、零 padding、smem 不变。</p>
+</li>
+<li>
+<p><strong>INTER 对 16 宽子 tile 已够，别升级到 SW32/64/128</strong>（s10，第 4.1）。更大 swizzle atom 每次访问多花
+XOR 地址运算 + 寄存器 → spill → 全线回归（连不受冲突限制的 B1 都退 = 铁证不是冲突权衡）。</p>
+</li>
+<li>
+<p><strong>别追不在关键路径上的 ncu 指标</strong>（s7 的 805M、s10/s12-分析的 1.89B conf_ld，第 3.2/4.1/4.3）。
+先看"绑定 stall 是谁"。s7 时是 gmem long_scoreboard，追 shared conflict 白费；s8 crush 掉 gmem 后
+short_scoreboard 才浮上来，那时 swizzle mqk/inv/do 才值得。</p>
+</li>
+<li>
+<p><strong>源码级归因胜过按 atom 瞎试</strong>（s11，第 4.2）。text-mode ncu 把冲突拆到 SASS 指令，发现 79% 冲突是
+R1 <em>没被 swizzle 碰过</em> 的 token-strided 标量读（<code>LDS.U16</code>），所有 ldmatrix 操作数早已 0 冲突 ——
+这才指向"pad R1 raw buffer"这个正确修法。</p>
+</li>
+<li>
+<p><strong>bf16 token-strided 读的 4-way 地板由 16B-coalescing 锁死，破它必须换更小写粒度</strong>（s12，第 4.3-4.4）。
+奇数半-stride 130（65 与 32 互质）+ 4B <a class="link" target="_blank" rel="noopener" href="http://cp.async.ca">cp.async.ca<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> → 读散满 32 bank。代价 4× LDGSTS 在延迟绑定的
+B1 净赚（−4.2%），在富并行 B32/B8 大体抵消（−1%）—— 精算过的赌博，赢在最该赢的 B1。</p>
+</li>
+<li>
+<p><strong>构建陷阱（必记）</strong>：<code>s*</code> 都是被 <code>bwd_launch.cu</code> <code>#include</code> 的 header。改 header 不
+<code>touch csrc/smxx/bwd_launch.cu</code> 就不重编，stale <code>.so</code> 给假结果。改任何 header 后必须
+<code>touch bwd_launch.cu</code> 再 build。<strong>A/B 测试永远同 session、单变量</strong>（日志 §0 曾差点把变化误判成
+caching-allocator 的抖动）。</p>
+</li>
+</ol>
+<hr>
+<h2 id="附优化日志阶段-vs-冠军源码的对应关系速查"><a class="markdownIt-Anchor" href="#附优化日志阶段-vs-冠军源码的对应关系速查"></a> 附：优化日志阶段 vs 冠军源码的对应关系速查</h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>招</th>
+<th>源码行（s12）</th>
+<th>收益（B32/B8/B1）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>寄存器融合 C×Dv 链</td>
+<td>L564-632</td>
+<td>−6.7/−6.9/−11.9%</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>寄存器融合 D×Dv 链，消灭 T1_smem</strong></td>
+<td>L634-673</td>
+<td><strong>−38/−37.5/−37%（占用率 12.5→50%）</strong></td>
+</tr>
+<tr>
+<td>3a</td>
+<td>普通布局 LDSM（证明正确性，收益小）</td>
+<td>L539-552</td>
+<td>−1.5/−1.2/−2.6%</td>
+</tr>
+<tr>
+<td>3b</td>
+<td>swizzle qd/kd（<code>QdKdSw</code> MN_INTER）</td>
+<td>L118-120,443-444</td>
+<td>−11.9/−12.3/−0.1%</td>
+</tr>
+<tr>
+<td>3c</td>
+<td>swizzle kr（<code>KrSw</code> K_INTER）</td>
+<td>L124-126,445</td>
+<td>−6.8/−6.8/−1.4%（累计 −50%）</td>
+</tr>
+<tr>
+<td><strong>3d</strong></td>
+<td><strong>dS transpose-dual swizzle（DSb/DSc）</strong></td>
+<td>L128-145,529-530</td>
+<td><strong>−22.8/−17.9/−1.0%（累计 −61%）</strong></td>
+</tr>
+<tr>
+<td>4/s6</td>
+<td>STSM 写 R1 产出，消 380M store 冲突</td>
+<td>L485-491</td>
+<td>−14.4/−11.4/−5.5%</td>
+</tr>
+<tr>
+<td>5/s7</td>
+<td>❌ 生产者 pass swizzle mqk/inv/do</td>
+<td>（已回退）</td>
+<td>+3.1/+3.2/+14.5%</td>
+</tr>
+<tr>
+<td>6/s8</td>
+<td>cp.async 预取 R1 q/k/gc + varlen spill 修复</td>
+<td>L303-328,40-46</td>
+<td>−1.0/−3.8/−10.5%</td>
+</tr>
+<tr>
+<td>7/s9</td>
+<td>swizzled cp.async scatter mqk/inv/do（plan-a）</td>
+<td>L330-357,158-163</td>
+<td>−2.2/−1.9/−0.5%</td>
+</tr>
+<tr>
+<td>8/s10</td>
+<td>❌ dS INTER→SW32（每访问多花 XOR → spill）</td>
+<td>（已回退）</td>
+<td>+10.8/+12.2/+12.5%</td>
+</tr>
+<tr>
+<td>9/s11</td>
+<td>pad R1 raw q/k/gc buffer（破 token-strided）</td>
+<td>（前冠军 stride 136）</td>
+<td>−10.3/−10.6/−7.7%</td>
+</tr>
+<tr>
+<td>10/s12-分析</td>
+<td>⏭️ XOR-swizzle q/k（被 source-ncu 否决）</td>
+<td>—</td>
+<td>（4-way 地板锁死）</td>
+</tr>
+<tr>
+<td><strong>11/s12</strong></td>
+<td><strong>q/k 奇半 stride-130 + 4B <a class="link" target="_blank" rel="noopener" href="http://cp.async.ca">cp.async.ca<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></strong></td>
+<td>L200-208,313-327</td>
+<td><strong>−1.0/−1.0/−4.2%（当前冠军）</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>当前状态</strong>：冠军 = Kernel A <code>s12</code> + Kernel B <code>l8</code>（后者见 <code>bwd-kernelB-beginner-guide-full.md</code>）。
+Kernel A 相对基线累计 <strong>−71.8% / −69.4% / −55.4%</strong>。<strong>B1（低 N）下 Kernel A 串行 dstate scan 是和 FLA
+差距的主因</strong>；conflict 轴已耗尽（INTER 最优、SW32 净负、bf16 q/k 读已打到无冲突），<strong>剩余开放杠杆</strong>：</p>
+<ol>
+<li><strong>B1 并行度</strong> —— VSplit&gt;4（VS8 模板实例化 + 派发）/ grid remap；B1 仍 barrier/占用率受限（12.5%）。</li>
+<li><strong>计算侧</strong> —— Compute SoL 现 64%；内存 stall 进一步下降后，GEMM 链本身成为下一个天花板。</li>
+<li><strong>context-parallel（CP）</strong> —— 沿时间维切段给 B=1 补并行度（见 <code>docs/multi_card_cp.md</code> + <code>cp_bwd.py</code>），
+与 kernel 内优化正交。</li>
+</ol>
+<hr>
+<h2 id="附二本文档-vs-源码日志的补充说明"><a class="markdownIt-Anchor" href="#附二本文档-vs-源码日志的补充说明"></a> 附二：本文档 vs 源码/日志的补充说明</h2>
+<p>本文档与 <code>docs/20260715-bwd-kernelA-optimization-log.md</code> <strong>完全一致</strong>（Kernel A 只有一份日志，不像
+Kernel B 有三份分散的日志需要合并补充）。相对日志，本文档的<strong>增量</strong>是：</p>
+<ol>
+<li>从第一性原理讲清了 <code>MOVM_T</code> 寄存器内转置、c 轴旋转（第 0.4）—— 日志只当惯用法带过。</li>
+<li>把 split-V 单列一部分讲透（第 5）—— 日志散在 §0 和各阶段的"B1 持平"注释里。</li>
+<li>把"两次红鲱鱼死路（s7 的 805M、s10 的 SW32）+ 最终 s12 破地板"串成一条<strong>归因方法论</strong>主线
+（第 3.2 / 4.1 / 4.3-4.4 + 教训 5-7）—— 这是 Kernel A 优化史最有价值的思维过程，日志按时间线记录，
+本文档按"教训"重组，便于小白吸收。</li>
+</ol>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> bwd-kernelA-beginner-guide-full</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-07-21 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-09-12 22:26:40
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/07/21/bwd-kernelA-beginner-guide-full/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/07/22/bwd-ncu-and-optimization-playbook/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">bwd-ncu-and-optimization-playbook</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/07/20/bwd-kernelB-beginner-guide-full/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">bwd-kernelB-beginner-guide-full</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">bwd-kernelA-beginner-guide-full</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%8D%E5%90%91-a-kernel-%E4%BC%98%E5%8C%96%E5%85%A8%E8%A7%A3%E6%9E%90%E5%B0%8F%E7%99%BD%E7%89%88%E4%BB%8E%E9%9B%B6%E8%AE%B2%E8%B5%B7"><span class="nav-text"> 反向 A Kernel 优化全解析（小白版，从零讲起）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-0-%E9%83%A8%E5%88%86kernel-a-%E6%98%AF%E4%BB%80%E4%B9%88%E5%9C%A8%E6%95%B4%E4%B8%AA%E5%8F%8D%E5%90%91%E9%87%8C%E5%A4%84%E4%BA%8E%E4%BB%80%E4%B9%88%E4%BD%8D%E7%BD%AE"><span class="nav-text"> 第 0 部分：Kernel A 是什么，在整个反向里处于什么位置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#01-%E4%B8%80%E5%8F%A5%E8%AF%9D%E5%AE%9A%E4%B9%89"><span class="nav-text"> 0.1 一句话定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#02-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%AE%83%E6%98%AF%E4%B8%80%E5%9D%97%E7%8B%AC%E7%AB%8B%E7%9A%84-kernel%E6%8B%86%E5%88%86%E8%83%8C%E6%99%AF"><span class="nav-text"> 0.2 为什么它是一块独立的 kernel（拆分背景）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#03-kernel-a-%E6%AF%8F%E4%B8%AA-tile-%E7%AE%97%E4%BB%80%E4%B9%885-%E4%B8%AA-gemm-1-%E4%B8%AA-combine"><span class="nav-text"> 0.3 Kernel A 每个 tile 算什么：5 个 GEMM + 1 个 combine</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#04-c-%E8%BD%B4%E6%97%8B%E8%BD%AC-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%AF%84%E5%AD%98%E5%99%A8%E5%86%85%E8%BD%AC%E7%BD%AE-movm_t"><span class="nav-text"> 0.4 c 轴旋转 —— 为什么需要&quot;寄存器内转置 MOVM_T&quot;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#05-kernel-a-%E7%9A%84%E5%9F%BA%E7%BA%BF%E8%AF%8A%E6%96%AD%E4%B8%BA%E4%BB%80%E4%B9%88%E5%80%BC%E5%BE%97%E4%BC%98%E5%8C%96"><span class="nav-text"> 0.5 Kernel A 的基线诊断（为什么值得优化）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-1-%E9%83%A8%E5%88%86%E7%AC%AC%E4%B8%80%E5%9C%BA%E7%A1%AC%E4%BB%97-%E6%B6%88%E7%81%AD-t1_smem%E5%8D%A0%E7%94%A8%E7%8E%87-12550%E9%98%B6%E6%AE%B5-1-2"><span class="nav-text"> 第 1 部分：第一场硬仗 —— 消灭 T1_smem，占用率 12.5%→50%（阶段 1-2）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-%E7%97%85%E6%A0%B9fp32-%E4%B8%AD%E9%97%B4%E7%BC%93%E5%86%B2%E5%90%83%E5%85%89%E4%BA%86-smem"><span class="nav-text"> 1.1 病根：fp32 中间缓冲吃光了 smem</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-%E5%85%88%E8%AE%B2%E9%80%8F%E4%B8%A4%E4%BB%B6%E4%BA%8B%E5%A4%A7%E8%B1%A1%E6%98%AF%E6%80%8E%E4%B9%88%E6%9D%A5%E7%9A%84-%E5%8F%88%E6%98%AF%E6%80%8E%E4%B9%88%E8%A2%AB%E5%B9%B2%E6%8E%89%E7%9A%84%E9%9B%B6-cute-%E6%9C%AF%E8%AF%AD%E7%89%88"><span class="nav-text"> 1.2 先讲透两件事：大象是怎么来的、又是怎么被干掉的（零 cute 术语版）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-%E5%85%B7%E4%BD%93%E6%80%8E%E4%B9%88%E6%90%AC%E7%85%A7%E6%8A%84%E5%89%8D%E5%90%91-k2-%E7%9A%84%E6%83%AF%E7%94%A8%E6%B3%95"><span class="nav-text"> 1.3 具体怎么搬(照抄前向 K2 的惯用法)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#14-%E9%98%B6%E6%AE%B5-2-%E7%9A%84%E6%88%98%E6%9E%9C%E5%8D%A0%E7%94%A8%E7%8E%87%E7%BF%BB%E4%B8%A4%E7%95%AA"><span class="nav-text"> 1.4 阶段 2 的战果：占用率翻两番</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-2-%E9%83%A8%E5%88%86%E7%AC%AC%E4%BA%8C%E5%9C%BA%E7%A1%AC%E4%BB%97-swizzle-%E6%B6%88%E7%81%AD-bank-conflict%E9%98%B6%E6%AE%B5-3a-3d"><span class="nav-text"> 第 2 部分：第二场硬仗 —— swizzle 消灭 bank conflict（阶段 3a-3d）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-%E5%85%88%E5%A4%B1%E8%B4%A5%E4%B8%80%E6%AC%A1%E6%99%AE%E9%80%9A%E5%B8%83%E5%B1%80%E7%9A%84-ldsm%E9%98%B6%E6%AE%B5-3a"><span class="nav-text"> 2.1 先失败一次：普通布局的 LDSM（阶段 3a）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-%E5%88%86%E8%AF%8A%E5%8F%AA-swizzle-r1-%E4%BA%A7%E5%87%BA%E7%9A%84%E6%93%8D%E4%BD%9C%E6%95%B0%E9%98%B6%E6%AE%B5-3b-3c"><span class="nav-text"> 2.2 分诊：只 swizzle &quot;R1 产出&quot;的操作数（阶段 3b-3c）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-%E6%9C%80%E5%90%8E%E4%B8%80%E4%B8%AA%E6%93%8D%E4%BD%9C%E6%95%B0ds-%E7%9A%84%E8%BD%AC%E7%BD%AE%E5%AF%B9%E5%81%B6-swizzle%E9%98%B6%E6%AE%B5-3d"><span class="nav-text"> 2.3 最后一个操作数：dS 的转置对偶 swizzle（阶段 3d）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-3-%E9%83%A8%E5%88%86%E5%86%99%E4%BE%A7-gmem-%E5%BB%B6%E8%BF%9F%E9%98%B6%E6%AE%B5-4s6-6s8-7s9"><span class="nav-text"> 第 3 部分：写侧 + gmem 延迟（阶段 4&#x2F;s6、6&#x2F;s8、7&#x2F;s9）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E9%98%B6%E6%AE%B5-4s6-%E7%94%A8-stsm-%E5%86%99-r1-%E7%9A%84%E4%BA%A7%E5%87%BA%E6%B6%88%E7%81%AD-380m-store-%E5%86%B2%E7%AA%81"><span class="nav-text"> 3.1 阶段 4&#x2F;s6 —— 用 STSM 写 R1 的产出，消灭 380M store 冲突</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-%E9%98%B6%E6%AE%B5-5s7-%E7%94%9F%E4%BA%A7%E8%80%85-pass-swizzle-mqkinvdo%E5%9B%9E%E5%BD%92%E5%B7%B2%E5%9B%9E%E9%80%80"><span class="nav-text"> 3.2 阶段 5&#x2F;s7 —— ❌ 生产者 pass swizzle mqk&#x2F;inv&#x2F;do：回归，已回退</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-%E9%98%B6%E6%AE%B5-6s8-cpasync-%E9%A2%84%E5%8F%96-r1-%E7%9A%84-qkgc%E7%A2%BE%E7%A2%8E-gmem-long_scoreboard"><span class="nav-text"> 3.3 阶段 6&#x2F;s8 —— cp.async 预取 R1 的 q&#x2F;k&#x2F;gc，碾碎 gmem long_scoreboard</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-%E9%98%B6%E6%AE%B5-7s9-swizzled-cpasync-scatter-mqkinvdoplan-awin"><span class="nav-text"> 3.4 阶段 7&#x2F;s9 —— swizzled cp.async scatter mqk&#x2F;inv&#x2F;do（plan a）：WIN</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-4-%E9%83%A8%E5%88%86%E7%BB%88%E5%B1%80-%E6%89%93%E7%A0%B4-bf16-%E7%9A%84-4-way-bank-%E5%9C%B0%E6%9D%BF%E9%98%B6%E6%AE%B5-8-11"><span class="nav-text"> 第 4 部分：终局 —— 打破 bf16 的 4-way bank 地板（阶段 8-11）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E9%98%B6%E6%AE%B5-8s10-ds-intersw32-%E7%9C%9F-xor-swizzle%E5%9B%9E%E5%BD%92%E5%B7%B2%E5%9B%9E%E9%80%80"><span class="nav-text"> 4.1 阶段 8&#x2F;s10 —— ❌ dS INTER→SW32 真 xor-swizzle：回归，已回退</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-%E9%98%B6%E6%AE%B5-9s11-%E6%BA%90%E7%A0%81%E7%BA%A7%E5%BD%92%E5%9B%A0%E7%9C%9F%E6%AD%A3%E7%9A%84%E5%86%B2%E7%AA%81%E6%BA%90%E4%B8%8D%E6%98%AF-mma-%E6%93%8D%E4%BD%9C%E6%95%B0"><span class="nav-text"> 4.2 阶段 9&#x2F;s11 —— 源码级归因：真正的冲突源不是 MMA 操作数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#43-%E9%98%B6%E6%AE%B5-10s12-%E5%88%86%E6%9E%90-%EF%B8%8F-xor-swizzle-qk%E5%86%99%E4%BB%A3%E7%A0%81%E5%89%8D%E5%B0%B1%E8%A2%AB%E5%90%A6%E5%86%B3"><span class="nav-text"> 4.3 阶段 10&#x2F;s12-分析 —— ⏭️ XOR-swizzle q&#x2F;k：写代码前就被否决</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#44-%E9%98%B6%E6%AE%B5-11s12-%E5%A5%87%E6%95%B0%E5%8D%8A-stride-130-4b-cpasync%E6%89%93%E7%A0%B4%E5%9C%B0%E6%9D%BF%E5%BD%93%E5%89%8D%E5%86%A0%E5%86%9B"><span class="nav-text"> 4.4 阶段 11&#x2F;s12 —— ✅ 奇数半-stride 130 + 4B cp.async：打破地板（当前冠军）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#45-%E5%BD%93%E5%89%8D%E5%86%A0%E5%86%9B%E7%8A%B6%E6%80%81"><span class="nav-text"> 4.5 当前冠军状态</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-5-%E9%83%A8%E5%88%86split-v-kernel-a-%E4%B8%93%E5%B1%9E%E7%9A%84%E5%B9%B6%E8%A1%8C%E5%BA%A6%E6%9D%A0%E6%9D%86"><span class="nav-text"> 第 5 部分：split-V —— Kernel A 专属的并行度杠杆</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-6-%E9%83%A8%E5%88%86%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%95%99%E8%AE%AD%E6%80%BB%E7%BB%93%E5%B0%8F%E7%99%BD%E8%AE%B0%E8%BF%99%E5%87%A0%E6%9D%A1%E5%B0%B1%E5%A4%9F"><span class="nav-text"> 第 6 部分：一句话教训总结（小白记这几条就够）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E4%BC%98%E5%8C%96%E6%97%A5%E5%BF%97%E9%98%B6%E6%AE%B5-vs-%E5%86%A0%E5%86%9B%E6%BA%90%E7%A0%81%E7%9A%84%E5%AF%B9%E5%BA%94%E5%85%B3%E7%B3%BB%E9%80%9F%E6%9F%A5"><span class="nav-text"> 附：优化日志阶段 vs 冠军源码的对应关系速查</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E4%BA%8C%E6%9C%AC%E6%96%87%E6%A1%A3-vs-%E6%BA%90%E7%A0%81%E6%97%A5%E5%BF%97%E7%9A%84%E8%A1%A5%E5%85%85%E8%AF%B4%E6%98%8E"><span class="nav-text"> 附二：本文档 vs 源码&#x2F;日志的补充说明</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 48 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

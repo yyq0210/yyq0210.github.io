@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/07/22/bwd-ncu-and-optimization-playbook/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="bwd-ncu-and-optimization-playbook">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/07/22/bwd-ncu-and-optimization-playbook/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-07-22T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-09-12T14:26:40.722Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            bwd-ncu-and-optimization-playbook | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">48</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">bwd-ncu-and-optimization-playbook</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-07-22 23:50</span>
+        <span class="mobile">2026-07-22 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-09-12 22:26:40</span>
+            <span class="mobile">2026-09-12 22:26:40</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="反向-kernel-ab-优化通用方法论-ncu-指标解析-共同优化手段总结"><a class="markdownIt-Anchor" href="#反向-kernel-ab-优化通用方法论-ncu-指标解析-共同优化手段总结"></a> 反向 Kernel A/B 优化通用方法论 —— ncu 指标解析 + 共同优化手段总结</h1>
+<p>日期：2026-07-22
+GPU：H20-3e（sm_90a，Hopper）。
+本文是 <strong>Kernel A（串行 dstate 反向 scan）</strong> 和 <strong>Kernel B（并行 per-token 梯度，split 成 4 个小
+kernel）</strong> 两条优化战役的<strong>横向提炼</strong>：把两边<strong>反复用到的同一批 ncu 指标</strong>讲透，把两边<strong>共享的优化
+套路</strong>总结成可复用的 playbook。</p>
+<ul>
+<li>姊妹篇（逐阶段细节）：<code>bwd-kernelA-beginner-guide-full.md</code>、<code>bwd-kernelB-beginner-guide-full.md</code>。</li>
+<li>术语从零扫盲：见 Kernel B 小白版<strong>第 0 部分</strong>（GPU 层级、三种内存、occupancy、bank conflict、
+coalescing、cp.async、Tensor Core/MMA/cute/swizzle/LDSM、ncu/roofline/stall）。本文不重复扫盲，
+只做<strong>跨 kernel 的对照与提炼</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>一句话读法</strong>：先看第 1 部分学会读 ncu 那几个数字，再看第 2 部分的"诊断流程图"知道该往哪修，
+第 3 部分是两边都验证过的具体手段，第 4 部分是两边都踩过的坑。</p>
+</blockquote>
+<hr>
+<h2 id="第-1-部分两条战役共用的-ncu-指标解析"><a class="markdownIt-Anchor" href="#第-1-部分两条战役共用的-ncu-指标解析"></a> 第 1 部分：两条战役共用的 ncu 指标解析</h2>
+<p>优化不是瞎试，是<strong>先用 ncu 定位墙、再对症下药</strong>。A/B 两边从头到尾就盯着下面这几个数字。逐个讲清
+<strong>它是什么、数值往哪个方向算好、看到它该做什么</strong>。</p>
+<h3 id="11-occupancy占用率-第一个要看的数"><a class="markdownIt-Anchor" href="#11-occupancy占用率-第一个要看的数"></a> 1.1 occupancy（占用率）—— 第一个要看的数</h3>
+<ul>
+<li><strong>定义</strong>：一个 SM 上<strong>实际同时活跃的 warp 数 ÷ 硬件上限</strong>。H20 每 SM 上限 64 warp，占用率 12.5%
+= 只有 8 个活跃 warp。</li>
+<li><strong>好坏方向</strong>：越高越好。高 = SM 上随时有别的 warp 顶上 → 一个 warp 卡住时 SM 不空转 → 延迟被藏住。</li>
+<li><strong>被谁限制</strong>：每个 SM 的 <strong>smem 和寄存器是固定的一池</strong>。一个 block 吃的 smem 越多 / 寄存器越多，
+一个 SM 能同时住的 block 就越少 → 活跃 warp 越少 → 占用率越低。<strong>smem 通常是主凶。</strong></li>
+<li><strong>两边的同一病根</strong>：
+<ul>
+<li>Kernel A 基线：smem/block = <strong>124.48KB</strong> → 放 2 块要 249KB &gt; 227KB 上限 → <strong>1 block/SM，占用率 12.5%</strong>。</li>
+<li>Kernel B 基线（未拆的大融合 kernel）：smem = <strong>176KB</strong> &gt; 233KB/2 → 同样 <strong>1 block/SM，占用率 12.5%</strong>。</li>
+</ul>
+</li>
+<li><strong>看到它该做什么</strong>：占用率是"smem 阶梯函数"——只有把 smem 砍<strong>过某个台阶</strong>（能多塞一个 block）才跳一档。
+A 靠寄存器融合把 124→50KB（跨到 4 block/SM）；B 靠拆 kernel 把 176→70KB（跨到 3 block/SM）。</li>
+</ul>
+<h3 id="12-stall-reason停顿原因-warp-卡住时在等什么"><a class="markdownIt-Anchor" href="#12-stall-reason停顿原因-warp-卡住时在等什么"></a> 1.2 stall reason（停顿原因）—— warp 卡住时在等什么</h3>
+<p>ncu 会统计"warp 没发指令时，卡在什么原因上"，占比最高的就是<strong>当前的墙</strong>。A/B 反复出现这四个：</p>
+<table>
+<thead>
+<tr>
+<th>stall reason</th>
+<th>含义</th>
+<th>典型触发</th>
+<th>归到哪类墙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Short Scoreboard</strong></td>
+<td>等一个<strong>短延迟片上访问</strong>（几乎总是 <strong>smem 读 LDS/LDSM</strong>）的结果</td>
+<td>bank conflict 让 LDS 变慢/变多</td>
+<td>smem 管线</td>
+</tr>
+<tr>
+<td><strong>Long Scoreboard</strong></td>
+<td>等一个<strong>长延迟 gmem 读 LDG</strong> 的结果</td>
+<td>gmem 访问没被 cp.async/流水藏住</td>
+<td>gmem 延迟</td>
+</tr>
+<tr>
+<td><strong>MIO Throttle</strong></td>
+<td>MIO（所有 smem 指令 + 类型转换走的管线）<strong>排满，发不进新指令</strong></td>
+<td>LDS/STS 太多、或 bf16 打包 F2FP 太多</td>
+<td>smem 管线拥塞</td>
+</tr>
+<tr>
+<td><strong>Barrier</strong></td>
+<td>等 <code>__syncthreads</code> 全员到齐</td>
+<td>跨 warp 数据交接太多、warp 太少干等</td>
+<td>同步/占用率</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>好坏方向</strong>：这些都是"浪费的周期占比"，越低越好；但<strong>关键不是绝对值，是谁排第一</strong>——第一名就是这一轮该打的墙。</li>
+<li><strong>两边的用法</strong>：
+<ul>
+<li>Kernel A 基线首要 stall = <strong>MIO throttle 31.4%</strong>，DRAM 仅 4% → <strong>不是带宽受限，是 smem 管线受限</strong> →
+去修 bank conflict，不去动 gmem。</li>
+<li>Kernel A s3a（换了 ldmatrix 但没 swizzle）：Short Scoreboard 40.3% + MIO Throttle 32.1% = 72% 全在
+smem → <strong>确认瓶颈是 bank conflict 不是指令条数</strong> → 逼出 swizzle。</li>
+<li>Kernel B split-B 路径：主 stall 是 gmem 的 Long Scoreboard（dS 流式读）→ 判定为 <strong>latency-bound</strong>，
+只有提占用率有用。</li>
+</ul>
+</li>
+</ul>
+<h3 id="13-warp-cycles-per-instruction-issued-每条指令有多堵"><a class="markdownIt-Anchor" href="#13-warp-cycles-per-instruction-issued-每条指令有多堵"></a> 1.3 Warp Cycles per Instruction Issued —— 每条指令有多堵</h3>
+<ul>
+<li><strong>定义</strong>：平均每发射一条指令，一个 warp 要耗多少周期。</li>
+<li><strong>好坏方向</strong>：越小越好（越接近"发一条走一条"）。变大 = 每条指令更堵，多半在等 smem/gmem。</li>
+<li><strong>经典反直觉案例</strong>（Kernel A s3a）：换 ldmatrix 后指令<strong>总数</strong>下降，但 Warp Cycles <strong>32→46（更差）</strong> →
+证明 kernel <strong>不是被指令数量限制</strong>，而是被 bank conflict 限制 → <strong>砍指令数治不了病</strong>。这是"别只看指令数"
+的铁证。</li>
+</ul>
+<h3 id="14-l1tex-l1shared-吞吐利用率sol-找真墙"><a class="markdownIt-Anchor" href="#14-l1tex-l1shared-吞吐利用率sol-找真墙"></a> 1.4 L1/TEX、L1/shared 吞吐利用率（SoL）—— 找"真墙"</h3>
+<ul>
+<li><strong>定义</strong>：某个硬件单元的吞吐用到理论峰值的百分比（Speed-of-Light）。ncu 里 <code>L1/shared 85.8%</code>、
+<code>Compute 42.6%</code>、<code>L1/TEX 97.5%</code> 都是这类。</li>
+<li><strong>好坏方向</strong>：<strong>利用率最高的那个单元 = 墙</strong>。想提速就得<strong>减少打到那面墙的流量</strong>，或把负载挪到没到顶的单元。</li>
+<li><strong>陷阱</strong>：利用率高<strong>不一定等于在干有用的活</strong>。Kernel A s3a 的 L1/TEX 钉死 97.5%，但它忙的是<strong>反复串行
+重试 bank conflict</strong>（忙于重试，不是搬数据）→ 高利用率反而是"病"的信号。要结合 stall reason 一起判。</li>
+<li><strong>两边用法</strong>：Kernel B 用 <code>L1/shared 85.8%</code> vs <code>Compute 42.6%</code> 判定"墙是 smem 吞吐、不是算力" →
+优化方向定为"砍 smem 访存流量"，而不是重写 GEMM。</li>
+</ul>
+<h3 id="15-bank-conflict-计数conf_ld-conf_st-ldsu16-op_st"><a class="markdownIt-Anchor" href="#15-bank-conflict-计数conf_ld-conf_st-ldsu16-op_st"></a> 1.5 bank-conflict 计数：<code>conf_ld</code> / <code>conf_st</code>、<code>LDS.U16</code> / <code>op_st</code></h3>
+<ul>
+<li><strong>定义</strong>：ncu 统计的共享内存冲突事件数。<code>conf_ld</code>=load 冲突、<code>conf_st</code>=store 冲突；text-mode
+（<code>--page source</code>）能进一步拆到 <strong>SASS 指令</strong>级：<code>LDS.U16</code>（bf16 标量读）、<code>LDS</code>（32 位读）、
+<code>LDGSTS</code>（cp.async）、<code>LDSM/STSM</code>（矩阵读写）各贡献多少冲突 wavefront。</li>
+<li><strong>好坏方向</strong>：越低越好；但<strong>必须先确认它在关键路径上</strong>（见 1.2 的 stall 排序），否则修了不涨。</li>
+<li><strong>两边最有价值的一课</strong>（源码级归因）：
+<ul>
+<li>Kernel A s11：把 1.99B 冲突按 SASS 拆开，发现 <strong>79% 来自 R1 <em>没被 swizzle 碰过</em> 的 token-strided
+<code>LDS.U16</code></strong>，而所有 <code>LDSM/STSM</code>（MMA 操作数）<strong>= 0 冲突</strong> → 修法从"给 MMA 操作数加 swizzle"改成
+“pad R1 raw buffer”。<strong>这是 atom-guessing 与 source-attribution 的分水岭。</strong></li>
+<li>数值证据链：s11 后 <code>conf_ld</code> 1.89B→1.16B（−39%）、short_scoreboard 2.53→1.20（−53%）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="16-用哪些-ncu-命令拿到这些数共用命令行"><a class="markdownIt-Anchor" href="#16-用哪些-ncu-命令拿到这些数共用命令行"></a> 1.6 用哪些 ncu 命令拿到这些数（共用命令行）</h3>
+<div class="code-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1) 总览：占用率 + 各单元 SoL + 首要 stall（先跑这个定墙）</span></span><br><span class="line">ncu --<span class="built_in">set</span> full -k &lt;kernel_name_regex&gt; -c 1 ./bench</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 只要 stall / 吞吐 / 占用率的精简 section（迭代时快）</span></span><br><span class="line">ncu --section SpeedOfLight --section Occupancy \</span><br><span class="line">    --section WarpStateStats -k &lt;regex&gt; -c 1 ./bench</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) bank-conflict 计数（load/store 冲突事件）</span></span><br><span class="line">ncu --metrics \</span><br><span class="line">  l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,\</span><br><span class="line">  l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum \</span><br><span class="line">  -k &lt;regex&gt; -c 1 ./bench</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4) ★源码级归因：把冲突 wavefront 拆到 SASS 指令（s11 靠它翻案）</span></span><br><span class="line">ncu --page <span class="built_in">source</span> --import &lt;report&gt;.ncu-rep     <span class="comment"># text-mode，逐 SASS 看 conflict 归属</span></span><br><span class="line"><span class="comment">#   或 GUI 里打开 .ncu-rep → Source page → 按 "L1 Wavefronts Shared Excessive" 排序</span></span><br></pre></td></tr></table></figure></div>
+<blockquote>
+<p><strong>迭代纪律（两边共用）</strong>：永远<strong>同一 session、单变量</strong>改一处、重测一次。Kernel A 曾差点把
+caching-allocator 的抖动误判成优化收益；A/B 测试不隔离就会追到噪声。</p>
+</blockquote>
+<hr>
+<h2 id="第-2-部分共用的诊断流程该往哪修"><a class="markdownIt-Anchor" href="#第-2-部分共用的诊断流程该往哪修"></a> 第 2 部分：共用的诊断流程（该往哪修）</h2>
+<p>两条战役收敛出<strong>同一张决策图</strong>。拿到一个 kernel，按这个顺序问：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">①  占用率够吗？（ncu Occupancy）</span><br><span class="line">    └─低（≤12.5%，1 block/SM）── 先修占用率：砍 smem 跨阶梯（见 3.1）。别的先别碰。</span><br><span class="line">    └─够 ─────────────────────► 进 ②</span><br><span class="line"></span><br><span class="line">②  首要 stall 是谁？（ncu WarpStateStats）</span><br><span class="line">    ├─ Long Scoreboard（等 gmem）── gmem 是墙：cp.async 分组重叠 / 减 gmem 流量（见 3.4）。</span><br><span class="line">    │                               ★此时去修 smem bank conflict 是白费（s7 教训）。</span><br><span class="line">    ├─ Short Scoreboard / MIO（等 smem）── smem 是墙：进 ③</span><br><span class="line">    └─ Barrier（等同步）── 跨 warp 交接太多 / warp 太少：register-fuse 消 barrier（3.1）或补并行度（3.5）。</span><br><span class="line"></span><br><span class="line">③  smem 墙 —— 冲突到底在哪条指令？（ncu --page source 源码级归因）</span><br><span class="line">    ├─ 冲突在 MMA 操作数（LDSM/STSM）── swizzle 读写成对（见 3.2、3.3）。</span><br><span class="line">    ├─ 冲突在 raw 标量读（LDS.U16 token-strided）── pad 行 stride 破整除（见 3.2 的 padding）。</span><br><span class="line">    └─ 已到 4-way 硬地板（16B-coalescing 锁死）── 换更小写粒度 + 互质 stride（见 3.2 末）。</span><br><span class="line"></span><br><span class="line">④  smem 冲突耗尽、但某配置（尤其 B1/低 N）仍不动？</span><br><span class="line">    └─ 是并行度饥饿，不是冲突：补 grid 并行（split-V / grid remap / context-parallel，见 3.5）。</span><br></pre></td></tr></table></figure></div>
+<p><strong>两条铁律</strong>（贯穿全图）：</p>
+<ol>
+<li><strong>先占用率、后冲突</strong>：占用率没修好时，bank conflict 被延迟盖住看不出来；顺序反了会误判。</li>
+<li><strong>先定 stall、后动手</strong>：不看"绑定 stall 是谁"就去追某个 ncu 计数，十有八九追到不在关键路径上的红鲱鱼。</li>
+</ol>
+<hr>
+<h2 id="第-3-部分两边共享的优化手段可复用套路"><a class="markdownIt-Anchor" href="#第-3-部分两边共享的优化手段可复用套路"></a> 第 3 部分：两边共享的优化手段（可复用套路）</h2>
+<p>下面每条都是 <strong>A 和 B 都实际用过并验证有效</strong>的手段。列出"原理 / A 侧落点 / B 侧落点 / 收益量级"。</p>
+<h3 id="31-用更省-smem-的写法跨占用率阶梯两边最大的赢"><a class="markdownIt-Anchor" href="#31-用更省-smem-的写法跨占用率阶梯两边最大的赢"></a> 3.1 用"更省 smem 的写法"跨占用率阶梯（两边最大的赢）</h3>
+<ul>
+<li><strong>原理</strong>：占用率被 smem 卡住时，唯一有效的动作是把 smem/block 砍到能多塞一个 block 的台阶。有两条路：
+<ul>
+<li><strong>register-fusion（寄存器融合）</strong>：把 fp32 中间缓冲从 smem 搬进<strong>寄存器</strong>（每线程私有、不占 smem 池）。</li>
+<li><strong>kernel-splitting（拆 kernel）</strong>：把大融合 kernel 拆成几个小 kernel，每个只留自己那步的 smem，
+中间结果<strong>写回 gmem</strong> 传递。用"多写几趟 gmem"换"占用率翻倍"。</li>
+</ul>
+</li>
+<li><strong>Kernel A 落点</strong>：register-fuse 5 个 GEMM 的中间量（dU/dvcorr/bdv/T1），干掉 64KB 的"大象"<code>T1_smem</code> →
+124.48→50.75KB → 1→4 block/SM → 占用率 12.5%→50%。<strong>收益 −38/−37.5/−37%</strong>。</li>
+<li><strong>Kernel B 落点</strong>：把大融合 kernel 拆成 4 个（B1/B2/B0/B3），每个 smem ~70KB → 1→3 block/SM → 占用率
+12.5%→37.5%。</li>
+<li><strong>共同前提</strong>：<strong>两者都在 latency/occupancy-bound 场景才净赚</strong>——延迟被占用率藏住，多出来的 gmem 写/寄存器
+压力被更高并行度盖过。若本就带宽受限，拆 kernel 反而亏。</li>
+</ul>
+<h3 id="32-swizzle-padding-消-bank-conflictsmem-墙的主武器"><a class="markdownIt-Anchor" href="#32-swizzle-padding-消-bank-conflictsmem-墙的主武器"></a> 3.2 swizzle / padding 消 bank conflict（smem 墙的主武器）</h3>
+<ul>
+<li><strong>原理</strong>：让一个 warp 的 32 线程访问落到 32 个<strong>不同</strong> bank。两种做法：
+<ul>
+<li><strong>swizzle（异或置换）</strong>：对 smem 地址做固定 XOR 变换，把本会撞同 bank 的元素散开。适合<strong>写地址可自由
+重排</strong>的操作数。</li>
+<li><strong>padding（填充行 stride）</strong>：给每行尾部塞废元素，把行 stride 改成<strong>不是 32 的倍数</strong>，破掉"竖读一列
+时行行 bank 重合"。适合<strong>不能改写指令、只能改布局</strong>的 raw buffer。</li>
+</ul>
+</li>
+<li><strong>Kernel A 落点</strong>：qd/kd/kr/dS 用 swizzle（3b/3c/3d，累计 −61%）；R1 的 raw q_sm/k_sm/gc_sm 用
+padding（s11，stride 136/132，−7.7~10.6%）。</li>
+<li><strong>Kernel B 落点</strong>：dS 用 swizzle 转置对偶（见 3.3）；某处 fp32 buffer 行 stride 从 D 改 <strong>D+4=132</strong>
+（<code>%32=4</code>，每行错开 4 bank，8 行落 8 bank）消 ~75% 冲突。</li>
+<li><strong>两个共同约束</strong>（选 pad 值时必守）：(1) 错开量 ≠ 0（真的破 <code>%32</code> 整除）；(2) 每行仍是 <strong>16 字节 cp.async
+最小搬运块的整数倍</strong>（A 的 136 bf16=272B=16×17；B 的 132 fp32=528B=16×33）。</li>
+<li><strong>4-way 硬地板（两边都会撞的天花板）</strong>：bf16 <strong>token-strided 读</strong> 在 16B-coalescing 约束下，<code>STRIDE/2</code>
+被迫是 4 的倍数 → 最多 8 bank = <strong>4-way 冲突地板</strong>，swizzle/pad 都破不了。<strong>唯一出路 = 换更小写粒度</strong>：
+Kernel A s12 用 <code>STRIDE=130</code>（65 与 32 互质）+ <strong>4B <a class="link" target="_blank" rel="noopener" href="http://cp.async.ca">cp.async.ca<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></strong>（放弃 16B）把读散满 32 bank，代价是
+4× LDGSTS，只在延迟绑定的 B1 净赚（−4.2%）。</li>
+</ul>
+<h3 id="33-transpose-dual一份物理字节喂两个方向省一次转置"><a class="markdownIt-Anchor" href="#33-transpose-dual一份物理字节喂两个方向省一次转置"></a> 3.3 transpose-dual：一份物理字节喂两个方向（省一次转置）</h3>
+<ul>
+<li><strong>原理</strong>：一个矩阵常被"正着乘"又被"转置乘"。用互为转置的 <strong><code>K_INTER</code>（正读 LDSM_N）/ <code>MN_INTER</code>
+（转置读 LDSM_T）</strong> swizzle atom，让两个方向<strong>命中同一份物理字节</strong> → <strong>存一次，正读+转置读都无冲突、
+零 padding</strong>。</li>
+<li><strong>Kernel A 落点</strong>：dS 的 <code>DSb</code>（K_INTER）/<code>DSc</code>（MN_INTER），s3d，−22.8/−17.9%。</li>
+<li><strong>Kernel B 落点</strong>：dS 存一次、B1（dvcorr/dkr）正读、B2（dgT-dot）转置读；sin 的 <code>SwSinLayout</code>/
+<code>SwSinLayoutT</code> 双方向读同一份（B2 的 dqd/dkd 收缩 sin 的行用 LDSM_T，kdS 收缩 sin 的列用 LDSM_N）。</li>
+<li><strong>共同点</strong>：省的是"写 smem→同步→按另一方向读回"整套动作，且<strong>正确性由构造保证</strong>（store/load 引用同一
+layout 对象 = 一个置换 + 它的逆 → 数据恒等，无需重新验证数值）。</li>
+</ul>
+<h3 id="34-cpasync-分组重叠把-gmem-延迟藏到-r1-计算背后"><a class="markdownIt-Anchor" href="#34-cpasync-分组重叠把-gmem-延迟藏到-r1-计算背后"></a> 3.4 cp.async 分组重叠：把 gmem 延迟藏到 R1 计算背后</h3>
+<ul>
+<li><strong>原理</strong>：普通 gmem→smem 要经寄存器且线程必须<strong>等</strong>。<code>cp.async</code> 异步搬运：先把一批操作数 <code>commit</code>
+<strong>不等</strong>，马上去算别的（R1 重建），等真正要用时再 <code>wait</code>。用 FIFO 分组控制"先算的先到"。</li>
+<li><strong>Kernel A 落点</strong>：Group A（q/k/gc）先 commit、<code>wait&lt;1&gt;</code> 后跑 R1 前半；Group B（inv/mqk/do）后 commit、
+<code>wait&lt;0&gt;</code> 在 stage-2 前 → 把两批 gmem 读的延迟叠在 R1 计算背后（s8/s9，B1 −10.5%）。</li>
+<li><strong>Kernel B 落点</strong>：先把所有 bf16 GEMM 操作数（dS/U/INV/Mqk/do）cp.async 发出 + commit <strong>不等</strong>，马上跑
+R1，用完再 wait（B3 是双 group A/B）。</li>
+<li><strong>★关键分诊（两边一致）</strong>：<strong>只有当首要 stall 是 gmem Long Scoreboard 时，cp.async 才有用</strong>。若已是
+occupancy-bound（延迟本就被占用率藏住），加 cp.async 流水<strong>纯是开销 → ~0% 或负</strong>（Kernel B 0719§4.1
+的 l9 就是负收益；Kernel A s7 在 gmem 未 crush 前去修 shared 也白费）。</li>
+</ul>
+<h3 id="35-补并行度split-v-grid-remap治低-nb1-冲突优化不动"><a class="markdownIt-Anchor" href="#35-补并行度split-v-grid-remap治低-nb1-冲突优化不动"></a> 3.5 补并行度：split-V / grid remap（治"低 N/B1 冲突优化不动"）</h3>
+<ul>
+<li><strong>原理</strong>：conflict 优化修的是"<strong>每个 warp 跑多快</strong>"；当 grid 里 block 太少（B=1、N 小）填不满 SM 时，
+病在"<strong>有没有足够多 warp</strong>"，与 bank conflict 正交，swizzle 帮不上。得<strong>切出更多 block</strong>。</li>
+<li><strong>Kernel A 落点</strong>：<strong>split-V</strong>——把状态列轴 v 切给多个 CTA（<code>blockIdx.z</code>），grid (N,H)→(N,H,VSplit)，
+block 数 ×VSplit。代价是每个 v-band 重算一遍 R1。B1 基线大赢 −33%，饱和的 B32/B8 中性。</li>
+<li><strong>Kernel B 落点</strong>：拆成 4 个 (总tile数, H) 的 kernel，tile 间无依赖 → 天然打满并行；进一步的杠杆是
+context-parallel（沿时间维切段给 B=1 补并行度，与 kernel 内优化正交）。</li>
+<li><strong>共同判据</strong>：<strong>“某配置在整个 conflict 战役里一直持平” = 它缺的是并行度不是速度</strong>，该上这类正交杠杆。</li>
+</ul>
+<hr>
+<h2 id="第-4-部分两边都踩过的坑反面教训"><a class="markdownIt-Anchor" href="#第-4-部分两边都踩过的坑反面教训"></a> 第 4 部分：两边都踩过的坑（反面教训）</h2>
+<ol>
+<li>
+<p><strong>别追不在关键路径上的 ncu 指标</strong>（A 的 s7/s10、B 的 0719§4.4）。先看绑定 stall 是谁；gmem 未 crush
+前追 shared conflict、latency-bound 时追 issue-rate，都是红鲱鱼。<strong>source-level 归因（–page source）
+胜过按 atom 瞎猜</strong>（A s11 靠它发现 79% 冲突在 raw 读而非 MMA 操作数）。</p>
+</li>
+<li>
+<p><strong>swizzle atom 别贪大</strong>（A s10：dS INTER→SW32 全线回归 +11~12%）。INTER（zero-xor）对 16 宽子 tile
+已最优；更大 atom 每次访问多花 XOR 地址运算 → 寄存器压力 → spill → 连不受冲突限制的 B1 都退（铁证
+不是冲突权衡）。</p>
+</li>
+<li>
+<p><strong>swizzle 必须读写成对，且只对"可自由重排写地址"的操作数做</strong>（A s6/s7）。R1 逐元素产出的可 swizzle
+（LDSM+STSM 成对）；cp.async 16B 载入的（mqk/inv/do）一 swizzle 就<strong>打碎 16B 向量化</strong> → 要么保持普通、
+要么把 swizzle 白嫖进 cp.async scatter，<strong>绝不加独立的生产者 pass</strong>（A s7 plan-b 因此 +14.5%）。</p>
+</li>
+<li>
+<p><strong>向量化时别打乱"同一次乘法里 co-read 的 swizzled 操作数"的 bank pattern</strong>（B 0719§4.4 的 l13：把 dS
+的 per-lane 分配改连续，顺手打乱了 sin_bf 的 swizzle bank pattern → 引新冲突 → +5~8%）。向量化收益要
+减去它给邻居带来的新冲突。</p>
+</li>
+<li>
+<p><strong>占用率是阶梯函数，砍 smem 没跨台阶 = 0 收益</strong>。只有把 smem 砍过"能多塞一个 block"那条线才跳档；
+砍了一半但没过台阶，占用率纹丝不动。</p>
+</li>
+<li>
+<p><strong>构建陷阱（必记）</strong>：<code>s*</code>/<code>l*</code> 都是被 launcher <code>#include</code> 的 header。改 header 不 <code>touch</code> 对应的
+<code>bwd_launch.cu</code> 就不重编，stale <code>.so</code> 给假结果。<strong>改任何 header 后必须 <code>touch</code> launcher 再 build，
+且 A/B 测试同 session、单变量。</strong></p>
+</li>
+</ol>
+<hr>
+<h2 id="附ab-对照速查表"><a class="markdownIt-Anchor" href="#附ab-对照速查表"></a> 附：A/B 对照速查表</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Kernel A（串行 dstate scan）</th>
+<th>Kernel B（并行 per-token 梯度）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>grid</td>
+<td>(N, H[, VSplit])</td>
+<td>(总tile数, H)，拆成 4 个 kernel</td>
+</tr>
+<tr>
+<td>基线占用率病根</td>
+<td>smem 124.48KB → 1 block/SM 12.5%</td>
+<td>smem 176KB → 1 block/SM 12.5%</td>
+</tr>
+<tr>
+<td>跨占用率台阶的手段</td>
+<td>register-fusion（消 T1_smem 大象）→ 50KB/4 block</td>
+<td>kernel-split（4 个 ~70KB）→ 3 block</td>
+</tr>
+<tr>
+<td>首要 stall（基线）</td>
+<td>MIO throttle 31.4%（smem 墙）</td>
+<td>Long Scoreboard（gmem 流 dS，latency-bound）</td>
+</tr>
+<tr>
+<td>swizzle 主战场</td>
+<td>qd/kd/kr/dS + R1 raw buffer padding</td>
+<td>dS 转置对偶 + sin 双方向 + fp32 buffer padding</td>
+</tr>
+<tr>
+<td>transpose-dual</td>
+<td>dS 的 DSb/DSc</td>
+<td>dS 存一次两读 + sin 双方向</td>
+</tr>
+<tr>
+<td>cp.async</td>
+<td>Group A/B FIFO 重叠 R1</td>
+<td>全操作数发出不等、用完再 wait</td>
+</tr>
+<tr>
+<td>补并行度杠杆</td>
+<td>split-V（切 v 列轴）+ context-parallel</td>
+<td>4-kernel 天然并行 + context-parallel</td>
+</tr>
+<tr>
+<td>撞到的硬地板</td>
+<td>bf16 token-strided 4-way（s12 用 stride-130+4B 破）</td>
+<td>occupancy-bound（只有提占用率有用）</td>
+</tr>
+<tr>
+<td>累计收益</td>
+<td>−71.8/−69.4/−55.4%（B32/B8/B1）</td>
+<td>见 kernelB 指南（拆分 + l 系列占用率实验）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一句话总纲</strong>：两条战役是同一套方法论的两个实例——<strong>先用 ncu 定墙（占用率→stall→源码级冲突归因），
+先修占用率再修冲突，swizzle/pad 读写成对且只碰可重排的操作数，cp.async 只在 gmem-bound 时上，低 N
+配置的病在并行度要用 split-V/CP 这类正交杠杆治。</strong></p>
+</blockquote>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> bwd-ncu-and-optimization-playbook</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-07-22 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-09-12 22:26:40
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/07/22/bwd-ncu-and-optimization-playbook/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/09/12/YOCO_%E8%AE%BA%E6%96%87%E4%B8%8E%E6%8E%A8%E7%90%86%E6%95%B0%E6%8D%AE%E6%B5%81%E8%AF%A6%E8%A7%A3/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">YOCO_论文与推理数据流详解</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/07/21/bwd-kernelA-beginner-guide-full/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">bwd-kernelA-beginner-guide-full</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">bwd-ncu-and-optimization-playbook</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%8D%E5%90%91-kernel-ab-%E4%BC%98%E5%8C%96%E9%80%9A%E7%94%A8%E6%96%B9%E6%B3%95%E8%AE%BA-ncu-%E6%8C%87%E6%A0%87%E8%A7%A3%E6%9E%90-%E5%85%B1%E5%90%8C%E4%BC%98%E5%8C%96%E6%89%8B%E6%AE%B5%E6%80%BB%E7%BB%93"><span class="nav-text"> 反向 Kernel A&#x2F;B 优化通用方法论 —— ncu 指标解析 + 共同优化手段总结</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-1-%E9%83%A8%E5%88%86%E4%B8%A4%E6%9D%A1%E6%88%98%E5%BD%B9%E5%85%B1%E7%94%A8%E7%9A%84-ncu-%E6%8C%87%E6%A0%87%E8%A7%A3%E6%9E%90"><span class="nav-text"> 第 1 部分：两条战役共用的 ncu 指标解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-occupancy%E5%8D%A0%E7%94%A8%E7%8E%87-%E7%AC%AC%E4%B8%80%E4%B8%AA%E8%A6%81%E7%9C%8B%E7%9A%84%E6%95%B0"><span class="nav-text"> 1.1 occupancy（占用率）—— 第一个要看的数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-stall-reason%E5%81%9C%E9%A1%BF%E5%8E%9F%E5%9B%A0-warp-%E5%8D%A1%E4%BD%8F%E6%97%B6%E5%9C%A8%E7%AD%89%E4%BB%80%E4%B9%88"><span class="nav-text"> 1.2 stall reason（停顿原因）—— warp 卡住时在等什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-warp-cycles-per-instruction-issued-%E6%AF%8F%E6%9D%A1%E6%8C%87%E4%BB%A4%E6%9C%89%E5%A4%9A%E5%A0%B5"><span class="nav-text"> 1.3 Warp Cycles per Instruction Issued —— 每条指令有多堵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#14-l1tex-l1shared-%E5%90%9E%E5%90%90%E5%88%A9%E7%94%A8%E7%8E%87sol-%E6%89%BE%E7%9C%9F%E5%A2%99"><span class="nav-text"> 1.4 L1&#x2F;TEX、L1&#x2F;shared 吞吐利用率（SoL）—— 找&quot;真墙&quot;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#15-bank-conflict-%E8%AE%A1%E6%95%B0conf_ld-conf_st-ldsu16-op_st"><span class="nav-text"> 1.5 bank-conflict 计数：conf_ld &#x2F; conf_st、LDS.U16 &#x2F; op_st</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#16-%E7%94%A8%E5%93%AA%E4%BA%9B-ncu-%E5%91%BD%E4%BB%A4%E6%8B%BF%E5%88%B0%E8%BF%99%E4%BA%9B%E6%95%B0%E5%85%B1%E7%94%A8%E5%91%BD%E4%BB%A4%E8%A1%8C"><span class="nav-text"> 1.6 用哪些 ncu 命令拿到这些数（共用命令行）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-2-%E9%83%A8%E5%88%86%E5%85%B1%E7%94%A8%E7%9A%84%E8%AF%8A%E6%96%AD%E6%B5%81%E7%A8%8B%E8%AF%A5%E5%BE%80%E5%93%AA%E4%BF%AE"><span class="nav-text"> 第 2 部分：共用的诊断流程（该往哪修）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-3-%E9%83%A8%E5%88%86%E4%B8%A4%E8%BE%B9%E5%85%B1%E4%BA%AB%E7%9A%84%E4%BC%98%E5%8C%96%E6%89%8B%E6%AE%B5%E5%8F%AF%E5%A4%8D%E7%94%A8%E5%A5%97%E8%B7%AF"><span class="nav-text"> 第 3 部分：两边共享的优化手段（可复用套路）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-%E7%94%A8%E6%9B%B4%E7%9C%81-smem-%E7%9A%84%E5%86%99%E6%B3%95%E8%B7%A8%E5%8D%A0%E7%94%A8%E7%8E%87%E9%98%B6%E6%A2%AF%E4%B8%A4%E8%BE%B9%E6%9C%80%E5%A4%A7%E7%9A%84%E8%B5%A2"><span class="nav-text"> 3.1 用&quot;更省 smem 的写法&quot;跨占用率阶梯（两边最大的赢）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-swizzle-padding-%E6%B6%88-bank-conflictsmem-%E5%A2%99%E7%9A%84%E4%B8%BB%E6%AD%A6%E5%99%A8"><span class="nav-text"> 3.2 swizzle &#x2F; padding 消 bank conflict（smem 墙的主武器）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-transpose-dual%E4%B8%80%E4%BB%BD%E7%89%A9%E7%90%86%E5%AD%97%E8%8A%82%E5%96%82%E4%B8%A4%E4%B8%AA%E6%96%B9%E5%90%91%E7%9C%81%E4%B8%80%E6%AC%A1%E8%BD%AC%E7%BD%AE"><span class="nav-text"> 3.3 transpose-dual：一份物理字节喂两个方向（省一次转置）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#34-cpasync-%E5%88%86%E7%BB%84%E9%87%8D%E5%8F%A0%E6%8A%8A-gmem-%E5%BB%B6%E8%BF%9F%E8%97%8F%E5%88%B0-r1-%E8%AE%A1%E7%AE%97%E8%83%8C%E5%90%8E"><span class="nav-text"> 3.4 cp.async 分组重叠：把 gmem 延迟藏到 R1 计算背后</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#35-%E8%A1%A5%E5%B9%B6%E8%A1%8C%E5%BA%A6split-v-grid-remap%E6%B2%BB%E4%BD%8E-nb1-%E5%86%B2%E7%AA%81%E4%BC%98%E5%8C%96%E4%B8%8D%E5%8A%A8"><span class="nav-text"> 3.5 补并行度：split-V &#x2F; grid remap（治&quot;低 N&#x2F;B1 冲突优化不动&quot;）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-4-%E9%83%A8%E5%88%86%E4%B8%A4%E8%BE%B9%E9%83%BD%E8%B8%A9%E8%BF%87%E7%9A%84%E5%9D%91%E5%8F%8D%E9%9D%A2%E6%95%99%E8%AE%AD"><span class="nav-text"> 第 4 部分：两边都踩过的坑（反面教训）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84ab-%E5%AF%B9%E7%85%A7%E9%80%9F%E6%9F%A5%E8%A1%A8"><span class="nav-text"> 附：A&#x2F;B 对照速查表</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 48 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

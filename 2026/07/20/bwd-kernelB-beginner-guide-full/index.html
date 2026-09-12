@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/07/20/bwd-kernelb-beginner-guide-full/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="bwd-kernelB-beginner-guide-full">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/07/20/bwd-kernelB-beginner-guide-full/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-07-20T15:50:00.000Z">
+<meta property="article:modified_time" content="2026-09-12T14:26:40.714Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            bwd-kernelB-beginner-guide-full | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+</style>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">48</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">bwd-kernelB-beginner-guide-full</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-07-20 23:50</span>
+        <span class="mobile">2026-07-20 23:50</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-09-12 22:26:40</span>
+            <span class="mobile">2026-09-12 22:26:40</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/LLM/">LLM</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="反向-b-kernel-优化全解析小白版从零讲起"><a class="markdownIt-Anchor" href="#反向-b-kernel-优化全解析小白版从零讲起"></a> 反向 B Kernel 优化全解析（小白版，从零讲起）</h1>
+<p>日期：2026-07-20
+GPU：H20-3e（sm_90a，Hopper）。
+本文对象 = <strong>反向传播的 Kernel B</strong>（split 成 B1/B2/B3/B0 四个），当前冠军源码
+<code>csrc/smxx/bwd_b_split_fuse_b2_b3_sinfix_a1d.cuh</code>（= 文档 l8 + 两项文档未记录的补充
+<code>sinfix</code> / <code>a1d</code>）。</p>
+<p><strong>目标读者</strong>：不懂 cute、swizzle、寄存器、occupancy、bank conflict、coalescing 的人。
+所有术语从第一性原理讲明白，再讲每一步优化在干什么、为什么有用。</p>
+<p><strong>上游材料</strong>：</p>
+<ul>
+<li><code>docs/20260714-bwd-kernelB-optimization-log.md</code>（融合 Kernel B 时代的优化）</li>
+<li><code>docs/20260716-bwd-splitB-L1-vectorization-log.md</code>（split-B 的 L1 向量化轮）</li>
+<li><code>docs/20260719-bwd-splitB-occupancy-experiments-log.md</code>（l5→l13 占用率实验 + 冠军状态）</li>
+<li>Kernel A 的优化史见 <code>docs/20260715-bwd-kernelA-optimization-log.md</code>（冠军 = s12）。</li>
+</ul>
+<hr>
+<h2 id="第-0-部分小白扫盲-先把术语讲明白"><a class="markdownIt-Anchor" href="#第-0-部分小白扫盲-先把术语讲明白"></a> 第 0 部分：小白扫盲 —— 先把术语讲明白</h2>
+<p>所有优化都围绕下面这几个概念转。先懂它们，后面才看得懂。</p>
+<h3 id="gpu-的硬件层级自上而下"><a class="markdownIt-Anchor" href="#gpu-的硬件层级自上而下"></a> GPU 的硬件层级（自上而下）</h3>
+<ul>
+<li><strong>GPU</strong> 里有很多 <strong>SM（Streaming Multiprocessor，流多处理器）</strong>。H20 有 78 个 SM。
+可以把 SM 想成 78 个独立的“小核”，各干各的。</li>
+<li>每个 SM 一次能装载好几个 <strong>block（线程块）</strong>。一个 block 是 <code>&lt;&lt;&lt;grid, block&gt;&gt;&gt;</code> 启动的
+一组线程，<strong>保证在同一个 SM 上</strong>、能共享一块高速内存。</li>
+<li>每个 block 里有很多 <strong>thread（线程）</strong>。本文的 kernel 每 block <strong>256 线程</strong>。</li>
+<li>32 个线程绑成一个 <strong>warp（线程束）</strong>。warp 是硬件真正的调度单位 —— 32 线程<strong>锁步</strong>执行
+同一条指令（SIMD）。256 线程 = 8 个 warp。</li>
+</ul>
+<h3 id="三种内存快-慢"><a class="markdownIt-Anchor" href="#三种内存快-慢"></a> 三种内存（快 → 慢）</h3>
+<ul>
+<li><strong>register（寄存器）</strong>：每线程私有、最快，就是变量 <code>float x</code>。数量有限（每 SM 65536 个
+32-bit）。一个线程用太多寄存器，SM 能同时跑的线程就变少。</li>
+<li><strong>smem（shared memory，共享内存）</strong>：一个 block 内所有线程共享的片上高速内存，几十~两百
+KB。比寄存器慢一点，比显存快几十倍。代码里 <code>extern __shared__</code> 就是它。<strong>本文 kernel 的
+兵家必争之地。</strong></li>
+<li><strong>gmem（global memory，全局内存/显存）</strong>：几十 GB，但慢。读一次要几百个时钟周期。</li>
+</ul>
+<h3 id="occupancy占用率-贯穿全文的核心指标"><a class="markdownIt-Anchor" href="#occupancy占用率-贯穿全文的核心指标"></a> occupancy（占用率）—— 贯穿全文的核心指标</h3>
+<p><strong>occupancy = 一个 SM 上实际同时活跃的 warp 数 ÷ 硬件上限。</strong></p>
+<p>为什么重要？GPU 靠“人多”藏延迟：当 warp A 在等一次慢速 gmem 读（几百周期）时，SM 立刻
+切去执行 warp B、C、D…… 只要有别的 warp 能跑，那几百周期就被<strong>藏住了</strong>，SM 不空转。</p>
+<ul>
+<li>occupancy 高 = SM 上住了很多 warp = 总有活干 = 延迟被藏住。</li>
+<li>occupancy 低 = SM 上没几个 warp = 一个 warp 卡住，整个 SM 干等 = 慢。</li>
+</ul>
+<p><strong>什么限制 occupancy？</strong> 每个 SM 的 smem/寄存器固定。一个 block 用的 smem 越多，一个 SM 能塞
+的 block 就越少。<strong>这是量子化（阶梯式）的</strong>：</p>
+<ul>
+<li>H20 每 SM 可用动态 smem ≈ <strong>233472 字节（228KB）</strong>，每 block 另占 1024B 保留。</li>
+<li>一个 block 用 76KB → <code>233472 ÷ 76KB ≈ 3</code> → 3 block/SM。</li>
+<li>砍到 ≤57KB → 4 block/SM。</li>
+<li><strong>注意是整数</strong>：76KB 和 68KB 都是“3 block”，占用率相同；必须跨过 57KB 的坎才变 4。
+所以“省了 8KB 但没跨阶梯”= 0 收益。</li>
+</ul>
+<p>这就是文档反复说的 <strong>“3-block / 37.5%”</strong>：3 block × 256 线程 = 768，硬件上限 2048，
+768/2048 = <strong>37.5%</strong>。</p>
+<h3 id="bank-conflictbank-冲突-smem-的坑"><a class="markdownIt-Anchor" href="#bank-conflictbank-冲突-smem-的坑"></a> bank conflict（bank 冲突）—— smem 的坑</h3>
+<p>smem 硬件上切成 <strong>32 个 bank（存储体）</strong>，恰好对应一个 warp 的 32 线程。
+理想：一个 warp 的 32 线程访问 32 个<strong>不同</strong> bank → 一拍搞定（conflict-free）。</p>
+<p><strong>bank 编号规则</strong>：<code>bank = (地址 ÷ 4字节) % 32</code>。连续 32 个 float 正好铺满 32 bank。</p>
+<p><strong>冲突怎么发生</strong>：warp 里多个线程访问落在<strong>同一个 bank</strong>（但不同地址）→ 硬件排队一个个来。
+文档里 <strong>“stride-8 → 4-way bank conflict”</strong>：线程按 8 个 float 的间隔访问 <code>(0,8,16,24,32,…)</code>，
+<code>% 32</code> 后只落在 <code>{0,8,16,24}</code> 这 4 个 bank → 32 线程挤 4 bank → 4 路冲突 → 慢 4 倍。</p>
+<p><strong>解法</strong>：让 warp 内线程访问<strong>连续</strong>地址（铺满 32 bank），或用 <strong>padding（填充）</strong> / <strong>swizzle</strong>
+把地址错开。</p>
+<h3 id="coalescing合并访问-gmem-的坑bank-conflict-的-gmem-版"><a class="markdownIt-Anchor" href="#coalescing合并访问-gmem-的坑bank-conflict-的-gmem-版"></a> coalescing（合并访问）—— gmem 的坑（bank conflict 的 gmem 版）</h3>
+<p>一个 warp 的 32 线程访问 gmem 时，硬件按 <strong>128 字节的 cache line（缓存行）</strong> 为单位搬数据。</p>
+<ul>
+<li><strong>coalesced（合并）</strong>：32 线程读<strong>连续</strong>的数（如 32 个 bf16 = 64 字节），一两次搬运搞定。</li>
+<li><strong>uncoalesced（未合并）</strong>：32 线程读<strong>分散</strong>地址（如每线程隔 128 个 float），每个线程命中
+新 cache line，要搬 32 次，浪费 96% 带宽。文档 <strong>“stride-128 uncoalesced”</strong> 是灾难写法。</li>
+</ul>
+<p><strong>“73% excessive global sectors”</strong> = ncu 报告：实际搬的 gmem 数据量比理论多 73%，全是浪费。</p>
+<h3 id="向量化访存uint4-float4-lds128-sts128"><a class="markdownIt-Anchor" href="#向量化访存uint4-float4-lds128-sts128"></a> 向量化访存：uint4 / float4 / LDS.128 / STS.128</h3>
+<p>一条指令搬多少字节？</p>
+<ul>
+<li>标量：<code>LDG.E.U16</code> 一次 2 字节（一个 bf16）；<code>LDS.32</code> 一次 4 字节（一个 float）。</li>
+<li>向量化：<code>float4</code> = 4 float = 16B；<code>uint4</code> = 16B = 8 bf16。对应硬件指令 <strong>LDS.128 / STS.128</strong>
+（smem 读/写 128 bit）、<strong>LDG.128</strong>（gmem 读）。</li>
+</ul>
+<p><strong>为什么快</strong>：搬同样 128 字节，标量发 8 条指令，<code>float4×2</code> 只发 2 条 → 指令数、访存事务数 ÷4。
+当 kernel 卡在“访存指令太多”（L1 吞吐打满）时直接提速。前提：地址 16 字节对齐、数据连续。</p>
+<h3 id="cpasync-异步搬运amperehopper-新特性"><a class="markdownIt-Anchor" href="#cpasync-异步搬运amperehopper-新特性"></a> cp.async —— 异步搬运（Ampere/Hopper 新特性）</h3>
+<p>普通“gmem→smem”要经寄存器中转，且线程必须<strong>等</strong>读完成。<strong>cp.async</strong>（<code>cp.async.cg.shared.global</code>）
+让线程发一条“把这 16 字节从 gmem 搬到 smem”的指令后<strong>立刻返回</strong>去干别的，搬运后台进行，
+用时再 <code>wait</code>。代码里：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">copy16()  → 发一条 16 字节异步搬运</span><br><span class="line">commit()  → “这一批搬运打包提交”</span><br><span class="line">wait&lt;N&gt;() → “等到只剩 N 批还没完成”</span><br></pre></td></tr></table></figure></div>
+<p><strong>好处</strong>：把慢速 gmem 搬运和计算<strong>重叠</strong>。本文套路：先 <code>copy16</code> 发一堆搬运 + <code>commit</code>，<strong>不等</strong>、
+马上跑 R1（R1 只依赖直接从 gmem 读的数据），R1 跑完搬运也差不多好，再 <code>wait</code> → 搬运时间被
+R1 的计算藏住。</p>
+<h3 id="tensor-core-mma-cute-swizzle-ldsm-张量核那一套"><a class="markdownIt-Anchor" href="#tensor-core-mma-cute-swizzle-ldsm-张量核那一套"></a> Tensor Core / MMA / cute / swizzle / LDSM —— 张量核那一套</h3>
+<p>最“黑话”的部分，拆开讲：</p>
+<ul>
+<li><strong>Tensor Core（张量核）</strong>：SM 里专做小矩阵乘的硬件单元。一条 <strong>MMA（Matrix-Multiply-
+Accumulate）指令</strong>让一个 warp（32 线程）协作算一个小矩阵块乘法（如 <code>SM80_16x8x16</code> = 算一个
+16×8 输出 =（16×16）×（16×8）），一条指令顶几百次标量乘加。</li>
+<li><strong>operand / fragment（操作数 / 片段）</strong>：MMA 要求参与运算的小矩阵按特定方式<strong>分散在 32 线程
+的寄存器里</strong>（每线程持有矩阵的几个元素）。这种“矩阵切碎分给 32 线程”的布局叫 fragment。</li>
+<li><strong>LDSM（<code>ldmatrix</code>）</strong>：一条专门指令，把 smem 里的小矩阵块<strong>一次、按 fragment 布局</strong>灌进 32
+线程寄存器，正好喂 MMA。比 32 线程自己一个个 <code>LDS</code> 快得多。代码里 <code>SM75_U32x4_LDSM_N</code>（正
+向）、<code>SM75_U16x8_LDSM_T</code>（转置）就是它。<code>_N</code>=原方向；<code>_T</code>=加载时顺便转置。文档 <strong>“ldsm=0”</strong>
+= 某 kernel 一次 ldmatrix 都没用、全是慢速标量 LDS。</li>
+<li><strong>cute</strong>：CUTLASS 里一套<strong>描述“数据在内存怎么摆放”“哪个线程负责哪个元素”的 C++ 抽象</strong>。
+<code>make_tensor / Layout / local_tile / partition_C / cooperative_gemm</code> 全是 cute。理解成：<strong>用类型
+系统把易错的“矩阵布局”在编译期算好</strong>，纯编译期、无运行开销。</li>
+<li><strong>swizzle（异或置换）</strong>：一种<strong>打乱 smem 地址的固定数学变换</strong>，专消 bank conflict。LDSM 要按
+fragment 读 smem，若 smem 朴素行主序摆放，LDSM 的读法会撞 bank；swizzle 通过对地址做异或
+变换把撞同一 bank 的元素<strong>散到不同 bank</strong>，让 LDSM conflict-free。代码里
+<code>GMMA::Layout_K_INTER_Atom</code>、<code>tile_to_shape(...)</code>、<code>SwStateLayout</code>、<code>SwSinLayout</code> 就是定义
+swizzle 布局。关键：<strong>同一份物理数据，写时按 swizzle 摆、读时也按 swizzle 算地址，两边对上即可。</strong></li>
+<li><strong><code>K_INTER</code> vs <code>MN_INTER</code> / 转置对偶（transpose-dual）</strong>：一个矩阵在矩阵乘里可能被“正着乘”
+也可能“转置着乘”。<code>K_INTER</code> 适合正读（LDSM_N），<code>MN_INTER</code> 适合转置读（LDSM_T）。妙处：
+对 INTER 类 swizzle，<strong>同一份物理字节</strong>既能 <code>K_INTER</code> 正读、又能 <code>MN_INTER</code> 转置读 —— <strong>存一次，
+喂两个方向的 MMA</strong>。这就是代码反复出现的 <strong>“transpose-dual over the SAME physical bytes”</strong>，
+省一份 smem + 省一次转置。</li>
+</ul>
+<h3 id="warp-shuffle-归约__shfl_xor_sync"><a class="markdownIt-Anchor" href="#warp-shuffle-归约__shfl_xor_sync"></a> warp shuffle 归约（<code>__shfl_xor_sync</code>）</h3>
+<p>warp 的 32 线程各算了一个部分和，要加成总和。老办法写 smem 再读回（慢、占 smem）。
+<strong><code>__shfl_xor_sync</code></strong> 让 warp 内线程<strong>直接交换寄存器值</strong>，不经 smem：</p>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">for (delta = 16; delta &gt;= 1; delta &gt;&gt;= 1)</span><br><span class="line">    x += __shfl_xor_sync(0xFFFFFFFF, x, delta);</span><br></pre></td></tr></table></figure></div>
+<p><strong>树形归约</strong>：第一轮线程 i 和 i^16 交换相加，第二轮 i^8…… 5 轮（16→8→4→2→1）后每个线程
+都持有 32 个数的总和。log2(32)=5 步搞定，不碰 smem。dA_log、dbeta、dgT-dot 归约全用它。</p>
+<h3 id="wall-roofline-ncu性能诊断"><a class="markdownIt-Anchor" href="#wall-roofline-ncu性能诊断"></a> wall / roofline / ncu（性能诊断）</h3>
+<ul>
+<li><strong>ncu（Nsight Compute）</strong>：kernel 剖析器，告诉你卡在哪。</li>
+<li><strong>wall（墙）</strong>：真正的瓶颈。ncu <strong>“L1/shared 85.8%”</strong> = L1/smem 吞吐用到硬件上限 85.8% →
+这是墙，想快得<strong>减少 smem 访存流量</strong>。<strong>“Compute 42.6%”</strong> = 算力才用一半 → 算力不是墙。</li>
+<li><strong>stall reason（停顿原因）</strong>：<code>short_scoreboard</code>=等 smem 读（LDS）；<code>long_scoreboard</code>=等 gmem
+读（LDG）；<code>barrier</code>=等 <code>__syncthreads</code>；<code>mio_throttle</code>=访存/转换指令发射队列满（如 bf16 打包
+F2FP 太多）。</li>
+<li><strong>诊断主线（整场战役的灵魂）</strong>：这条 split-B 路径是 <strong>occupancy/latency-bound</strong>。<strong>只有两类优化
+真提速</strong>：(a) 提高占用率（跨 smem 阶梯）；(b) 直击真墙、砍其访存流量。<strong>其余一切</strong>（纯 issue-rate
+微调、cp.async 加流水、GEMM 链重写）一律 ~0% 或负 —— 那些延迟本来就被占用率藏住了。</li>
+</ul>
+<hr>
+<h2 id="第-1-部分为什么要把一个大-kernel-拆成四个全局设计"><a class="markdownIt-Anchor" href="#第-1-部分为什么要把一个大-kernel-拆成四个全局设计"></a> 第 1 部分：为什么要把一个大 kernel 拆成四个？（全局设计）</h2>
+<p><strong>背景</strong>：反向里有个巨大的融合 kernel <code>_flash_kda_bwd_grads_fused</code>，把一个 tile 需要的<strong>所有</strong>
+中间量塞在 smem（176KB）。176KB &gt; 233KB/2，所以<strong>一个 SM 只能塞 1 个 block</strong>，occupancy 仅
+12.5%。block 里 warp 一卡住整个 SM 就干等 —— 严重 latency-bound。</p>
+<p><strong>Plan B（照抄 FLA）</strong>：拆成 <strong>4 个小 kernel</strong>，每个只留自己那步的 smem（~70KB），中间结果写回
+gmem 传给下一个。smem 小 → 一个 SM 塞 3 block → occupancy 37.5%（×3）→ 延迟被藏。<strong>用“多写几趟
+gmem 中间量”换“占用率翻三倍”</strong>，在 latency-bound 场景净赚。</p>
+<p>四个 kernel（都是 grid=(总tile数, H)，每 tile 一个 block，tile 间无依赖 → 天然并行）：</p>
+<table>
+<thead>
+<tr>
+<th>kernel</th>
+<th>干什么</th>
+<th>smem</th>
+<th>墙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>B1</strong></td>
+<td>dS 侧：dvcorr、dkr、dv</td>
+<td>~74KB，dS 常驻</td>
+<td>Tensor Core 依赖延迟（健康）</td>
+</tr>
+<tr>
+<td><strong>B2</strong></td>
+<td>sin 侧：dqd_base、dkd_base、dbeta；<strong>折叠了 B0</strong> dgT-dot</td>
+<td>~68KB，sin 常驻</td>
+<td>gmem 延迟（dS 流）</td>
+</tr>
+<tr>
+<td><strong>B0</strong></td>
+<td>dgT-dot：<code>p[k]=Σ_d dS[k,d]·sin[d,k]</code></td>
+<td>无 smem，流式</td>
+<td><strong>已死</strong>，融进 B2</td>
+</tr>
+<tr>
+<td><strong>B3</strong></td>
+<td>chunk 空间收尾 + 内联 K1（L2norm 反向 + 反向 cumsum）</td>
+<td>~95KB</td>
+<td><strong>fp32 epilogue 的 FFMA / L1（最大热点）</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="第-2-部分逐-kernel-优化解析"><a class="markdownIt-Anchor" href="#第-2-部分逐-kernel-优化解析"></a> 第 2 部分：逐 kernel 优化解析</h2>
+<h3 id="b1-ds-侧算-dvcorr-dkr-dv"><a class="markdownIt-Anchor" href="#b1-ds-侧算-dvcorr-dkr-dv"></a> B1 —— dS 侧（算 dvcorr、dkr、dv）</h3>
+<p><strong>它算什么</strong>：</p>
+<ul>
+<li><code>dkr[c,k] = Σ_d U[c,d]·dS[k,d]</code>（U 与状态梯度 dS 收缩 d 维）</li>
+<li><code>dU[c,d] = Σ_c' Mqk[c',c]·do[c',d] + Σ_k kr[c,k]·dS[k,d]</code>（两个 GEMM 累加）</li>
+<li><code>dvcorr[c,d] = Σ_c' INV[c',c]·dU[c',d]</code></li>
+<li><code>dv = dvcorr · beta</code></li>
+</ul>
+<p><strong>优化 1：寄存器驻留的 dU 链 + <code>MOVM_T</code> 寄存器内转置</strong>（源码 L289-408，文档 0719§1）
+朴素做法：算完 dU 写进 smem 再读回喂下一个 GEMM（G4），一来一回浪费。
+冠军做法：让 dU 结果<strong>一直待在寄存器</strong>（MMA 累加器 <code>dacc</code> 本就在寄存器）。G4 需要 dU 的<strong>转置</strong>，
+硬件有条 <strong><code>SM75_U32x1_MOVM_T</code></strong> 能在<strong>寄存器内部</strong>直接转置小矩阵块（不经 smem）。于是
+<code>dacc → 转 bf16 → MOVM_T 转置 → 直接当 G4 的 B 操作数</code>。省掉 dU 的 smem 缓冲（-7KB）+ 标量
+读回 + 一次 gmem 加载。</p>
+<p><strong>优化 2：dS 的 swizzle 转置对偶</strong>（L170-179）
+dS（[128,128] 大矩阵）被两个方向用：dkr 正读（收缩 d），G2 转置读（收缩 k）。用 INTER 转置对偶：
+<code>SwStateLayout</code>（K_INTER，正读）与 <code>SwStateLayoutT</code>（MN_INTER，转置读）<strong>共享同一份物理字节</strong>。
+dS <strong>只存一次</strong>，两个方向 LDSM 都能读且 conflict-free。</p>
+<p><strong>优化 3：fp32 C-staging tile 行填充 stride D+4</strong>（L156-165）
+dkr/dvcorr 的 MMA 结果存进 [16,128] fp32 smem tile。若行 stride=128（<code>% 32 = 0</code>），同列每行落
+同一 bank → ~75% 冲突。改 <strong>stride D+4=132</strong>（<code>% 32 = 4</code>），每行错开 4 bank → 8 行落 8 bank →
+conflict-free。用 <code>+4</code> 而非 <code>+1</code> 保证行字节数 <code>132×4=528B</code> 仍 16B 对齐，cute 向量化 C-store 不崩。
+代价：多分配 512B smem（余量内，占用率不变）。同 session A/B ~0.2-0.5%，bit-identical。</p>
+<p><strong>优化 4（补充，文档只泛讲）：cp.async 分组重叠 R1</strong>（L209-287）
+先把所有 bf16 GEMM 操作数（dS/U/INV/Mqk/do）用 cp.async 发出 + commit，<strong>不等</strong>，马上跑 R1
+（重建 kr，只依赖直接从 gmem 读的 raw k/gc）。R1 算完再 <code>wait&lt;0&gt;</code> —— gmem 搬运被 R1 藏住。</p>
+<p><strong>优化 5：R1 内部向量化 + warp-shuffle</strong>（L247-285）
+R1 重建 <code>kr = kn·exp2(-gc)·gT</code>，每线程负责 8 连续元素（EPT=8）：</p>
+<ul>
+<li>k 读：8 连续 bf16 = 一次 <code>uint4</code>(16B) 合并加载（原 8 次 stride 标量 <code>LDG.E.U16</code>）。</li>
+<li>k 的 L2 范数：<code>__shfl_xor_sync</code> 树形归约求 <code>Σk²</code>，不碰 smem。</li>
+<li>gc 读：8 连续 fp32 = 两次 <code>float4</code> 合并加载。</li>
+<li>kr 写：凑成 <code>alignas(16) BF16[8]</code>=16B，一条 STS.128 写到 swizzle 基址。</li>
+</ul>
+<p><strong>B1 的墙</strong>：<code>HMMA short_scoreboard 18.6%</code>，占用率 37% —— <strong>健康的 Tensor Core 依赖延迟</strong>。
+文档 0719§7 指出下一步杠杆是把 fp32 staging 也 alias 到死掉的 bf16 tile、砍 smem 跨 4-block，但
+需先 ncu 确认 B1 是 smem-limited 而非 register-limited。</p>
+<hr>
+<h3 id="b2-sin-侧算-dqd_base-dkd_base-dbeta折叠-b0"><a class="markdownIt-Anchor" href="#b2-sin-侧算-dqd_base-dkd_base-dbeta折叠-b0"></a> B2 —— sin 侧（算 dqd_base、dkd_base、dbeta；折叠 B0）</h3>
+<p><strong>它算什么</strong>：</p>
+<ul>
+<li><code>dqd = do @ S_in^T</code>、<code>dkd = dvcorr @ S_in^T</code>（收缩 sin 的<strong>行</strong>）</li>
+<li><code>kdS = kd @ S_in^T</code>（dbeta 路径，收缩 sin 的<strong>列</strong>）</li>
+<li><code>dbeta_vcorr[c] = Σ_d dvcorr[c,d]·(v[c,d] − kdS[c,d])</code></li>
+<li>折叠进来的 B0：<code>p[k] = Σ_d dS[k,d]·sin[d,k]</code></li>
+</ul>
+<p><strong>优化 1（★补充，文档完全没写 —— 文件名里的 “sinfix”）：sin 双方向 swizzle 修正</strong>
+（L470-483, L592-599）
+这是<strong>一个正确性 bug 的修复，不只是性能</strong>。三个 GEMM 里：</p>
+<ul>
+<li>dqd/dkd 需收缩 sin 的<strong>行</strong>（用 <code>SwSinLayoutT</code> / MN_INTER / LDSM_T，转置读）；</li>
+<li>kdS 需收缩 sin 的<strong>列</strong>（用 <code>SwSinLayout</code> / K_INTER / LDSM_N，正读）。</li>
+</ul>
+<p><strong>旧代码的错</strong>（注释 L476-478, L597-599 白纸黑字）：图省事三个 GEMM 全用一个 K_INTER 读，统一
+收缩 sin 的<strong>列</strong>。这对 kdS 恰好正确，但 <strong>dqd/dkd 被悄悄转置了</strong> —— 只要初始状态 <code>S_in ≠ 0</code>，
+dq 和门控梯度（gate grads）就<strong>算错</strong>。dv/dbeta 因走 kdS 那个恰好对的方向而没暴露。sinfix 给
+dqd/dkd 换上转置对偶的 <code>SwSinLayoutT</code>，三个 GEMM 各读各的正确方向 —— 仍是同一份物理字节存
+一次、喂两个方向。<strong>这是“文档不全、需补充”的头号项。</strong></p>
+<p><strong>优化 2：kdS 复用已死 bf16 区（smem union，跨 2→3 block）</strong>（L461-465）
+<code>kdS_smem</code> 不申请新空间，而是<strong>别名（alias）<strong>到 <code>do_bf</code> —— 因为 <code>do_bf/dvcorr_bf</code> 只在 GEMM 的
+kk 循环里被读，循环结束就“死了”。复用这块死内存 → 省一整块 fp32 CD tile → smem 78.9→68.1KB →
+<strong>跨过 2→3 block 阶梯（占用率 25%→37.5%）</strong>。代价：循环后加一个 <code>__syncthreads()</code>（L672），防某
+warp 抢先往 kdS 写、覆盖了另一个还没读完 <code>do_bf</code> 的慢 warp。</strong>“占用率优化 cash 到 %”的典型。</strong></p>
+<p><strong>优化 3：dvcorr 窄化的向量化</strong>（L522-542，文档 Opt#1/#3）
+dvcorr 从 gmem(fp32) 读进来，要同时（a）存进 fp32 smem 给 dbeta、（b）转 bf16 存进 swizzle 区给
+GEMM。逐元素做：gmem 读 stride-8 未合并、bf16 写 stride-8 四路冲突。改成每线程 8 连续元素：gmem
+<code>float4×2</code> 合并读、fp32 smem <code>float4×2</code> STS.128 写、bf16 一条 <code>uint4</code> STS.128 写到 swizzle 基址。
+文档说这是 B2 里<strong>最大的单项收益</strong>。</p>
+<p><strong>优化 4：折叠的 B0 dgT-dot，复用片上 sin</strong>（L677-702，文档 0719§0）
+原独立 B0 要从 gmem <strong>重读一遍</strong> <code>all_states</code>（它 L1 打满的元凶）。但 sin <strong>已常驻 B2 的 <code>sin_bf</code></strong>
+（<code>sin[d,k]=sin_bf(d,k)</code>，swizzle 地址算得到）。折进 B2 后 dgT-dot 只需从 gmem 流式读 dS（合并读：
+相邻 lane 读相邻 d），sin 直接用片上 → 干掉整条 all_states 重读。归约用 warp-per-k：8 warp × 16 个
+k，每个 k 的 128 维点积由 32 lane 分摊（每 lane 4 个），<code>__shfl_xor</code> 树形归约、lane0 写。</p>
+<p><strong>B0 为什么本身“死了”</strong>（L37-40, L733-773）：把 B0 折进 <strong>B1</strong>（dS 常驻）试过 → 反而 -0.8%。因为 B0
+是<strong>延迟受限的串行依赖归约</strong>，不是带宽受限；让 dS 常驻（stride-D 的 bank 冲突 smem）省不到东西，
+且它的尾部追加没法和 B1 的 Tensor Core GEMM 重叠。折进 <strong>B2</strong>（sin 常驻）才对 —— 因为 B0 要的正好
+是 sin。<strong>教训（文档 0719§4.3 l12）：从 gmem 取的那个操作数，应该是能合并读的那个。</strong></p>
+<p><strong>B2 的墙</strong>：<code>IMAD/LDG long_scoreboard 14.2%</code>，是每 tile 32KB 的 dS gmem 流延迟 —— latency/
+occupancy-bound。所以 §4.1（l9 给它加 cp.async 流水）和 §4.4（l13 向量化 dS 读）<strong>都是负收益</strong>：
+延迟本来就被占用率藏住了，加流水只增开销；向量化还打乱了 sin 的 swizzle bank pattern 引入新冲突。</p>
+<hr>
+<h3 id="b3-chunk-空间收尾-内联-k1最大热点335"><a class="markdownIt-Anchor" href="#b3-chunk-空间收尾-内联-k1最大热点335"></a> B3 —— chunk 空间收尾 + 内联 K1（最大热点，33.5%）</h3>
+<p>最大、优化最密集的 kernel。做 chunk 空间的最终梯度组装 + 把原本独立的 K1 kernel（L2norm 反向</p>
+<ul>
+<li>门控反向 cumsum）<strong>内联</strong>进来，省一次 kernel 启动和一趟 gmem。<strong>核心铁律：整个 epilogue 必须
+全程 fp32（gate-locked），不能用 bf16。</strong></li>
+</ul>
+<p><strong>铁律来源（文档 0719§4.2 l11）</strong>：门控梯度经由
+<code>dkn_signed = dkd·e^gc − dki·e^−gc − dkr·e^gt·gc</code>，这是个<strong>强抵消</strong>表达式（dkd、dki 是 O(1)，相减
+抵消到 O(0.01)）。bf16 操作数的 ~4e-3 误差在抵消里<strong>存活</strong>，再被 K1 反向 cumsum <strong>相干放大</strong> →
+dg 从 2.6e-3 爆到 6.9e-2（炸 26 倍）。所以 B3 所有优化都<strong>绕开数值、只动布局/访存</strong>。</p>
+<p><strong>优化 1：l7 smem union + R1b 重算</strong>（★补充，L838-851, L1014-1055，文档 0719§2）
+epilogue 需 3 个 fp32 CD 缓冲（qd_f/kd_f/ki_f，24KB）。但此时 6 个 bf16 CD tile
+（do_bf/U_bf/… 24KB）在 G5/G6 的 <code>__syncthreads</code> 之后<strong>全死了</strong>。让 qd_f/kd_f/ki_f <strong>别名</strong>到这些
+死 bf16 tile（6 bf16 CD = 24KB = 正好 3 fp32 CD）。别名后原 R1 算的值被覆盖怎么办 → <strong>R1b</strong>：在
+G5/G6 barrier <strong>之后</strong>，用<strong>完全相同的 fp32 输入 + 相同运算顺序</strong>把 qd_f/kd_f/ki_f <strong>重算一遍</strong>填进
+别名空间 → <strong>bit-identical</strong>。q/k/gc 从 gmem 重新合并读（延迟被藏），L2norm 倒数从 R1 缓存的
+<code>q_inv_smem/k_inv_smem</code> 拿。把 b3 峰值 smem 100.75KB→68.75KB → <strong>跨过 2→3 block/SM</strong>。
+“用一次重算换占用率”。</p>
+<p><strong>优化 2：l8 epilogue float4 向量化（当前 B 冠军的招牌）</strong>（L1101-1142，文档 0719§3）
+行级 PC 采样发现：<strong>b3 全部停顿的 63% 集中在 epilogue 那 4 行</strong> —— 3 个 fp32 chunk 空间 GEMM。
+旧写法：每线程只拥有 1 个输出 <code>idx=c·D+k</code>，内层 K=16 循环做 <strong>stride 标量 LDS</strong>（操作数 stride128、
+mask stride16），零复用，打满 mio/LDS 管线。
+修法（保持全 fp32 → bit-identical）：每线程改拥有 <strong>4 个连续 k</strong>（<code>idx4</code>，<code>base=idx4·4</code>，因
+<code>D%4==0</code> 故 4 个输出共享行 c）：</p>
+<ul>
+<li>操作数 <code>ki_f/qd_f/kd_f[m*D+k0]</code> 变 <strong><code>float4</code> LDS.128</strong>（smem 事务 ÷4）；</li>
+<li>k <strong>无关</strong>的 mask 列（<code>dMqk</code> 行/列、<code>dL</code> 列·beta）提到<strong>每个 c 只读一次</strong>存进寄存器数组
+<code>m_qd[]/m_ki[]/m_dl[]</code>，4 个 k-lane 间复用（原来每输出重读一遍）。
+累加顺序按 k-lane <strong>精确保留</strong>（<code>acc_ki</code> 先算 dMqk@qd、再 beta·dL@kd）→ bit-identical。寄存器
+72→74（&lt;85 的 3-block 上限，占用率不变）。这是<strong>第一个 cash 真实 % 的非占用率微优化</strong>，因为它
+直击 b3 的 L1/mio 墙（最热 4 行上 LDS 流量 ÷4）。</li>
+</ul>
+<p><strong>优化 3：Opt#2 —— 删掉死掉的 bf16 打包</strong>（L963-967, L998-1011）
+活跃的 fp32-carry epilogue 读的是 <strong>fp32 mask</strong>（<code>dMqk_smem/dL_smem</code>，即 G5/G6 MMA 的 fp32 原始
+输出）。那些 bf16 副本（<code>qd_bf/dMqk_bf/dL_bf/dLTb_bf</code>）<strong>只有诊断路径 <code>B3_SCALAR_EPI_DIAG</code> 才读</strong>。
+把它们的存储 <code>#ifdef</code> 掉，省一堆 <code>F2FP.BF16</code> 打包（缓解 mio-throttle）+ STS + 整条 dLTb_bf 的 CC-pass。</p>
+<p><strong>优化 4：Opt#7 —— 缓存 L2norm 倒数给 K1 复用</strong>（L834-837, L925-927, L1219-1221）
+R1 已为每行算了 <code>q_inv/k_inv</code>（L2norm 倒数）。内联的 K1 需要<strong>同样</strong>倒数，且 R1 与 K1 用<strong>完全相同
+的 tid→行 映射</strong>。于是 R1 把倒数写进 <code>q_inv_smem/k_inv_smem</code>（每行只写一次），K1 直接读 → 省掉
+K1 里重复的 <code>q_sq/k_sq</code> shfl 归约 + 两次 rsqrt。</p>
+<p><strong>优化 5：Opt#8 —— K1 里 5 个 fp32 scratch 读的向量化</strong>（L1232-1250）
+K1 每行读 5 个 fp32 中间量（dqd/dkd/dU/dki/dkr）。旧写法 stride-8 标量 LDS → 4 路冲突。用宏
+<code>LDV_</code> 把每个变成 <code>float4×2</code> LDS.128，连续读 → conflict-free。</p>
+<p><strong>优化 6（★补充，文档没细讲）：l7c 列交错 conflict-free 布局</strong>（L1019-1054, L1180-1186）
+K1 里每线程本来拥有一行内<strong>连续 8 列</strong> <code>[my_col, my_col+8)</code>，这样 float4 STS 的 8-thread phase 把
+bank 塌缩成 2 组 → 2× 存储 wavefront。改成每线程拥有<strong>两个不相连</strong>的 float4 块：<code>[c0,c0+4)</code> 和
+<code>[c1,c1+4)</code>（c1=c0+64）。这样每次 float4 LDS/STS.128 的 8-thread phase 恰好铺满 32 bank →
+conflict-free。逐元素写 <code>[row,col]</code> 和行归约<strong>分区无关</strong> → bit-identical。R1b 也用了 EPT=4 交错。</p>
+<p><strong>优化 7：内联 K1 + dkd finalize 折叠 + dg 反向 cumsum</strong>（L1164-1339）</p>
+<ul>
+<li><strong>dkd finalize 折叠</strong>（L1164-1166, L1258-1260）：<code>dkd = beta·(−dkd_base + s2)</code> 不再单独走一趟
+smem 读写，而是<strong>折进 K1 phase1</strong>，算 dkn 时顺手读 <code>dkd_smem</code> + <code>dU_smem</code>(s2) 现算 → 省一整趟
+CD 读写 + 一个 <code>__syncthreads</code>。</li>
+<li><strong>反向 cumsum → dg</strong>（L1298-1326）：门控梯度需沿 chunk 内 token <strong>反向累加</strong>（<code>rev_sum</code>）。每线程
+负责一列，从 <code>row=15</code> 倒着加到 <code>row=0</code>，途中算 dg、累加 dA_log/ddt_bias。</li>
+<li><strong>dA_log 的 warp-shuffle + 单原子加</strong>（L1327-1330）：<code>dA_log</code> 是整个 head 的一个标量，256 线程都
+有贡献。先 warp 内 <code>__shfl_xor</code> 归约成每 warp 一个值，只让 <strong>lane0 做一次 <code>atomicAdd</code></strong> → 原子从
+256 次降到 8 次。ddt_bias 每列一个 → 每列一次 atomicAdd。</li>
+</ul>
+<p><strong>优化 8（★补充，文件名 “a1d”）：原生 [T,H,D] 输出布局</strong>（L412-414, L1189-1193, L1299-1333）
+文档没写的第二大补充。梯度输出（dq/dk/dv/dg/dbeta）直接写 <strong>native [T,H,D]</strong> 布局（token 步长
+= H·D），而非旧的 [H,T,D] 中间暂存再转置。省掉一次布局转换 pass。代价：phantom 行
+（<code>row ≥ actual_len</code>，varlen 里越界 token）在 native 布局<strong>没有对应地址</strong>，直接 skip（旧 [H,T,D]
+暂存会往那写 0，native 里那是越界地址不能写）—— 见 L1320-1323 注释。</p>
+<p><strong>B3 的墙</strong>：<code>FFMA short_scoreboard 29.1%</code>，fp32 epilogue，<strong>gate-locked 不能 bf16</strong>。它是最大的 B
+kernel（占 bwd 33.5%）。文档 0719§7 下一步是给 epilogue 加 ILP（idx4→idx8，更多独立 FFMA 链藏
+延迟），盯 85-reg 3-block 上限。</p>
+<hr>
+<h2 id="第-3-部分文档不全-需补充的优化集中列出"><a class="markdownIt-Anchor" href="#第-3-部分文档不全-需补充的优化集中列出"></a> 第 3 部分：文档“不全、需补充”的优化（集中列出）</h2>
+<p>核对源码后，以下几项<strong>代码里有、三份文档没（充分）记录</strong>：</p>
+<ol>
+<li><strong>★ sinfix —— sin 双方向 swizzle 的正确性修复</strong>（B2，L470-483, L592-599）。不是性能优化而是
+<strong>bug fix</strong>：旧代码三个 sin-GEMM 统一收缩列，导致 <code>S_in≠0</code> 时 dqd/dkd 被悄悄转置、dq 和门控
+梯度算错。用转置对偶（<code>SwSinLayoutT</code>/LDSM_T）给 dqd/dkd 换正确方向。<strong>三份文档均未提</strong>，最
+需补讲。</li>
+<li><strong>★ a1d —— 原生 [T,H,D] 输出布局</strong>（B1 dv、B3 dq/dk/dg/dbeta）。梯度直接写 native（token 步长
+H·D），省掉 [H,T,D]→native 的转置趟；phantom 行因无地址而 skip。文档只覆盖到 l8，未含 a1d。</li>
+<li><strong>cp.async 分组 + 不等待重叠 R1</strong> 的精确套路（B1/B2/B3 都有，B3 是双 group A/B，L869-886）。
+文档 0719§4.1 只从<strong>负面</strong>角度提过 cp.async（l9 给 dgT 加流水是负收益），但<strong>主路径里 cp.async
+藏 gmem 搬运是保留的赢法</strong>，这点文档没正面讲。</li>
+<li><strong>l7c 列交错 conflict-free 布局</strong>（B3 R1b 和 K1，L1019-1025, L1180-1186）。文档 0719§0 提 l7 是
+“union 到 3-block”，但“两个不相连 float4 块 c0/c1=c0+64 让 phase 铺满 32 bank”只在源码注释里。</li>
+<li><strong>寄存器内 <code>MOVM_T</code> 转置的 dU 链</strong>（B1，L384-407）。文档 0719§1 一句“寄存器驻留 + MOVM_T”
+带过，没讲 MOVM_T 是“寄存器内小矩阵转置指令、省 smem 往返”这层语义。</li>
+<li><strong>Opt#7 L2norm 倒数跨 R1/K1 缓存</strong>、<strong>Opt#8 K1 scratch 向量化</strong>、<strong>dkd finalize 折叠进 K1</strong>（B3）：
+L1-vectorization 文档只是编号出现，没展开“为什么能复用（tid→行映射相同）、折叠省了什么（一趟
+CD 读写 + 一个 barrier）”。</li>
+</ol>
+<hr>
+<h2 id="第-4-部分一句话教训总结小白记这几条就够"><a class="markdownIt-Anchor" href="#第-4-部分一句话教训总结小白记这几条就够"></a> 第 4 部分：一句话教训总结（小白记这几条就够）</h2>
+<ol>
+<li><strong>这条路是 occupancy/latency-bound</strong>。能提速的只有两类：
+<ul>
+<li>(a) 砍 smem <strong>跨过</strong> block/SM 阶梯（B2 kdS union 2→3 block、B3 l7 union）；</li>
+<li>(b) 直击某个<strong>真墙</strong>、砍它的访存流量（B3 l8 在最热 4 行把 LDS ÷4）。</li>
+<li>其余一切（cp.async 加流水、GEMM 链重写、给 latency-bound 的读做向量化）一律 ~0% 或负 ——
+那些延迟本来就被占用率藏住了。</li>
+</ul>
+</li>
+<li><strong>“从 gmem 取的那个操作数，必须是能合并读（coalesced）的那个”</strong>（§4.3 l12：dgT-dot 折进 B1 时
+sin 变 stride-128 未合并 → +34%；折进 B2 用片上 sin、只流式读合并的 dS → 赢）。</li>
+<li><strong>“向量化时别打乱和它同一次乘法里 co-read 的 swizzled-smem 操作数的 bank pattern”</strong>（§4.4 l13：
+把 dS 的 per-lane 分配改连续，顺带打乱了 sin_bf 的 swizzle bank pattern → 引新冲突 → +5~8%）。
+float4/128-bit 向量化<strong>只在“LDS 事务数本身就是墙”时赢</strong>（B3 l8），对 latency-bound 的 B2 dgT 无效。</li>
+<li><strong>B3 epilogue 必须全程 fp32（gate-locked）</strong>：门控梯度 <code>dkn_signed</code> 强抵消 + 反向 cumsum 相干放大，
+bf16 会炸 gate 梯度 26~76 倍。所有 B3 优化都绕开数值、只动布局/访存。</li>
+<li><strong>构建陷阱（必记）</strong>：<code>s*/l*</code> 都是被 <code>bwd_launch.cu</code> <code>#include</code> 的 header。改 header 不
+<code>touch csrc/smxx/bwd_launch.cu</code> 就不重编，stale <code>.so</code> 会给“两臂看起来一样”的假结果。改任何 bwd
+header 后必须 <code>touch bwd_launch.cu</code> 再 build，并核实 A/B 两臂确实不同。</li>
+<li><strong>A/B 测试永远同 session、单变量</strong>（§4.5：曾差点把 Kernel A 的变化误判成 caching-allocator 的
+−10%）。</li>
+</ol>
+<hr>
+<h2 id="附三份文档-vs-冠军源码的对应关系速查"><a class="markdownIt-Anchor" href="#附三份文档-vs-冠军源码的对应关系速查"></a> 附：三份文档 vs 冠军源码的对应关系速查</h2>
+<table>
+<thead>
+<tr>
+<th>优化</th>
+<th>出处文档</th>
+<th>源码行</th>
+<th>收益</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>拆 4 kernel（占用率）</td>
+<td>0716</td>
+<td>全文件结构</td>
+<td>−12~16%</td>
+</tr>
+<tr>
+<td>B1 寄存器 dU 链 + MOVM_T</td>
+<td>0719 §1</td>
+<td>L289-408</td>
+<td>~0%（省 smem）</td>
+</tr>
+<tr>
+<td>B1 fp32 tile 行填充 D+4</td>
+<td>源码注释</td>
+<td>L156-165</td>
+<td>0.2~0.5%</td>
+</tr>
+<tr>
+<td>B2 kdS union（2→3 block）</td>
+<td>0719 §5</td>
+<td>L461-465</td>
+<td>占用率 cash</td>
+</tr>
+<tr>
+<td>B2 dvcorr 向量化</td>
+<td>0716 Opt#1/#3</td>
+<td>L522-542</td>
+<td>B2 最大项</td>
+</tr>
+<tr>
+<td>B2 折叠 B0（复用片上 sin）</td>
+<td>0719 §0</td>
+<td>L677-702</td>
+<td>干掉 all_states 重读</td>
+</tr>
+<tr>
+<td><strong>B2 sinfix（正确性）</strong></td>
+<td><strong>无（补充）</strong></td>
+<td>L470-483</td>
+<td>bug fix</td>
+</tr>
+<tr>
+<td>B3 l7 smem union + R1b 重算</td>
+<td>0719 §2</td>
+<td>L838-851,1014-1055</td>
+<td>跨 2→3 block（+~1%）</td>
+</tr>
+<tr>
+<td>B3 l8 epilogue float4</td>
+<td>0719 §3</td>
+<td>L1101-1142</td>
+<td><strong>−2~3%（B 冠军招牌）</strong></td>
+</tr>
+<tr>
+<td>B3 Opt#2 删死 bf16 打包</td>
+<td>0716 Opt#2</td>
+<td>L963-1011</td>
+<td>−0.5%</td>
+</tr>
+<tr>
+<td>B3 Opt#7 L2norm 倒数缓存</td>
+<td>0716 Opt#7</td>
+<td>L925-927,1219</td>
+<td>issue 省</td>
+</tr>
+<tr>
+<td>B3 Opt#8 K1 scratch 向量化</td>
+<td>0716</td>
+<td>L1232-1250</td>
+<td>消 4 路冲突</td>
+</tr>
+<tr>
+<td><strong>B3 l7c 列交错 conflict-free</strong></td>
+<td><strong>仅源码注释（补充）</strong></td>
+<td>L1019-1025,1180</td>
+<td>消 2× wavefront</td>
+</tr>
+<tr>
+<td>B3 dkd finalize 折叠进 K1</td>
+<td>源码注释</td>
+<td>L1164,1258</td>
+<td>省一趟 CD + 一 barrier</td>
+</tr>
+<tr>
+<td>dA_log warp-shuffle 单原子</td>
+<td>0714</td>
+<td>L1327-1330</td>
+<td>256→8 原子</td>
+</tr>
+<tr>
+<td><strong>a1d 原生 [T,H,D] 输出</strong></td>
+<td><strong>无（补充）</strong></td>
+<td>L412,1189,1299</td>
+<td>省转置趟</td>
+</tr>
+</tbody>
+</table>
+<p><strong>当前状态</strong>：冠军 = Kernel A <code>s12</code> + Kernel B <code>l8</code>（本文件即 l8 + sinfix + a1d）。bwd-only 实测
+B32/B8/B1 = 242/254/196ms（vs FLA 241/244/123）。B1 低 N 下 <strong>Kernel A 串行 dstate scan 占 52%</strong> 是
+和 FLA 1.60× 差距的主因 —— 文档 0719§7 明确指出：同等力气，攻 <strong>Kernel A 的 V-dim grid-split</strong>
+（修低 N 占用率悬崖）期望回报 &gt; B 上任何剩余杠杆。</p>
+<hr>
+<h1 id="附录-b深挖问答完整原文一字不落"><a class="markdownIt-Anchor" href="#附录-b深挖问答完整原文一字不落"></a> 附录 B：深挖问答完整原文（一字不落）</h1>
+<blockquote>
+<p>以下为六个深挖问题 + 全部追问的<strong>完整原始问答</strong>，逐字保留（bank 冲突怎么数、SPMD 藏延迟、swizzle/XOR、K_INTER/MN_INTER 转置对偶、D+4 填充、三处向量化、uint4/STS.128、两行 <code>using</code> 声明、<code>Swizzle&lt;B,M,S&gt;</code> 源码、<code>gemm</code> vs <code>cooperative_gemm</code>、<code>cute::transform</code>），文末附 <code>print_layout</code> 真实运行输出。</p>
+</blockquote>
+<p>问题 1:为什么"32 线程挤 4 bank"叫"4 路冲突"?你的理解对不对?</p>
+<p>你的理解完全正确:冲突路数(serialization factor)的严格定义 = 同一个
+bank 上同时有几个线程访问不同地址。不是看用了几个
+bank,而是看"最挤的那个 bank 上压了几个线程"。</p>
+<p>那"4-way"这个说法哪来的?我把 stride-8 的访问画出来你就懂了。</p>
+<p>代码里那个会冲突的存储,线程映射是 r_row = tid/16, r_col =
+(tid%16)<em>8,即一行 16 个线程,每个线程负责 8 个连续元素,但逐个标量存(for
+i: smem[r_row</em>D + r_col + i])。</p>
+<p>在某一步 i 固定时,一行 16 个线程写的地址是 r_row*128 + r_col + i。bank
+编号 = 地址 % 32:
+bank = (r_col + i) % 32,  其中 r_col = (tid%16)*8</p>
+<p>tid%16:  0   1   2   3   4   5   6   7   8   9  10  11 …
+r_col:   0   8  16  24  32  40  48  56  64  72  80  88 …
+%32:     0   8  16  24   0   8  16  24   0   8  16  24 …
+bank:   [0] [8][16][24][0] [8][16][24][0] [8][16][24]…
+16 个线程只落在 4 个 bank:{0, 8, 16, 24},每个 bank 上挤了 4
+个线程(16÷4=4)。</p>
+<p>→ 严格按你说的"同一 bank 几个线程"来数,就是 每个 bank 4 个线程 = 4
+路冲突,慢 4 倍。“4-way” 和"只用了 4 个 bank"在这个 stride-8 + 16
+线程/行 的场景下恰好数值一致,所以两种说法都对、指的同一件事。</p>
+<p>▎ 注:如果按整个 32 线程 warp(跨 2 行)算,{0,8,16,24} 每 bank 就是 8
+个线程。文档按"每行 16 线程"这个粒度叫它
+4-way。关键点你抓对了:看的是每个 bank 上的线程数,不是 bank 总数。</p>
+<p>修复:让线程访问连续地址(见问题 6 的 float4 向量化)。连续 32 个 float
+正好铺满 32 个 bank,每 bank 1 个线程 → conflict-free。</p>
+<hr>
+<p>问题 2:SPMD 下每个线程干一样的活,怎么会 warp A 跑 LDG、warp B 跑 MMA?</p>
+<p>这是最关键的一个误解,拆清楚:</p>
+<p>SPMD/SIMT 是"所有 warp 跑同一份代码",但不是"所有 warp
+在同一时刻跑到同一行"。</p>
+<p>每个 warp 有自己独立的
+PC(程序计数器),它们在同一份代码里各自走到不同位置、彼此异步。warp
+调度器每个周期挑一个"当前 ready(不在等数据)"的 warp
+发射它的下一条指令。</p>
+<p>关键机制叫 latency hiding via TLP(线程级并行藏延迟):
+时间轴 →
+warp A:  …  LDG(发出) ──────等数据(几百周期)──────&gt;  MMA  …
+warp B:  …  MMA  MMA  LDG(发出) ──等──&gt; …
+warp C:  …  LDG ──等──&gt;  MMA  ADD  …</p>
+<ul>
+<li>warp A 在某时刻卡在"等 LDG 返回",它这几百周期什么也发不出。</li>
+<li>但 warp B 早就过了它自己的 LDG(它比 A 提前几步),此刻正好走到 MMA。</li>
+<li>调度器发现 A 不 ready、B ready → 这个周期发 B 的 MMA。</li>
+</ul>
+<p>所以不是"给不同 warp 写了不同代码",而是同一份代码里的多个 warp
+在时间上错开了(drift out of sync),自然形成"有的在等 LDG、有的在算
+MMA"的交叠。 这是全自动的,不需要你写任何 if(warpid)。</p>
+<p>你说的 warp specialization(warp-spec) 是另一回事:那是你故意写 if
+(warpid &lt; 4) 当生产者搬数据; else 当消费者算 让不同 warp
+扮演不同角色。基础的藏延迟不需要 warp-spec —— 只要 SM 上住着足够多的
+warp(= 高 occupancy),它们自然错峰,延迟就被填满了。这也正是"占用率高才
+能藏延迟"的物理原因。</p>
+<p>补充两点:</p>
+<ul>
+<li>单个 warp 内部也能藏一点(ILP):LDG 是"发出即返回"的非阻塞发射,warp
+发完 LDG
+可以继续发几条不依赖该数据的独立指令,直到真正要用那个数据才卡住。</li>
+<li>cp.async
+把这件事做到极致:它显式地让"搬运"和"使用"解耦,搬运在后台跑,warp
+继续算别的(见问题 6 前的 R1 重叠)。</li>
+</ul>
+<hr>
+<p>问题 3:为什么朴素行主序的 smem 被 LDSM 读会撞 bank?swizzle 怎么修?</p>
+<p>先讲 LDSM(ldmatrix)怎么读 smem。它是给 Tensor Core 喂矩阵的指令:一条
+ldmatrix 让 warp 的 32 个线程各提供一个地址,每个地址指向 smem 里一个
+16 字节(8 个 bf16)的行片段;硬件按这些地址把一个小矩阵灌进 32
+线程的寄存器(fragment)。</p>
+<p>朴素行主序为什么撞:假设一个 [16,16] bf16 tile,行主序摆放。一行 = 16 个
+bf16 = 32 字节 = 8 个 word(4 字节)。第 r 行的起始地址 = r<em>8
+word。LDSM 让 32 个线程分别指向这 16 行的行首(每行被两个线程分),bank =
+行首 word % 32:
+行 r:    0   1   2   3   4   5   6   7   8  …
+r</em>8:     0   8  16  24  32  40  48  56  64  …
+%32:     0   8  16  24   0   8  16  24   0  …
+bank:   [0] [8][16][24][0] [8][16][24][0] …
+16 行的行首只落在 {0,8,16,24} 4 个 bank → 4 路冲突。根因:行宽(32 字节
+= 8 word)恰好是 32 bank 的因子,导致每隔 4 行 bank 就绕回来撞上。</p>
+<p>swizzle 怎么修:swizzle =
+存数据时对地址做一个固定的异或(XOR)置换,把本来撞同一 bank
+的行"错位"到不同 bank。核心思路:
+物理地址 = 基址 XOR (行号的某几位 &lt;&lt; 偏移)
+效果:第 r 行的行首不再是老实的 r*8,而是被 XOR 打散。设计目标就是让 16
+个行首 word 的 %32 变成 {0,8,16,24,  4,12,20,28,  …} 这样铺满 32 个
+bank、每 bank 1 个 → conflict-free。</p>
+<p>直观理解:异或是一个双射置换(不丢数据、不重叠),它只是把"逻辑上第 r 行第
+c 列的元素"换个物理 bank 存。因为写的时候按 swizzle
+摆、读的时候(LDSM)也按同一个 swizzle
+算地址,两边对得上,数据不会错,但物理 bank 分布被打散了。代码里
+tile_to_shape(GMMA::Layout_K_INTER_Atom<bf16>{}, …) 就是 CUTLASS
+帮你算好的、专门匹配 ldmatrix 访问模式的那个 XOR 布局,你不用手推。</bf16></p>
+<hr>
+<p>问题 4:K_INTER vs MN_INTER 转置对偶(transpose-dual),为啥省一份 smem +
+省一次转置?用在哪?</p>
+<p>先说要解决的痛点。 Tensor Core 的矩阵乘 C = A @ B,硬件对 A 和 B 在
+smem 里的摆放方向有要求:</p>
+<ul>
+<li>算 dS @ x 时,dS 要按正常方向(行 = 行)喂进去。</li>
+<li>算 dSᵀ @ y 时,同一个 dS 却要按转置方向(行 = 列)喂进去。</li>
+</ul>
+<p>同一块数据 dS,一会儿要正着读,一会儿要转置读。朴素做法有两条烂路:</p>
+<ol>
+<li>存两份:一份正的 dS,一份转置的 dSᵀ。→ 多花一倍 smem(smem 是 split-B
+抢 occupancy 的命根子,多一份可能从 3-block 掉到 2-block)。</li>
+<li>存一份 + 运行时转置:用一次额外的 smem→smem 搬运把 dS 转成 dSᵀ。→
+多一趟 LDS/STS,还常常撞 bank。</li>
+</ol>
+<p>两条路都要么费 smem、要么费指令。</p>
+<p>transpose-dual 的解法:让"同一堆物理字节"既能正读又能转置读。</p>
+<p>关键在 LDSM(ldmatrix)有两个变体:</p>
+<ul>
+<li>LDSM_N(normal):把 smem 的 16×16 块按正常方向装进 fragment。</li>
+<li>LDSM_T(transposed,汇编里 .trans):读同一块 smem 字节,但硬件在装进
+fragment 时顺手把行列换了。</li>
+</ul>
+<p>问题是:LDSM_T 要 conflict-free,smem 的 swizzle 摆法必须和 LDSM_N
+想要的摆法兼容。cute 用两种 atom layout 描述这件事:</p>
+<ul>
+<li>GMMA::Layout_K_INTER_Atom → 配 LDSM_N(K 方向内层交错,正读友好)。</li>
+<li>GMMA::Layout_MN_INTER_Atom → 配 LDSM_T(MN 方向内层交错,转置读友好)。</li>
+</ul>
+<p>这就是"对偶": 你写一次 smem(用一种 swizzle),然后声明两个 cute view
+指向同一块 smem —— 一个用 K_INTER layout(给 LDSM_N,正读),一个用
+MN_INTER layout(给 LDSM_T,转置读)。两个 view、一份数据。</p>
+<pre><code>      物理 smem(只存一份 dS,写一次)
+                  │
+      ┌───────────┴───────────┐
+ K_INTER view              MN_INTER view
+ (LDSM_N 正读)            (LDSM_T 转置读)
+      │                        │
+ GEMM1: dS @ x            GEMM2: dSᵀ @ y
+</code></pre>
+<p>代码里用在哪(champion .cuh):</p>
+<ul>
+<li>B1,dS 侧(L170-179):SwStateLayout(K_INTER)+
+SwStateLayoutT(MN_INTER)一对。dS 存一份,dkr 那条 GEMM 正读,后面需要
+dSᵀ 的 GEMM 转置读。</li>
+<li>B2,sin 侧(L470-483):SwSinLayout(K_INTER,给 kdS 那条列方向 GEMM)+
+SwSinLayoutT(MN_INTER,给 dqd/dkd 那两条行方向 GEMM)。</li>
+</ul>
+<p>顺带提 sinfix 的教训:老代码曾经让 B2 里三条 GEMM 全用 K_INTER 读同一块
+sin。结果 dqd/dkd
+那两条本该转置读的,被悄悄读成了转置版——数值不对,S_in≠0 时污染 dq 和
+gate。sinfix 就是给这两条补上 MN_INTER view。这正是 transpose-dual
+用错(少了一个 view)的反面教材。</p>
+<p>一句话总结:同一份物理字节,靠 LDSM_N/LDSM_T + K_INTER/MN_INTER 两个
+cute view,一次存储同时喂正读和转置读两种 GEMM,既不存两份也不显式转置。</p>
+<hr>
+<p>问题 5:fp32 C-staging tile 行填充 stride D+4,优化前后 bank 布局</p>
+<p>场景:B1 里算完 dS 相关结果,要先落到一块 fp32 的 smem 暂存
+tile(C-staging),形状 [16, 128](16 行 × 128 列,一列对应 D
+的一维)。Tensor Core 的 C 输出是按列写的:一次 MMA 的 8
+个线程,写的是同一列的 8 个行。</p>
+<p>bank 复习:smem 32 个 bank,bank = (字地址) % 32,fp32 一个字 = 4B。撞
+bank 看的是"同一时刻访问同一 bank 的线程数"。</p>
+<p>优化前:stride = 128(紧凑,无填充)</p>
+<p>元素 [r, c] 的字地址 = r<em>128 + c。
+bank = (r</em>128 + c) % 32。因为 128 % 32 = 0,所以 r*128 % 32 = 0,于是:</p>
+<p>bank([r,c]) = c % 32     ← 跟行号 r 完全无关!</p>
+<p>MMA 写"同一列 c 的 8 个行"(r=0…7),它们的 bank 全是 c%32 —— 8
+个线程挤同一个 bank = 8 路冲突。</p>
+<p>列 c=0,写 8 行(r=0…7),stride=128:
+r=0 → addr   0 → bank 0
+r=1 → addr 128 → bank 0     ← 128%32=0
+r=2 → addr 256 → bank 0
+r=3 → addr 384 → bank 0
+r=4 → addr 512 → bank 0
+r=5 → addr 640 → bank 0
+r=6 → addr 768 → bank 0
+r=7 → addr 896 → bank 0
+───────────────────────────
+8 个线程 → 全 bank 0 → 8 路冲突(串行 8 拍)</p>
+<p>优化后:stride = 132(= D+4,行尾填 4 个 fp32)</p>
+<p>元素 [r, c] 的字地址 = r*132 + c。132 % 32 = 4,于是:</p>
+<p>bank([r,c]) = (r*4 + c) % 32   ← 现在跟 r 有关了!</p>
+<p>同一列 c 的 8 个行,bank 变成 c, c+4, c+8, …, c+28——8 个不同 bank:</p>
+<p>列 c=0,写 8 行(r=0…7),stride=132:
+r=0 → addr    0 → bank  0
+r=1 → addr  132 → bank  4     ← 132%32=4
+r=2 → addr  264 → bank  8
+r=3 → addr  396 → bank 12
+r=4 → addr  528 → bank 16
+r=5 → addr  660 → bank 20
+r=6 → addr  792 → bank 24
+r=7 → addr  924 → bank 28
+───────────────────────────
+8 个线程 → bank {0,4,8,12,16,20,24,28} → 8 个不同 bank →
+conflict-free(1 拍)</p>
+<p>为啥是 +4 而不是 +1? 只要 stride 对 32 不整除,就能把行错开,+1 也能散
+bank。但这里 C-staging 的写是 cute 向量化 store(一次 float4 = 16B)。行
+stride 必须是 16B 对齐:132 * 4B = 528B,528 % 16 = 0 ✅ 对齐;129 * 4B
+= 516B,516 % 16 = 4 ✗ 不对齐,float4 store 会崩。所以选 +4(4 个 fp32 =
+16B):既打散 bank(132%32=4≠0),又保住 16B 对齐让向量化 store
+能用。这是"消 bank 冲突"和"保向量化对齐"的双重约束下的最小填充。</p>
+<p>代价:每行多 4 个 fp32 = 每 tile 多 16<em>4</em>4B = 256B smem,微不足道,换来 8
+路→无冲突。</p>
+<hr>
+<p>问题 6:三个向量化优化展开</p>
+<p>优化 3:dvcorr 窄化的向量化(B2,L522-542)</p>
+<p>背景:dvcorr 从 gmem 读进来是 fp32,要用在两个地方:</p>
+<ol>
+<li>累加进 dbeta(需要 fp32 精度)→ 存到 fp32 smem。</li>
+<li>喂给一条 GEMM(Tensor Core 吃 bf16)→ 转成 bf16 存到 swizzled smem。</li>
+</ol>
+<p>“窄化”(narrowing)就是指 fp32 → bf16 这个位宽变窄的转换。</p>
+<p>朴素做法的两个坑:</p>
+<ul>
+<li>每个线程只管 1 列 → gmem 读是 stride-8 散读(不连续,uncoalesced,一次
+cache line 128B 只用到几个字节)。</li>
+<li>bf16 逐个散写到 swizzled smem → 落点乱,撞 bank。</li>
+</ul>
+<p>优化做法:让每个线程负责 8 个连续列,一口气向量化处理:</p>
+<p>线程 t 负责列 [8t, 8t+8):</p>
+<p>① gmem 读:8 个 fp32 = 32B = 2 次 float4(LDG.128)
+→ 连续 → 完美 coalesced</p>
+<p>② 写 fp32 smem(给 dbeta):2 次 float4 STS.128
+→ 8 个 fp32 一次两拍写完</p>
+<p>③ 窄化 fp32→bf16:8 个 fp32 → 8 个 bf16 = 16B
+→ 打包成 1 个 uint4,一次 STS.128 写到 swizzle 的
+“8-run base”(每 8 个 bf16 一组的对齐基址)
+→ 一次写完 8 个,落在同一 swizzle 组,conflict-free</p>
+<p>收益:gmem 从散读变连续读(coalesced);smem 写从 8 次散写变 2×float4 +
+1×uint4 向量化写;指令数和 transaction 数都 ÷4 量级。核心是"一个线程管
+8 个连续元素",把散的标量访问全变成 128-bit 向量访问。</p>
+<hr>
+<p>优化 6(★文档没细讲):l7c 列交错 conflict-free 布局(B3,L1180-1186)</p>
+<p>背景:B3 epilogue 里,每个线程要处理 128
+列(D)中的一部分。老布局让每个线程管连续 8 列;l7c
+改成每个线程管两块不连续的 float4。</p>
+<p>老布局(连续 8 列):线程 tid,my_col = (tid%16)*8,管 [my_col, my_col+8)。
+一次 float4(4 个 fp32)覆盖的 bank:</p>
+<p>16 个线程(tid%16 = 0…15),每人 8 列:
+线程0: 列 0-7   → 头 float4 覆盖 bank 0-3
+线程1: 列 8-15  → 头 float4 覆盖 bank 8-11
+线程2: 列16-23  → 头 float4 覆盖 bank16-19
+线程3: 列24-31  → 头 float4 覆盖 bank24-27
+线程4: 列32-39  → 头 float4 覆盖 bank 0-3   ← 和线程0 撞!
+…
+这一拍 float4 只落在 {0-3, 8-11, 16-19, 24-27} = 16 个 bank
+→ 32 个 bank 只用一半 → 要 2 个 wavefront(2 拍)</p>
+<p>l7c 布局(列交错):每个线程拿两块不连续的 float4:
+c0 = (tid%16)*4,c1 = c0 + 64(即 [c0,c0+4) 和 [c0+64, c0+68))。</p>
+<p>16 个线程,头 float4 用 c0 = (tid%16)*4:
+线程0: c0=0  → bank 0-3
+线程1: c0=4  → bank 4-7
+线程2: c0=8  → bank 8-11
+线程3: c0=12 → bank12-15
+…
+线程7: c0=28 → bank28-31
+→ 8 个线程的头 float4 = stride-4 铺满 bank 0-31
+→ 32 个 bank 全用上 → conflict-free(1 拍)
+第二块 c1=c0+64 同理铺满另一半工作。</p>
+<p>为啥结果不变? 这只是换了线程↔列的分工(partition),每个线程算的还是那些
+列的同样计算,只是分配方式变了。计算与分区无关(partition-invariant)→
+bit-identical,纯粹是访存布局优化。</p>
+<p>一句话:老布局连续 8 列让 float4 只铺半个 bank 组(2 拍);l7c 让 8
+个线程的 float4 以 stride-4 铺满全部 32 bank(1 拍),再用 c1=c0+64
+拿第二块。</p>
+<hr>
+<p>优化 2:l8 epilogue float4 向量化(当前 B 冠军的招牌,B3,L1101-1142)</p>
+<p>背景:B3 epilogue 有 3 条 chunk-space 的 GEMM:</p>
+<ul>
+<li>dqd = dMqk @ ki</li>
+<li>dki = dMqkᵀ @ qd + β·dLᵀ @ kd</li>
+<li>s2  = dL @ ki</li>
+</ul>
+<p>三条的收缩维(K 维)都是 16(chunk 内 16 个 token)。</p>
+<p>老做法(标量):</p>
+<ul>
+<li>每个线程只算 1 个输出。</li>
+<li>K=16 的累加循环里,每拍用标量 LDS 去 smem 取一个 operand,stride-128
+散读。</li>
+<li>每个 k 都重算一遍那些"跟 k 无关的 mask"(比如三角
+mask、边界判断),白算 16 遍。</li>
+</ul>
+<p>新做法(float4 向量化 + 提取不变量):</p>
+<p>① 每个线程算 4 个连续 k 的贡献(一次处理 4 拍):
+operand 用 float4 LDS.128 一次取 4 个 fp32
+→ LDS transaction ÷4</p>
+<p>② 把"跟 k 无关"的 mask 提到寄存器,每个输出列 c 只算一次:
+m_qd[], m_ki[], m_dl[]  ← 每 c 算一遍
+然后在 4 个 k-lane 里复用
+→ 省掉 16× 重复 mask 计算</p>
+<p>③ 累加顺序严格保持和老代码一样
+→ bit-identical(全程 fp32,不碰 gate 精度红线)</p>
+<p>为啥叫"招牌":epilogue 是 B3 最热的收尾段,3 条 GEMM 全在这。把标量 LDS
+换成 float4 LDS.128(访存 transaction ÷4)+ mask
+提到寄存器复用(算术指令大减),实测这一招是 split-B 从 l7→l8
+的关键降幅(occupancy 日志里 l8 float4 epilogue −2~3%),而且顺序不变、全
+fp32 → 数值 bit-identical,不触碰 B3 那条"epilogue 必须 fp32、否则 dg
+爆 26-76×"的精度红线。</p>
+<hr>
+<p>这 6 个问题就全部展开完了。串一下核心直觉:问题 1-3 是"bank
+冲突到底怎么数、GPU 怎么靠多 warp 藏延迟、swizzle
+怎么打散冲突"的底层机制;问题 4-5 是两个具体的 smem 布局技巧(转置对偶省
+smem、D+4 填充打散列写冲突);问题 6 是三个"把标量散访存改成 128-bit
+向量访存 +
+复用不变量"的向量化套路。所有优化的共同母题只有一句话:让访存连续/铺满
+32 bank + 一次搬 128 bit + 别重复算不变的东西,同时死守 B3 epilogue 的
+fp32 精度红线。</p>
+<p>问题一和问题六的float4怎么就把conflict消灭了？我理解只有l7c
+布局(列交错):每个线程拿两块不连续的
+float4这样才行。另外问题六优化我还是不理解</p>
+<p>● 好问题,你抓到了我前面讲得不精确的地方。你的判断是对的:float4
+本身并不消灭 bank 冲突。 让我先把两件被我混在一起的事拆开,这是理解 Q6
+的钥匙。</p>
+<hr>
+<p>关键:向量化 和 消 bank 冲突 是两件正交的事</p>
+<p>┌───────────────┬──────────────────┬─────────────────┬────────────┐
+│               │      是什么      │   靠什么实现    │    收益    │
+├───────────────┼──────────────────┼─────────────────┼────────────┤
+│ 向量化(float4 │ 一条指令搬 128 b │                 │ transactio │
+│ )             │ it(4×fp32)而不是 │ LDS.128/STS.128 │ n 数量 ÷4  │
+│               │  32 bit          │                 │            │
+├───────────────┼──────────────────┼─────────────────┼────────────┤
+│               │ 同一次           │ 地址布局(swizzl │ 每次 trans │
+│ 消 bank 冲突  │ transaction 里   │ e / 列交错 /    │ action 从  │
+│               │ 32 个 bank 别撞  │ D+4 填充)       │ N 拍变 1   │
+│               │                  │                 │ 拍         │
+└───────────────┴──────────────────┴─────────────────┴────────────┘</p>
+<p>float4 只管"一次搬多少 bit",不管"搬的地址撞不撞 bank"。 一个 float4
+访问照样能撞 bank,一个标量访问照样能不撞。你说的完全对——只有 l7c
+那种列交错布局才是真正在消冲突,float4 只是顺便把次数降下来。</p>
+<p>为什么会让人误以为 float4 消了冲突? 因为硬件处理一次 warp 级 LDS.128
+时,32 个线程各要 16B,共 512B,会被拆成 4 次 transaction(每次 128B = 32
+bank × 4B,服务 8 个线程)。在这 8 个线程这一组内,它们的 float4 是否铺满
+32 个 bank,才决定这次 transaction 是 1 拍还是多拍。所以:</p>
+<p>▎ float4 把"要多少次 transaction"定死了(÷4),但每次 transaction
+撞不撞,还得看那 8 个线程的地址布局。布局才是消冲突的主角,float4
+是配角。</p>
+<hr>
+<p>重讲 Q6 三个优化(这次标清楚:哪部分省次数、哪部分消冲突)</p>
+<p>优化 3:dvcorr 窄化向量化</p>
+<p>这里根本没有 bank 冲突问题要解决——因为一半是
+gmem。拆清楚三步各自在干嘛:</p>
+<p>① gmem 读 8 个 fp32:
+问题 = coalescing(gmem 没有 bank,只有 128B cache line)
+散读 → 一条 cache line 只用几个字节 → 浪费带宽
+float4 连续读 → coalesced → 带宽用满
+【这步靠 float4:省的是 gmem 带宽,不是 bank】</p>
+<p>② 写 fp32 smem(给 dbeta):2×float4 STS.128
+【这步靠 float4:省 transaction 数,布局本身已对齐,不撞】</p>
+<p>③ 窄化 fp32→bf16,打包成 uint4 写 swizzle smem:
+不撞 bank 是因为写到"8-run base"(swizzle 布局)
+float4 只是让这 8 个 bf16 一次写完
+【消冲突靠 swizzle 布局,不是靠 uint4】</p>
+<p>所以 dvcorr 的收益 = gmem coalesced(①)+ 写次数 ÷4(②③),冲突本来就靠既有
+swizzle 布局解决了。这里 float4 的功劳是省次数/省带宽,不是消冲突。
+我前面说的"conflict-free"是布局给的,不是 float4 给的。</p>
+<hr>
+<p>优化 6:l7c 列交错 —— 这个才是真·消冲突</p>
+<p>这个优化唯一目的就是消 bank 冲突,float4
+在这里反而是"被布局服务的对象"。</p>
+<p>回顾一下:硬件处理 float4 访问时,一组 8 个线程 = 一次 transaction。这 8
+个线程的 float4 要铺满 32 个 bank 才 1 拍。</p>
+<p>老布局(连续 8 列),线程 t 的头 float4 起点 = 8t:
+8 个线程头 float4 起点: 0, 8, 16, 24, 32, 40, 48, 56
+对 32 取模(bank 组):    0, 8, 16, 24, 0,  8,  16, 24
+↑   ↑   ↑   ↑
+线程4/5/6/7 和 线程0/1/2/3 撞!
+一次 transaction 只铺到 {bank0-3, 8-11, 16-19, 24-27} = 半个 smem
+→ 2 路冲突 → 2 拍</p>
+<p>l7c(列交错),线程 t 的头 float4 起点 = 4t(c0=(tid%16)*4):
+8 个线程头 float4 起点: 0, 4, 8, 12, 16, 20, 24, 28
+每个 float4 占 4 个连续 bank:
+线程0 → bank 0-3
+线程1 → bank 4-7
+…
+线程7 → bank 28-31
+→ 8 个 float4 = stride-4 严丝合缝铺满 32 bank → 1 拍 conflict-free
+第二块 c1=c0+64 处理剩下一半的列,同理铺满。</p>
+<p>看出来了吗: 老布局和 l7c 用的都是 float4(次数一样),差别只在起点
+stride——8 vs 4。stride-4 让 8 个线程的 float4 拼成完整 32
+bank,stride-8 让它们叠成半个。这就证明了:消冲突是布局(stride-4
+交错)干的,和 float4 无关。</p>
+<p>而且因为只是换了"哪个线程算哪列"的分工,计算内容一字不差 →
+bit-identical。这是纯访存布局优化。</p>
+<hr>
+<p>优化 2:l8 epilogue float4 —— 主要省次数,不是消冲突</p>
+<p>这个优化的名字带 float4,但它的收益几乎全在"省 transaction 数 +
+省重复计算",不在消冲突(operand 的 smem 布局本来就是好的)。三条 GEMM
+收缩维 K=16:</p>
+<p>老做法(标量):
+每个线程算 1 个输出,K=16 循环
+每拍标量 LDS 取 1 个 operand → 16 次 LDS
+每个 k 都重算一遍跟 k 无关的 mask → 白算 16 遍</p>
+<p>新做法:
+① 每线程一次处理 4 个连续 k:
+float4 LDS.128 一次取 4 个 operand
+→ LDS 次数 16 → 4(÷4)
+【省次数,不是消冲突】
+② 跟 k 无关的 mask(三角/边界)提到寄存器,每列 c 只算 1 次,
+4 个 k-lane 复用:
+→ 省掉 16× 重复算术
+【省算术指令,和访存无关】
+③ 累加顺序不变、全 fp32 → bit-identical,不碰 gate 精度红线</p>
+<p>为什么是"招牌"? 不是因为它消了什么冲突,而是因为 epilogue 是 B3
+最热的收尾段(3 条 GEMM 全在这),把"16 次标量 LDS + 16 遍重复
+mask"压成"4 次 float4 LDS + 1 遍 mask 复用",指令数直接砍一大截,实测
+l7→l8 降 2~3%。它的价值是吞吐(少发指令),不是延迟(消冲突)。</p>
+<hr>
+<p>一句话收尾(纠正版)</p>
+<ul>
+<li>float4 = 省 transaction 次数(和省 gmem 带宽),从不单独消 bank 冲突。</li>
+<li>消 bank 冲突 = 地址布局的事:l7c 的 stride-4 列交错、D+4
+行填充、swizzle,才是消冲突的主角。</li>
+<li>Q6 三个里:dvcorr 靠 float4 省带宽/次数(冲突交给既有 swizzle);l8
+epilogue 靠 float4 省次数 + 寄存器复用 mask 省算术;只有 l7c
+是真正在改布局消冲突——你的理解完全正确,是我前面把"float4
+省次数"和"布局消冲突"糊在一起了。</li>
+</ul>
+<p>✻ Baked for 1m 35s</p>
+<p>❯ 窄化 fp32→bf16:8 个 fp32 → 8 个 bf16 = 16B
+→ 打包成 1 个 uint4,一次 STS.128 写到 swizzle 的
+“8-run base”(每 8 个 bf16 一组的对齐基址)
+→ 一次写完 8 个,落在同一 swizzle 组,conflict-free
+是啥意思，为啥牵扯到uint4</p>
+<p>● 先拆开"uint4"到底是什么</p>
+<p>uint4 不是什么高深东西,就是一个 128 位(16 字节)的寄存器容器 = 4 个
+uint32 拼在一起。它存在的唯一意义:让编译器发一条 STS.128(一次写 128
+bit 到 smem)。</p>
+<p>对照一下位宽:</p>
+<p>bf16   = 2 字节
+8 个 bf16 = 16 字节 = 128 bit = 正好 1 个 uint4</p>
+<p>所以"8 个 fp32 → 窄化成 8 个 bf16 → 塞进 1 个 uint4"这句话的意思就是:</p>
+<p>▎ 这个线程手上算出的 8 个 bf16 结果,拼成一个 16
+字节的寄存器包(uint4),然后一条指令(STS.128)整包写进 smem —— 而不是发 8
+条 STS.16(每次写 1 个 bf16)。</p>
+<p>收益之一(省次数): 8 条标量存 → 1 条向量存,指令数 ÷8。</p>
+<hr>
+<p>"8-run base / 落在同一 swizzle 组 / conflict-free"是什么意思</p>
+<p>这牵扯到 swizzle 的粒度。这块 bf16 operand smem 用的是 cute 的 K_INTER
+swizzle 布局,它的 XOR 地址置换是以 16 字节(128
+bit)为一个"原子格"来定义的。也就是说:</p>
+<ul>
+<li>swizzle 把地址按 每 16B 一格 打散到不同 bank 区。</li>
+<li>每一个对齐的 16B 格,整体落在一个 conflict-free 的目标位置(一组 bank
+里),这是 swizzle 设计时就保证好的(为的是后面 LDSM/Tensor Core
+读它时不撞)。</li>
+</ul>
+<p>"8-run base"就是指:每 8 个 bf16(=16B=一个 swizzle
+原子格)的对齐起始地址。你手上这 8 个 bf16 恰好构成一个完整的原子格。</p>
+<p>为什么必须用 uint4(而不是逐个写)?</p>
+<p>情况 A:逐个写 8 条 STS.16
+每个 2 字节地址各自过一遍 swizzle XOR
+→ 8 个地址可能被打散到不同 bank 区,拆成多拍
+→ 而且和别的线程的碎片交错,容易撞 bank</p>
+<p>情况 B:打包成 uint4,一条 STS.128 写整个 16B 格
+硬件把这 16B 当成"一个对齐的 128-bit 事务",
+整包丢进 swizzle 给它安排好的那一格
+→ 天然落在同一个 swizzle 组里,不跨格、不撞 bank
+→ 1 拍写完</p>
+<p>换句话说:swizzle 是按 16B 一格设计的,你就得按 16B
+一格去写,才能踩在它的节奏上。 uint4 = 正好一格,STS.128 =
+正好一次写一格 —— 对齐了 swizzle 的粒度,所以既是 1 条指令,又天然
+conflict-free。如果你偏要按 2B(逐 bf16)去写,就跨在格子的碎片上,swizzle
+的对齐前提被打破,可能撞 bank。</p>
+<hr>
+<p>用一张字节图看清楚</p>
+<p>假设某个 8-run 格的基址 = 字节 1024(16B 对齐):</p>
+<p>逻辑上这 8 个 bf16 要写到:
+字节 1024,1026,1028,1030,1032,1034,1036,1038   (共 16 字节)</p>
+<p>uint4 一次 STS.128:
+[1024, 1040) 这整块 16B 一次性写入
+↓ 对 smem bank:1024/4=256, 256%32=0 → 覆盖 bank 0,1,2,3(4 个字 = 8
+个 bf16)
+这个线程占 4 个 bank;同组另外 7 个线程各占相邻 4 个 bank
+→ 8 线程 × 4 bank = 32 bank 铺满 → 1 拍 conflict-free</p>
+<p>对比逐个 STS.16:8 条指令,每条 2 字节,swizzle 对 2B
+粒度的置换没保证铺满,反而可能两个碎片撞进同一 bank。</p>
+<hr>
+<p>一句话</p>
+<ul>
+<li>
+<p>uint4 出现,纯粹是因为 8 个 bf16 = 16B = 128 bit,是能触发一条 STS.128
+的最小容器 → 省指令。</p>
+</li>
+<li>
+<p>conflict-free 不是 uint4 给的,是 swizzle 按 16B 一格设计给的;uint4
+的作用是让你"按整格(16B)对齐地写",踩准 swizzle
+的粒度,从而既省次数又不撞 bank。</p>
+</li>
+<li>
+<p>反过来,这也再次印证上一条结论:消冲突是布局(swizzle)的功劳,uint4/STS.
+128 只是把写次数压到 1 条并保证按格对齐。两件事配合,缺一不可——布局定"
+撞不撞",向量宽度定"几条指令"。</p>
+<p>先看这两行在干什么(一句话)</p>
+</li>
+</ul>
+<p>using SwStateLayout  =
+decltype(tile_to_shape(GMMA::Layout_K_INTER_Atom<bf16>{},
+make_shape(Int<d>{}, Int<d>{}),
+LayoutLeft{}));
+using SwStateLayoutT =
+decltype(tile_to_shape(GMMA::Layout_MN_INTER_Atom<bf16>{},
+make_shape(Int<d>{}, Int<d>{}),
+LayoutRight{}));</d></d></bf16></d></d></bf16></p>
+<p>它们各自定义了一个"地址计算公式"的类型,名字叫 SwStateLayout 和
+SwStateLayoutT。这两个公式描述:一块 [D,D]=[128,128] 的 bf16 数据在
+smem 里,逻辑坐标 (行,列) 应该落到哪个物理字节。区别是:一个给"正读"用,
+一个给"转置读"用,但指向同一块物理字节(这就是 Q4 说的转置对偶)。</p>
+<p>下面逐词拆。</p>
+<hr>
+<ol>
+<li>Layout 是什么 —— cute 的核心概念</li>
+</ol>
+<p>在 cute 里,Layout =
+一个从"逻辑坐标"到"物理偏移"的函数。你可以把它想成一个纯函数:</p>
+<p>layout(行, 列)  →  这个元素在内存里的第几个字节(其实是第几个元素)</p>
+<p>比如最普通的行主序 [128,128],stride=(128,1),那 layout(r,c) = r*128 +
+c。这就是一个 Layout。cute 把"形状 shape"和"步长 stride"打包成一个
+Layout 对象,layout(r,c) 就自动帮你算偏移。</p>
+<p>为什么要抽象成对象? 因为后面 swizzle(bank
+打散)会让这个映射不再是简单的 r*128+c,而是一堆 XOR
+位运算。你不想手写那些位运算,就让 cute 生成好一个 Layout,你只管 sdS(k,
+d0)(见源码 L218-222),它内部替你算出 swizzle 后的真实地址。所以:</p>
+<p>▎ Layout = 帮你把"我要第 (r,c) 个元素"翻译成"它在 smem
+的真实字节位置"的翻译器,swizzle 的复杂位运算全藏在里面。</p>
+<hr>
+<ol start="2">
+<li>decltype(…) 和 using … = —— 纯编译期,零运行成本</li>
+</ol>
+<ul>
+<li>using SwStateLayout = 某类型; 就是 C++
+的类型别名(给类型起个短名字),和 typedef 一样。</li>
+<li>decltype(表达式) = “取这个表达式的类型”,不真正执行它。</li>
+</ul>
+<p>cute 的 Layout 全是编译期常量类型(shape/stride 都是 Int&lt;128&gt;
+这种编译期整数)。所以 tile_to_shape(…)
+这个调用在编译时就被算成了一个具体的 Layout 类型,decltype
+把那个类型抠出来,using 给它起名 SwStateLayout。</p>
+<p>关键:运行时 GPU 上不会执行任何"构造 layout"的代码——地址公式在编译时就
+定死了,跑起来只有几条位运算算偏移。这就是我一直说的"cute
+零运行成本":全是编译期模板元编程。</p>
+<hr>
+<ol start="3">
+<li>GMMA::Layout_K_INTER_Atom<bf16>{} —— 一小块"swizzle 样板"</bf16></li>
+</ol>
+<p>这是一个**"原子"布局(atom)**,是 swizzle 的最小重复单元。拆词:</p>
+<ul>
+<li>GMMA = Hopper Tensor Core(GMMA 指令)配套的布局工具包。</li>
+<li>Layout_K_INTER_Atom = 一个为 Tensor Core 正读优化过的、conflict-free
+的小块 swizzle 模板。
+<ul>
+<li>K_INTER:沿 K 方向(收缩维)内层交错(INTER-leave)。回忆
+Q4:正读(LDSM_N)友好。</li>
+<li>MN_INTER(第二行):沿 MN 方向内层交错,转置读(LDSM_T)友好。</li>
+</ul>
+</li>
+<li><bf16> = 元素是 bf16(2 字节)。swizzle
+的粒度和位宽有关,所以要告诉它数据类型。</bf16></li>
+<li>末尾 {} = 构造一个该类型的实例(编译期空对象,只为把类型传进
+tile_to_shape)。</li>
+</ul>
+<p>这个 atom 有多大? 它只是一小块(比如 8×某
+的样板),描述"在这么小的范围内,元素怎么摆才能让 Tensor Core
+读的时候不撞 bank"。它不是整块 [128,128]——整块要靠下一步 tile_to_shape
+把这个小样板平铺开。</p>
+<p>▎ 类比:atom 是一块"防冲突瓷砖"的花纹,tile_to_shape 把这块瓷砖铺满整个
+[128,128] 地板。</p>
+<hr>
+<ol start="4">
+<li>make_shape(Int<d>{}, Int<d>{}) —— 目标整块的形状</d></d></li>
+</ol>
+<ul>
+<li>make_shape(a, b) = 造一个形状 (a, b)。</li>
+<li>Int<d>{} = 编译期整数 128(D=128)。用 Int&lt;128&gt; 而不是普通 int
+128,是为了让形状在编译期就是常量(前面说的零运行成本前提)。</d></li>
+</ul>
+<p>所以这是在说:我要的整块是 [128, 128]。</p>
+<hr>
+<ol start="5">
+<li>tile_to_shape(atom, shape, order) —— 把小瓷砖铺满整块</li>
+</ol>
+<p>tile_to_shape 就是那个"铺瓷砖"的函数:</p>
+<p>tile_to_shape( 防冲突瓷砖花纹(atom),  要铺满的地板形状[128,128],
+铺的方向 )
+→ 一个覆盖整块 [128,128] 的、带 swizzle 的完整 Layout</p>
+<p>它保证:整块里每一个 16B 小格都按 atom
+的防冲突花纹摆放,拼起来覆盖完整的 [128,128]。生成的这个 Layout 你
+sdS(k,d0) 一调用,它就吐出 swizzle 后的真实字节偏移。</p>
+<hr>
+<ol start="6">
+<li>LayoutLeft{} vs LayoutRight{} —— 铺的方向(列主序 vs 行主序)</li>
+</ol>
+<p>这是两行最关键的区别,也是"转置对偶"落地的地方:</p>
+<ul>
+<li>LayoutLeft{} = 列主序(左边的维度变得最快,像 Fortran)。第一行用它。</li>
+<li>LayoutRight{} = 行主序(右边的维度变得最快,像 C)。第二行用它。</li>
+</ul>
+<p>配合 atom 方向:</p>
+<p>第一行 SwStateLayout   = K_INTER  atom + LayoutLeft   →
+正读友好(LDSM_N)
+第二行 SwStateLayoutT  = MN_INTER atom + LayoutRight  →
+转置读友好(LDSM_T)</p>
+<p>为什么同一块物理字节能被两个 Layout 描述? 因为 INTER 系列 atom
+的巧妙之处:K_INTER + LayoutLeft 和 MN_INTER + LayoutRight
+这一对,对同一堆物理字节,给出的是互为转置的逻辑视图。也就是:</p>
+<ul>
+<li>你只写一次数据(用 SwStateLayout 写,源码 L218-222)。</li>
+<li>dkr 那条 GEMM 用 SwStateLayout 正读(L316)。</li>
+<li>G2 那条 GEMM 用 SwStateLayoutT 转置读(L339 dST_t …
+SwStateLayoutT{})。</li>
+</ul>
+<p>两个 Layout、一份字节 → 省一份 smem、省一次显式转置。这就是 Q4
+讲的转置对偶,这两行就是它的声明。</p>
+<hr>
+<ol start="7">
+<li>最后那行 static_assert</li>
+</ol>
+<p>static_assert(cute::cosize_v<swstatelayout> == DD, “dS swizzle cosize
+must equal DD”);</swstatelayout></p>
+<ul>
+<li>cosize = 这个 Layout 实际占用的物理元素个数(最大偏移+1)。</li>
+<li>DD = D<em>D = 128</em>128 = 16384。</li>
+<li>这行在编译期检查:swizzle 之后没有多占空间(cosize == DD,没
+padding)。注释 L174 说"128-wide INTER 不需要
+padding"——如果哪天改坏了导致 cosize≠DD,编译直接报错,防止悄悄多吃 smem
+把 occupancy 拖垮。</li>
+</ul>
+<hr>
+<p>串起来:两行的完整白话翻译</p>
+<p>// 第一行:给 [128,128] 的 dS 造一个"正读友好、conflict-free"的 smem
+地址公式,
+//         用 K_INTER 防冲突瓷砖铺满,列主序 → 取名 SwStateLayout(给
+dkr 正读)
+using SwStateLayout  = …K_INTER…  LayoutLeft;</p>
+<p>// 第二行:给同一块 [128,128] 造一个"转置读友好"的地址公式,
+//         用 MN_INTER 瓷砖铺满,行主序 → 取名 SwStateLayoutT(给 G2
+转置读)
+//         它和第一行指向同一堆物理字节,互为转置视图
+using SwStateLayoutT = …MN_INTER… LayoutRight;</p>
+<p>一句话总结:
+这两行是纯编译期的"地址翻译器"定义。Layout_K_INTER_Atom/MN_INTER_Atom
+是防 bank 冲突的 swizzle 瓷砖花纹,tile_to_shape 把它铺满
+[128,128],LayoutLeft/LayoutRight
+决定正读还是转置读。二者共享同一份物理字节 → 实现 Q4
+的转置对偶(存一份、喂两种 GEMM 方向)。你调 sdS(k,d0) 时,swizzle
+的位运算全在里面替你算好,运行时零额外开销。</p>
+<p>一、先看两个 atom 的"本体"(8×8 小样板)</p>
+<p>print_layout 打出的表格 = 逻辑坐标 (行,列) → 物理偏移(第几个 bf16)。</p>
+<p>Layout_K_INTER_Atom<bf16> = (_8,_8)😦_8,_1)</bf16></p>
+<pre><code>     col: 0   1   2   3   4   5   6   7
+</code></pre>
+<p>row 0 →    0   1   2   3   4   5   6   7
+row 1 →    8   9  10  11  12  13  14  15
+row 2 →   16  17  18  …
+…
+row 7 →   56  57  …              63
+偏移公式:offset(r,c) = 8*r + c。这就是普普通通的行主序 8×8 块。</p>
+<p>Layout_MN_INTER_Atom<bf16> = (_8,_8)😦_1,_8)</bf16></p>
+<pre><code>     col: 0   1   2   3   4   5   6   7
+</code></pre>
+<p>row 0 →    0   8  16  24  32  40  48  56
+row 1 →    1   9  17  25  …
+…
+row 7 →    7  15  23  …              63
+偏移公式:offset(r,c) = r + 8*c。这是列主序 8×8 块 = 第一个的精确转置。</p>
+<p>▎ ⚠️  重要纠正: 这两个 INTER atom 根本没有 XOR swizzle(源码里是
+Swizzle&lt;0,4,3&gt;,第一个参数 B=0 = 零位交换)。它们就是朴素的行主序 / 列主序 8×8
+瓷砖,互为转置。我前面几轮说"swizzle 用 XOR 打散 bank"——那是 SW32/SW64/SW128
+变体才有的事,INTER 没有。下面第三节给你看真正的 XOR 长啥样。</p>
+<hr>
+<p>二、铺满 [16,16] 后:转置对偶的"眼见为实"</p>
+<p>tile_to_shape 把 8×8 瓷砖平铺成 [16,16](真 kernel 是 [128,128],规律一样,只是大 8
+倍)。看两张表的同一个坐标:</p>
+<p>SwStateLayout(K_INTER + LayoutLeft) —— 左上角 8×8 块存偏移 0–63,行主序:
+(0,0)=0   (0,8)=128        ← 列块往右跳到 128
+(8,0)=64  (8,8)=192        ← 行块往下跳到 64</p>
+<p>SwStateLayoutT(MN_INTER + LayoutRight) —— 同样的物理槽位,但转置视图:
+(0,0)=0   (0,8)=64
+(8,0)=128 (8,8)=192</p>
+<p>程序最后那行断言把它证死了:
+transpose-dual check  SwStateT(i,j) == SwState(j,i) : TRUE
+cosize(SwState)=256   cosize(SwStateT)=256   D*D=256</p>
+<p>含义:</p>
+<ul>
+<li>SwStateT(i,j) 和 SwState(j,i) 永远指向同一个物理偏移 → 两个 Layout 是同一堆 256
+个物理字节的"正读视图"和"转置视图"。这就是 Q4
+转置对偶的本质,现在你亲眼看到映射表相等。</li>
+<li>cosize = 256 = 16×16 → 没有 padding,转置视图没多占一个字节。这正是源码 L179 那句
+static_assert(cosize == DD) 在编译期守的东西。</li>
+</ul>
+<p>所以那两行 using 的作用就是:给同一块 dS smem 造两个地址翻译器,一个正读(喂 dkr
+GEMM)、一个转置读(喂 G2 GEMM),存一份、喂两向。</p>
+<hr>
+<p>三、对照:真正带 XOR 的 swizzle(SW128)长什么样</p>
+<p>为了让你看清"INTER 无 XOR"和"SW 有 XOR"的差别,我又打印了 Layout_K_SW128_Atom,头部是
+Sw&lt;3,3,3&gt;(真 XOR):</p>
+<p>row 0:  0  1  2  3  4  5  6  7 |  8  9 10 11 12 13 14 15 | …   ← 原样
+row 1: 72 73 74 75 76 77 78 79 | 64 65 66 67 68 69 70 71 | …   ← 每8个一组被 XOR
+打乱顺序!
+row 2:144 … 152 …          128 …                            ← 又是另一种打乱
+row 3:216 217 … 208 209 …</p>
+<p>看 row 1:本该是 64 65 66 … 71 | 72 … 79,却变成 72…79 | 64…71 —— 相邻两个
+8-组被 XOR 换了位。row 2、row 3 的打乱模式又各不相同。这才是 XOR
+swizzle:用行号去异或列地址,把本会撞同一 bank 的元素错开。</p>
+<p>为什么 dS/sin 用 INTER 而不用这个 SW? 因为 dS/sin 是 128 宽(D=128)的 K-major
+收缩,在这个宽度下 INTER 的 8-元素交错平铺本身就已经 conflict-free(LDSM 的 8
+线程各取一个 16B 行片,天然落在不同 bank),不需要再加
+XOR。只有更窄或不同访问模式才需要 SW 的 XOR 去补救。源码注释 L174 那句 “no padding
+for 128-wide INTER” 就是这个意思。</p>
+<hr>
+<p>四、一句话总结</p>
+<ol>
+<li>SwStateLayout / SwStateLayoutT 的本体 = 一对 8×8 行主序 /
+列主序瓷砖,tile_to_shape 铺满 [128,128]。</li>
+<li>二者是同一物理字节的转置对偶(程序验证 T(i,j)==(j,i),cosize 都=256 无 padding)——
+这就是 Q4"存一份喂两向"的实现。</li>
+<li>纠正:INTER atom 没有 XOR swizzle(Swizzle&lt;0&gt;),conflict-free 靠的是
+8-元素交错平铺;真正的 XOR 在 SW128(Sw&lt;3,3,3&gt;)那种变体里,本 kernel 的 dS/sin
+用不到。</li>
+</ol>
+<p>● 源码全在 cutlass/include/cute/atom/mma_traits_sm90_gmma.hpp。我已经读到了,直接给你
+贴出来并逐行解析。</p>
+<p>一、原始定义(bit 单位,L74-84)</p>
+<p>// M|N-major GMMA layouts in units of bits
+using Layout_MN_INTER_Atom_Bits = ComposedLayout&lt;Swizzle&lt;0,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt; _128,_8&gt;,Stride&lt;_1, _128&gt;&gt;&gt;;
+using Layout_MN_SW32_Atom_Bits  = ComposedLayout&lt;Swizzle&lt;1,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt; _256,_8&gt;,Stride&lt;_1, _256&gt;&gt;&gt;;
+using Layout_MN_SW64_Atom_Bits  = ComposedLayout&lt;Swizzle&lt;2,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt; _512,_8&gt;,Stride&lt;_1, _512&gt;&gt;&gt;;
+using Layout_MN_SW128_Atom_Bits = ComposedLayout&lt;Swizzle&lt;3,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt;_1024,_8&gt;,Stride&lt;_1,_1024&gt;&gt;&gt;;</p>
+<p>// K-major GMMA layouts in units of bits
+using Layout_K_INTER_Atom_Bits  = ComposedLayout&lt;Swizzle&lt;0,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt;_8, _128&gt;,Stride&lt; _128,_1&gt;&gt;&gt;;
+using Layout_K_SW32_Atom_Bits   = ComposedLayout&lt;Swizzle&lt;1,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt;_8, _256&gt;,Stride&lt; _256,_1&gt;&gt;&gt;;
+using Layout_K_SW64_Atom_Bits   = ComposedLayout&lt;Swizzle&lt;2,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt;_8, _512&gt;,Stride&lt; _512,_1&gt;&gt;&gt;;
+using Layout_K_SW128_Atom_Bits  = ComposedLayout&lt;Swizzle&lt;3,4,3&gt;, smem_ptr_flag,
+Layout&lt;Shape&lt;_8,_1024&gt;,Stride&lt;_1024,_1&gt;&gt;&gt;;</p>
+<p>二、按元素类型特化(upcast,L86-104)</p>
+<p>// M|N-major layouts in units of Type
+template <class Type="">
+using Layout_MN_INTER_Atom =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_MN_INTER_Atom_Bits{}));
+template <class Type="">
+using Layout_MN_SW32_Atom  =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_MN_SW32_Atom_Bits{}));
+template <class Type="">
+using Layout_MN_SW64_Atom  =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_MN_SW64_Atom_Bits{}));
+template <class Type="">
+using Layout_MN_SW128_Atom =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_MN_SW128_Atom_Bits{}));</type></class></type></class></type></class></type></class></p>
+<p>// K-major layouts in units of Type
+template <class Type="">
+using Layout_K_INTER_Atom =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_K_INTER_Atom_Bits{}));
+template <class Type="">
+using Layout_K_SW32_Atom  =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_K_SW32_Atom_Bits{}));
+template <class Type="">
+using Layout_K_SW64_Atom  =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_K_SW64_Atom_Bits{}));
+template <class Type="">
+using Layout_K_SW128_Atom =
+decltype(upcast&lt;sizeof_bits<type>::value&gt;(Layout_K_SW128_Atom_Bits{}));</type></class></type></class></type></class></type></class></p>
+<hr>
+<p>逐部分解析</p>
+<ol>
+<li>ComposedLayout&lt;Swizzle&lt;…&gt;, smem_ptr_flag, Layout&lt;…&gt;&gt;</li>
+</ol>
+<p>ComposedLayout&lt;F, offset, G&gt; = 函数复合:先用底层 Layout G 把坐标 → 偏移,再用
+Swizzle F 对偏移做 XOR 变换。即 最终偏移 = F(G(坐标))。中间的 smem_ptr_flag(其实是
+_0 + 一个标记)只是个零偏移占位,标注"这是 smem 指针"。</p>
+<ol start="2">
+<li>Swizzle&lt;B, M, S&gt; —— XOR 的三个参数</li>
+</ol>
+<p>这是真正决定"打不打散、怎么打散"的东西。定义在 cute/swizzle.hpp,语义:</p>
+<ul>
+<li>B(NumBits) = 参与 XOR 的位数(打散多少条"通道")。</li>
+<li>M(MBase) = 被打散的最小单元大小 = 2^M 个元素。这里 M=4 → 2^4=16(对应 bit 单位下
+16 bit = 一个 bf16?不,是 base 粒度)。</li>
+<li>S(SShift) = XOR 时的移位量。</li>
+</ul>
+<p>XOR 规则大致是:swizzled = addr ^ ((addr &gt;&gt; S 的某几位) &lt;&lt; M)。关键就看 B:</p>
+<p>┌───────┬────────────────┬──────┬──────────────────────────────────────────┐
+│ atom  │ Swizzle&lt;B,4,3&gt; │ B 值 │                   效果                   │
+├───────┼────────────────┼──────┼──────────────────────────────────────────┤
+│ INTER │ Swizzle&lt;0,4,3&gt; │ B=0  │ 零位 XOR = 恒等,不打散(就是纯行/列主序)  │
+├───────┼────────────────┼──────┼──────────────────────────────────────────┤
+│ SW32  │ Swizzle&lt;1,4,3&gt; │ B=1  │ XOR 1 位 → 2 路打散,swizzle 周期 32 字节 │
+├───────┼────────────────┼──────┼──────────────────────────────────────────┤
+│ SW64  │ Swizzle&lt;2,4,3&gt; │ B=2  │ XOR 2 位 → 4 路打散,周期 64 字节         │
+├───────┼────────────────┼──────┼──────────────────────────────────────────┤
+│ SW128 │ Swizzle&lt;3,4,3&gt; │ B=3  │ XOR 3 位 → 8 路打散,周期 128 字节        │
+└───────┴────────────────┴──────┴──────────────────────────────────────────┘</p>
+<p>这就印证了上一轮的结论:INTER 的 Swizzle&lt;0&gt; = 没有 XOR;SW32/64/128 的 B=1/2/3
+才是真打散,数字 32/64/128 = swizzle 的周期字节数(= 2^(B) * 2^M * …
+,本质是打散跨度)。</p>
+<ol start="3">
+<li>底层 Layout&lt;Shape&lt;…&gt;, Stride&lt;…&gt;&gt; —— K-major vs MN-major 的区别</li>
+</ol>
+<p>看 bit 单位的 shape/stride,**M/K 谁在内层(stride=1)**决定 major:</p>
+<ul>
+<li>K 系列:Shape&lt;_8, _128&gt;, Stride&lt;_128, _1&gt; → 第二维(K,128 bit=8 bf16)stride=1
+是内层连续 → K-major(收缩维连续,正读 LDSM_N 友好)。</li>
+<li>MN 系列:Shape&lt;_128, _8&gt;, Stride&lt;_1, _128&gt; → 第一维(MN)stride=1 内层连续 →
+MN-major(转置读 LDSM_T 友好)。</li>
+</ul>
+<p>两者互为转置——正是转置对偶的根。</p>
+<p>SW32→SW64→SW128 逐级放大:第二维从 _128→_256→_512→_1024 bit,swizzle 周期也
+1×→2×→4×→8× 增大,配合更大的 tile 做更宽的无冲突。</p>
+<ol start="4">
+<li>upcast&lt;sizeof_bits<type>::value&gt;(…) —— 从 bit 折算到元素</type></li>
+</ol>
+<p>原始定义是按 bit 的(通用于任何精度)。upcast<n> 把 bit-layout 除以 N 变成"N-bit
+元素"的 layout。bf16 = 16 bit,所以 upcast&lt;16&gt;:</n></p>
+<ul>
+<li>Layout_K_INTER_Atom_Bits 的 Shape&lt;_8,_128&gt;(bit)→ 除以 16 → Shape&lt;_8,_8&gt;(bf16)。</li>
+<li>这正是上一轮 print_layout 打出的 (_8,_8)😦_8,_1)。</li>
+</ul>
+<p>对 fp8(8 bit)会 upcast&lt;8&gt; → Shape&lt;_8,_16&gt;,更宽;对 fp32(32 bit)→
+Shape&lt;_8,_4&gt;。同一套 bit 定义,upcast
+按精度自动折算成元素粒度,这就是为什么模板参数是 <type>。</type></p>
+<hr>
+<p>想看 SW 参数怎么实现的,再往下挖</p>
+<p>Swizzle 模板本体和它的 XOR operator() 在:</p>
+<p>● Searched for 1 pattern, read 1 file (ctrl+o to expand)</p>
+<p>● 这就是 XOR 的真身。Swizzle&lt;B,M,S&gt; 的核心(cute/swizzle.hpp L54-79):</p>
+<p>template &lt;int BBits, int MBase, int SShift = BBits&gt;
+struct Swizzle {
+static constexpr int num_bits = BBits;   // B:参与 XOR 的位数
+static constexpr int num_base = MBase;    // M:最小不动单元 = 2^M 元素
+static constexpr int num_shft = SShift;   // S:移位量</p>
+<pre><code>using bit_msk = cute::constant&lt;int, (1 &lt;&lt; num_bits) - 1&gt;;                   //
+</code></pre>
+<p>(1&lt;&lt;B)-1
+using yyy_msk = cute::constant&lt;int, bit_msk{} &lt;&lt; (num_base + max(0,num_shft))&gt;;
+using zzz_msk = cute::constant&lt;int, bit_msk{} &lt;&lt; (num_base - min(0,num_shft))&gt;;
+using msk_sft = cute::constant&lt;int, num_shft&gt;;</p>
+<pre><code>// 核心:把地址高段的 B 位 XOR 到低段去
+static apply(Offset const&amp; offset) {
+  return offset ^ shiftr(offset &amp; yyy_msk{}, msk_sft{});   // ZZZ ^= YYY
+}
+operator()(offset) const { return apply(offset); }
+</code></pre>
+<p>};</p>
+<p>逐字解析 apply</p>
+<p>一个物理偏移 offset(bit 单位),按位分成三段:ZZZ | YYY | 底部 M 位。</p>
+<ul>
+<li>yyy_msk 圈出高段 YYY(要拿去 XOR 的那 B 位)。</li>
+<li>offset &amp; yyy_msk 取出 YYY;shiftr(…, S) 右移 S 位,对齐到低段 ZZZ 的位置。</li>
+<li>offset ^ (…) 把 YYY XOR 进 ZZZ。</li>
+</ul>
+<p>直觉: 用地址的高位段(≈ 行号)去异或低位段(≈ 列号),从而"行号越大,列被翻转得越多" →
+把本会落同一 bank 的元素错位。这正是上一轮 SW128 打印里看到的现象:
+row 0: 0 1 2 3 4 5 6 7       (行号高位=0 → 不翻)
+row 1: 72…79 | 64…71       (行号高位=1 → 相邻 8-组对调,B=1 bit 翻转)</p>
+<p>为什么 B=0(INTER)= 恒等,不打散</p>
+<p>看 bit_msk = (1&lt;&lt;num_bits)-1:</p>
+<ul>
+<li>B=0 → bit_msk = (1&lt;&lt;0)-1 = 0 → yyy_msk = 0 → apply 变成 offset ^ shiftr(offset &amp;
+0, S) = offset ^ 0 = offset。原样返回,零变换。 这就是数学上证明的"INTER 没有 XOR"。</li>
+<li>B=1(SW32)→ bit_msk=1,翻 1 位 → 2 路对调。</li>
+<li>B=2(SW64)→ bit_msk=3,翻 2 位 → 4 路重排。</li>
+<li>B=3(SW128)→ bit_msk=7,翻 3 位 → 8 路重排(SW128 打印里 8-组内 8 种模式)。</li>
+</ul>
+<p>static_assert(abs(S) &gt;= B) 保证移位量不小于翻转位数,YYY 段和 ZZZ 段不会重叠自撞。</p>
+<hr>
+<p>完整链条串起来</p>
+<p>Layout_K_INTER_Atom<bf16>
+= upcast&lt;16&gt;(  ComposedLayout&lt; Swizzle&lt;0,4,3&gt;, _0,
+Layout&lt;Shape&lt;_8,_128&gt;,Stride&lt;_128,_1&gt;&gt; &gt; )
+└─ B=0 ⇒ XOR 恒等          └─ K-major 底层布局(第二维
+stride=1)
+= 纯行主序 8×8 bf16 瓷砖,无打散         ← print 出的 (_8,_8)😦_8,_1)</bf16></p>
+<p>Layout_K_SW128_Atom<bf16>
+= upcast&lt;16&gt;(  ComposedLayout&lt; Swizzle&lt;3,4,3&gt;, _0,
+Layout&lt;Shape&lt;_8,_1024&gt;,Stride&lt;_1024,_1&gt;&gt; &gt; )
+└─ B=3 ⇒ 8 路 XOR 打散    └─ 更宽的 K-major 底层布局
+= 带真 XOR 的瓷砖                        ← print 出的 Sw&lt;3,3,3&gt; o …</bf16></p>
+<ul>
+<li>Swizzle&lt;B,M,S&gt;(swizzle.hpp:54)= XOR 变换,B 定打不打散(0=不打)。</li>
+<li>Layout&lt;Shape,Stride&gt;(bit 定义,mma_traits_sm90_gmma.hpp:74-84)= 底层行列摆放,K/MN
+决定 major(谁 stride=1)。</li>
+<li>ComposedLayout = 先底层布局定位、再 Swizzle XOR。</li>
+<li>upcast&lt;sizeof_bits<type>&gt;(:88-104)= 把 bit 定义按精度折算成元素粒度。</type></li>
+</ul>
+<p>这四层拼出你在 champion kernel 里看到的 Layout_K_INTER_Atom<bf16> /
+Layout_MN_INTER_Atom<bf16>。</bf16></bf16></p>
+<p>gemm vs cooperative_gemm — 从源码看本质区别</p>
+<p>两者根本区别就一句话:操作数在哪里,谁负责搬运。</p>
+<ol>
+<li>线程级 gemm(mma, D, A, B, C) — 只做一条 MMA 指令</li>
+</ol>
+<p>gemm.hpp:178-198,最底层的 dispatch:</p>
+<p>gemm(MMA_Atom<mma> const&amp; mma,
+Tensor&lt;TD,DLayout&gt;&amp; D, …A, …B, …C) {
+// 要求 is_rmem&lt;TA/TB/TC/TD&gt; —— 操作数必须已经在寄存器里
+mma.call(D, A, B, C);   // 就是一条 tensor-core 指令
+}</mma></p>
+<p>关键:模板约束 is_rmem<ta>::value(L184-187)。它只接受寄存器 fragment,做的事就是
+mma.call —— 发一条 mma.sync 硬件指令。它不管:</ta></p>
+<ul>
+<li>数据怎么从 smem 进寄存器(你得自己 copy/ldmatrix)</li>
+<li>K 维怎么循环(你自己写外层 for)</li>
+<li>累加器怎么初始化 / 结果怎么写回 smem(你自己 epilogue)</li>
+</ul>
+<p>所以你在 bwd_b_split.cuh:333-343 看到的手动 stcA/stcB/stcBT(LDSM_N/LDSM_T)+
+gemm(thr_mma, …) 就是在手工喂这个裸 MMA。</p>
+<ol start="2">
+<li>cooperative_gemm(thread_idx, tiled_mma, α, sA, sB, β, sC) — 整条流水线</li>
+</ol>
+<p>cooperative_gemm.hpp:371,操作数是 smem tensor(sA/sB/sC)。它内部(fast path
+cooperative_gemm_no_predication, L281-356)把三件事全包了:</p>
+<p>// L304-307: 自己开寄存器 fragment
+Tensor tCrA = thr_mma.partition_fragment_A(sA);
+Tensor tCrB = thr_mma.partition_fragment_B(sB);
+// L312-330: 用 SmemCopyOpA/B(默认 DefaultCopy→自动挑 ldmatrix)做 smem→reg
+auto smem_tiled_copy_A = make_tiled_copy_A(…);
+copy(smem_tiled_copy_A, tCsA(<em>,</em>,0), …);   // PREFETCH k=0
+// L337-355: 整个 K 循环 + 每步 gemm
+for (k_block …) {
+copy(… k_next …);                     // 预取下一 k
+cute::transform(tCrAi, tCrA, sA_load_op); // 类型转换
+gemm(thr_mma, tCrA(<em>,</em>,k_block), tCrB(<em>,</em>,k_block), tCrC); // ← 调用第1种!
+}
+// 然后 epilogue_no_predication: axpby + 写回 sC</p>
+<p>注意 L354:cooperative_gemm 内部就是循环调用那个线程级 gemm。它是线程级 gemm
+的"全自动外壳":自动 ldmatrix + 自动 K 循环 + 自动 clear 累加器(L411 clear(tCrC))+
+自动 epilogue 写回 smem。整块线程通过 thread_idx 协同(get_thread_slice)。</p>
+<p>何时用哪个</p>
+<p>┌──────────────────────┬────────────────────┬──────────────────────────────────┐
+│         维度         │  cooperative_gemm  │           线程级 gemm            │
+├──────────────────────┼────────────────────┼──────────────────────────────────┤
+│ 操作数               │ smem(sA,sB,sC)     │ 寄存器 fragment                  │
+├──────────────────────┼────────────────────┼──────────────────────────────────┤
+│ 搬运                 │ 自动(内含 ldmatrix │ 手动                             │
+│                      │  + copy)           │                                  │
+├──────────────────────┼────────────────────┼──────────────────────────────────┤
+│ K                    │ 全包               │ 全自己写                         │
+│ 循环/累加器/epilogue │                    │                                  │
+├──────────────────────┼────────────────────┼──────────────────────────────────┤
+│ 代码量               │ 一行               │ 一堆 copy + for                  │
+├──────────────────────┼────────────────────┼──────────────────────────────────┤
+│                      │                    │ 要融合的链:累加器常驻寄存器跨多  │
+│ 适用                 │ 孤立的、算完就写回 │ GEMM、共享同一个                 │
+│                      │  smem 的 GEMM      │ B-load、transpose-dual、自定义   │
+│                      │                    │ epilogue                         │
+└──────────────────────┴────────────────────┴──────────────────────────────────┘</p>
+<p>这正好对应 bwd_b_split.cuh:dkr 用 cooperative_gemm(L294,注释"独立、写到不相干的
+smem buffer"→省事);dU 链用线程级 gemm(L333+,累加器 dacc 跨 G1→G2 常驻寄存器、B-load
+复用、LDSM_T 转置对偶)——这些融合技巧 cooperative_gemm
+的黑盒做不到,因为它每次都强制 reg→smem 写回、每个 GEMM 独立开累加器。</p>
+<p>一句话:孤立 GEMM 用 cooperative_gemm 省事;要跨 GEMM 融合(寄存器常驻/共享
+load/转置对偶/定制 epilogue)必须降到线程级 gemm 自己手搓。</p>
+<p>cute::transform 是干啥用的</p>
+<p>tensor_algorithms.hpp:80-114,它就是 CuTe 版的 std::transform —— 对一个 tensor
+逐元素套用一个函数:</p>
+<p>// 一元:原地或写到另一个 tensor
+transform(Tensor&amp; t, UnaryOp op)          { for i: t(i) = op(t(i)); }        // L84
+transform(Tensor in, Tensor&amp; out, op)      { for i: out(i) = op(in(i)); }     //
+L107
+// 二元:两个输入一个输出
+transform(in1, in2, out, BinaryOp op)      { for i: out(i)=op(in1(i),in2(i));} //
+L140</p>
+<p>就是个 CUTE_UNROLL 的逐元素循环,没有任何魔法。在 GEMM 里它专门干"喂给 tensor-core
+前的逐元素变换",最常见就是类型转换:</p>
+<ul>
+<li>cooperative_gemm.hpp:350-351:cute::transform(tCrAi, tCrA, sA_load_op) —— 把 smem
+里的原始类型(比如 bf16)按 sA_load_op 转成 MMA 要的计算类型。注释明说"relying on the
+compiler to remove in case of identity
+ops":如果不需要转换(identity),编译器直接删掉,零开销。</li>
+<li>cooperative_gemm.hpp:145,150:epilogue 里对 C 做 load/store
+变换(sC_load_op/sC_store_op)。</li>
+</ul>
+<p>在你的 bwd_b_split.cuh 里,线程级 gemm 的融合链手写 cute::transform(…)
+就是干同一件事:把 fp32 的累加器逐元素 cast 成 bf16,再当作下一个 GEMM 的 B
+操作数喂进去(tensor-core 吃 bf16 操作数)。因为线程级 gemm
+不带这个自动转换,所以要手动补一句 transform 做 dtype 收窄。</p>
+<p>简言之:cute::transform = 逐元素 map,在 GEMM 上下文里 = 在 smem→寄存器之后、MMA
+之前(或结果写回之前)做类型转换/缩放等逐元素处理,identity 时被编译器优化掉。</p>
+<h2 id="附print_layout-真实运行输出k_inter-mn_inter-swstatelayout-swstatelayoutt"><a class="markdownIt-Anchor" href="#附print_layout-真实运行输出k_inter-mn_inter-swstatelayout-swstatelayoutt"></a> 附：<code>print_layout</code> 真实运行输出（K_INTER / MN_INTER / SwStateLayout / SwStateLayoutT）</h2>
+<div class="code-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line">=== RUN ===</span><br><span class="line">     ==== Layout_K_INTER_Atom&lt;bf16&gt;  (raw atom, K-major) ====</span><br><span class="line">     (_8,_8):(_8,_1)</span><br><span class="line">            0    1    2    3    4    5    6    7</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      0  |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      1  |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      2  | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      3  | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      4  | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      5  | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      6  | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      7  | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line"></span><br><span class="line">     ==== Layout_MN_INTER_Atom&lt;bf16&gt; (raw atom, MN-major) ====</span><br><span class="line">     (_8,_8):(_1,_8)</span><br><span class="line">            0    1    2    3    4    5    6    7</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      0  |  0 |  8 | 16 | 24 | 32 | 40 | 48 | 56 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      1  |  1 |  9 | 17 | 25 | 33 | 41 | 49 | 57 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      2  |  2 | 10 | 18 | 26 | 34 | 42 | 50 | 58 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      3  |  3 | 11 | 19 | 27 | 35 | 43 | 51 | 59 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      4  |  4 | 12 | 20 | 28 | 36 | 44 | 52 | 60 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      5  |  5 | 13 | 21 | 29 | 37 | 45 | 53 | 61 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      6  |  6 | 14 | 22 | 30 | 38 | 46 | 54 | 62 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line">      7  |  7 | 15 | 23 | 31 | 39 | 47 | 55 | 63 |</span><br><span class="line">         +----+----+----+----+----+----+----+----+</span><br><span class="line"></span><br><span class="line">     ==== SwStateLayout  (K_INTER + LayoutLeft),  [16,16] ====</span><br><span class="line">     ((_8,_2),(_8,_2)):((_8,_64),(_1,_128))</span><br><span class="line">             0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      0  |   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 | 128 | 129 | 130 | 131 | 132 | 133 | 134 | 135 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      1  |   8 |   9 |  10 |  11 |  12 |  13 |  14 |  15 | 136 | 137 | 138 | 139 | 140 | 141 | 142 | 143 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      2  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 | 144 | 145 | 146 | 147 | 148 | 149 | 150 | 151 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      3  |  24 |  25 |  26 |  27 |  28 |  29 |  30 |  31 | 152 | 153 | 154 | 155 | 156 | 157 | 158 | 159 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      4  |  32 |  33 |  34 |  35 |  36 |  37 |  38 |  39 | 160 | 161 | 162 | 163 | 164 | 165 | 166 | 167 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      5  |  40 |  41 |  42 |  43 |  44 |  45 |  46 |  47 | 168 | 169 | 170 | 171 | 172 | 173 | 174 | 175 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      6  |  48 |  49 |  50 |  51 |  52 |  53 |  54 |  55 | 176 | 177 | 178 | 179 | 180 | 181 | 182 | 183 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      7  |  56 |  57 |  58 |  59 |  60 |  61 |  62 |  63 | 184 | 185 | 186 | 187 | 188 | 189 | 190 | 191 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      8  |  64 |  65 |  66 |  67 |  68 |  69 |  70 |  71 | 192 | 193 | 194 | 195 | 196 | 197 | 198 | 199 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      9  |  72 |  73 |  74 |  75 |  76 |  77 |  78 |  79 | 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     10  |  80 |  81 |  82 |  83 |  84 |  85 |  86 |  87 | 208 | 209 | 210 | 211 | 212 | 213 | 214 | 215 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     11  |  88 |  89 |  90 |  91 |  92 |  93 |  94 |  95 | 216 | 217 | 218 | 219 | 220 | 221 | 222 | 223 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     12  |  96 |  97 |  98 |  99 | 100 | 101 | 102 | 103 | 224 | 225 | 226 | 227 | 228 | 229 | 230 | 231 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     13  | 104 | 105 | 106 | 107 | 108 | 109 | 110 | 111 | 232 | 233 | 234 | 235 | 236 | 237 | 238 | 239 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     14  | 112 | 113 | 114 | 115 | 116 | 117 | 118 | 119 | 240 | 241 | 242 | 243 | 244 | 245 | 246 | 247 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     15  | 120 | 121 | 122 | 123 | 124 | 125 | 126 | 127 | 248 | 249 | 250 | 251 | 252 | 253 | 254 | 255 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line"></span><br><span class="line">     ==== SwStateLayoutT (MN_INTER + LayoutRight), [16,16] ====</span><br><span class="line">     ((_8,_2),(_8,_2)):((_1,_128),(_8,_64))</span><br><span class="line">             0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      0  |   0 |   8 |  16 |  24 |  32 |  40 |  48 |  56 |  64 |  72 |  80 |  88 |  96 | 104 | 112 | 120 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      1  |   1 |   9 |  17 |  25 |  33 |  41 |  49 |  57 |  65 |  73 |  81 |  89 |  97 | 105 | 113 | 121 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      2  |   2 |  10 |  18 |  26 |  34 |  42 |  50 |  58 |  66 |  74 |  82 |  90 |  98 | 106 | 114 | 122 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      3  |   3 |  11 |  19 |  27 |  35 |  43 |  51 |  59 |  67 |  75 |  83 |  91 |  99 | 107 | 115 | 123 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      4  |   4 |  12 |  20 |  28 |  36 |  44 |  52 |  60 |  68 |  76 |  84 |  92 | 100 | 108 | 116 | 124 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      5  |   5 |  13 |  21 |  29 |  37 |  45 |  53 |  61 |  69 |  77 |  85 |  93 | 101 | 109 | 117 | 125 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      6  |   6 |  14 |  22 |  30 |  38 |  46 |  54 |  62 |  70 |  78 |  86 |  94 | 102 | 110 | 118 | 126 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      7  |   7 |  15 |  23 |  31 |  39 |  47 |  55 |  63 |  71 |  79 |  87 |  95 | 103 | 111 | 119 | 127 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      8  | 128 | 136 | 144 | 152 | 160 | 168 | 176 | 184 | 192 | 200 | 208 | 216 | 224 | 232 | 240 | 248 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">      9  | 129 | 137 | 145 | 153 | 161 | 169 | 177 | 185 | 193 | 201 | 209 | 217 | 225 | 233 | 241 | 249 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     10  | 130 | 138 | 146 | 154 | 162 | 170 | 178 | 186 | 194 | 202 | 210 | 218 | 226 | 234 | 242 | 250 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     11  | 131 | 139 | 147 | 155 | 163 | 171 | 179 | 187 | 195 | 203 | 211 | 219 | 227 | 235 | 243 | 251 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     12  | 132 | 140 | 148 | 156 | 164 | 172 | 180 | 188 | 196 | 204 | 212 | 220 | 228 | 236 | 244 | 252 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     13  | 133 | 141 | 149 | 157 | 165 | 173 | 181 | 189 | 197 | 205 | 213 | 221 | 229 | 237 | 245 | 253 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     14  | 134 | 142 | 150 | 158 | 166 | 174 | 182 | 190 | 198 | 206 | 214 | 222 | 230 | 238 | 246 | 254 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line">     15  | 135 | 143 | 151 | 159 | 167 | 175 | 183 | 191 | 199 | 207 | 215 | 223 | 231 | 239 | 247 | 255 |</span><br><span class="line">         +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+</span><br><span class="line"></span><br><span class="line">     transpose-dual check  SwStateT(i,j)==SwState(j,i) : TRUE (same physical bytes, transposed view)</span><br><span class="line">     cosize(SwState)=256  cosize(SwStateT)=256  D*D=256</span><br></pre></td></tr></table></figure></div>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> bwd-kernelB-beginner-guide-full</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-07-20 23:50:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-09-12 22:26:40
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/07/20/bwd-kernelB-beginner-guide-full/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/LLM/">#LLM</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/07/21/bwd-kernelA-beginner-guide-full/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">bwd-kernelA-beginner-guide-full</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/07/05/DeepSeekV4%E4%B9%8BCSA+HCA/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">DeepSeekV4之CSA+HCA</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">bwd-kernelB-beginner-guide-full</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%8D%E5%90%91-b-kernel-%E4%BC%98%E5%8C%96%E5%85%A8%E8%A7%A3%E6%9E%90%E5%B0%8F%E7%99%BD%E7%89%88%E4%BB%8E%E9%9B%B6%E8%AE%B2%E8%B5%B7"><span class="nav-text"> 反向 B Kernel 优化全解析（小白版，从零讲起）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-0-%E9%83%A8%E5%88%86%E5%B0%8F%E7%99%BD%E6%89%AB%E7%9B%B2-%E5%85%88%E6%8A%8A%E6%9C%AF%E8%AF%AD%E8%AE%B2%E6%98%8E%E7%99%BD"><span class="nav-text"> 第 0 部分：小白扫盲 —— 先把术语讲明白</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#gpu-%E7%9A%84%E7%A1%AC%E4%BB%B6%E5%B1%82%E7%BA%A7%E8%87%AA%E4%B8%8A%E8%80%8C%E4%B8%8B"><span class="nav-text"> GPU 的硬件层级（自上而下）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%89%E7%A7%8D%E5%86%85%E5%AD%98%E5%BF%AB-%E6%85%A2"><span class="nav-text"> 三种内存（快 → 慢）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#occupancy%E5%8D%A0%E7%94%A8%E7%8E%87-%E8%B4%AF%E7%A9%BF%E5%85%A8%E6%96%87%E7%9A%84%E6%A0%B8%E5%BF%83%E6%8C%87%E6%A0%87"><span class="nav-text"> occupancy（占用率）—— 贯穿全文的核心指标</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#bank-conflictbank-%E5%86%B2%E7%AA%81-smem-%E7%9A%84%E5%9D%91"><span class="nav-text"> bank conflict（bank 冲突）—— smem 的坑</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#coalescing%E5%90%88%E5%B9%B6%E8%AE%BF%E9%97%AE-gmem-%E7%9A%84%E5%9D%91bank-conflict-%E7%9A%84-gmem-%E7%89%88"><span class="nav-text"> coalescing（合并访问）—— gmem 的坑（bank conflict 的 gmem 版）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%91%E9%87%8F%E5%8C%96%E8%AE%BF%E5%AD%98uint4-float4-lds128-sts128"><span class="nav-text"> 向量化访存：uint4 &#x2F; float4 &#x2F; LDS.128 &#x2F; STS.128</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cpasync-%E5%BC%82%E6%AD%A5%E6%90%AC%E8%BF%90amperehopper-%E6%96%B0%E7%89%B9%E6%80%A7"><span class="nav-text"> cp.async —— 异步搬运（Ampere&#x2F;Hopper 新特性）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#tensor-core-mma-cute-swizzle-ldsm-%E5%BC%A0%E9%87%8F%E6%A0%B8%E9%82%A3%E4%B8%80%E5%A5%97"><span class="nav-text"> Tensor Core &#x2F; MMA &#x2F; cute &#x2F; swizzle &#x2F; LDSM —— 张量核那一套</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#warp-shuffle-%E5%BD%92%E7%BA%A6__shfl_xor_sync"><span class="nav-text"> warp shuffle 归约（__shfl_xor_sync）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#wall-roofline-ncu%E6%80%A7%E8%83%BD%E8%AF%8A%E6%96%AD"><span class="nav-text"> wall &#x2F; roofline &#x2F; ncu（性能诊断）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-1-%E9%83%A8%E5%88%86%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%8A%8A%E4%B8%80%E4%B8%AA%E5%A4%A7-kernel-%E6%8B%86%E6%88%90%E5%9B%9B%E4%B8%AA%E5%85%A8%E5%B1%80%E8%AE%BE%E8%AE%A1"><span class="nav-text"> 第 1 部分：为什么要把一个大 kernel 拆成四个？（全局设计）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-2-%E9%83%A8%E5%88%86%E9%80%90-kernel-%E4%BC%98%E5%8C%96%E8%A7%A3%E6%9E%90"><span class="nav-text"> 第 2 部分：逐 kernel 优化解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#b1-ds-%E4%BE%A7%E7%AE%97-dvcorr-dkr-dv"><span class="nav-text"> B1 —— dS 侧（算 dvcorr、dkr、dv）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#b2-sin-%E4%BE%A7%E7%AE%97-dqd_base-dkd_base-dbeta%E6%8A%98%E5%8F%A0-b0"><span class="nav-text"> B2 —— sin 侧（算 dqd_base、dkd_base、dbeta；折叠 B0）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#b3-chunk-%E7%A9%BA%E9%97%B4%E6%94%B6%E5%B0%BE-%E5%86%85%E8%81%94-k1%E6%9C%80%E5%A4%A7%E7%83%AD%E7%82%B9335"><span class="nav-text"> B3 —— chunk 空间收尾 + 内联 K1（最大热点，33.5%）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-3-%E9%83%A8%E5%88%86%E6%96%87%E6%A1%A3%E4%B8%8D%E5%85%A8-%E9%9C%80%E8%A1%A5%E5%85%85%E7%9A%84%E4%BC%98%E5%8C%96%E9%9B%86%E4%B8%AD%E5%88%97%E5%87%BA"><span class="nav-text"> 第 3 部分：文档“不全、需补充”的优化（集中列出）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC-4-%E9%83%A8%E5%88%86%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%95%99%E8%AE%AD%E6%80%BB%E7%BB%93%E5%B0%8F%E7%99%BD%E8%AE%B0%E8%BF%99%E5%87%A0%E6%9D%A1%E5%B0%B1%E5%A4%9F"><span class="nav-text"> 第 4 部分：一句话教训总结（小白记这几条就够）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84%E4%B8%89%E4%BB%BD%E6%96%87%E6%A1%A3-vs-%E5%86%A0%E5%86%9B%E6%BA%90%E7%A0%81%E7%9A%84%E5%AF%B9%E5%BA%94%E5%85%B3%E7%B3%BB%E9%80%9F%E6%9F%A5"><span class="nav-text"> 附：三份文档 vs 冠军源码的对应关系速查</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%99%84%E5%BD%95-b%E6%B7%B1%E6%8C%96%E9%97%AE%E7%AD%94%E5%AE%8C%E6%95%B4%E5%8E%9F%E6%96%87%E4%B8%80%E5%AD%97%E4%B8%8D%E8%90%BD"><span class="nav-text"> 附录 B：深挖问答完整原文（一字不落）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%99%84print_layout-%E7%9C%9F%E5%AE%9E%E8%BF%90%E8%A1%8C%E8%BE%93%E5%87%BAk_inter-mn_inter-swstatelayout-swstatelayoutt"><span class="nav-text"> 附：print_layout 真实运行输出（K_INTER &#x2F; MN_INTER &#x2F; SwStateLayout &#x2F; SwStateLayoutT）</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 48 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
