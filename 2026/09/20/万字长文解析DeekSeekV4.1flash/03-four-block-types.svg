@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1040" viewBox="0 0 2000 1040" role="img">
+<rect width="2000" height="1040" fill="#F7F8FB"/>
+<rect x="36" y="40" width="10" height="78" rx="5" fill="#1F8A7A"/>
+<g font-family="Microsoft YaHei, Noto Sans SC, sans-serif">
+<text x="62" y="72" font-size="34" font-weight="700" fill="#1B3A5C">图 2  四类 Attention block：分开看 KV 来源与路由来源</text>
+<text x="62" y="112" font-size="18" fill="#5B6B7C">所有层都新算自己的 Main Q、局部 SWA KV、Attention 输出与 MoE；共享 Global KV 不等于整层复用。</text>
+<g transform="translate(36,160)">
+<rect width="464" height="700" rx="22" fill="#EEF4FB" stroke="#E3E8F0" stroke-width="2"/>
+<path d="M0,22 h464 v56 H0 z" fill="#2B6CB0"/>
+<path d="M0,22 c0,-12 10,-22 22,-22 h420 c12,0 22,10 22,22 v20 H0 z" fill="#2B6CB0"/>
+<text x="232" y="36" text-anchor="middle" font-size="24" font-weight="700" fill="#fff">SWA-only</text>
+<text x="232" y="64" text-anchor="middle" font-size="16" fill="#F4FBFF">L0–L1</text>
+<rect x="28" y="108" width="408" height="78" rx="16" fill="#D7F0E4" stroke="#D5DEE8"/>
+<text x="232" y="154" text-anchor="middle" font-size="18" fill="#1F6B4A">本层 hidden → Q / SWA KV</text>
+<polygon points="232,196 220,208 244,208" fill="#8A97A6"/>
+<rect x="28" y="220" width="408" height="78" rx="16" fill="#DCE8F8" stroke="#D5DEE8"/>
+<text x="232" y="266" text-anchor="middle" font-size="18" fill="#2B4C7E">无 Global 分支</text>
+<polygon points="232,308 220,320 244,320" fill="#8A97A6"/>
+<rect x="28" y="332" width="408" height="78" rx="16" fill="#EADFF3" stroke="#D5DEE8"/>
+<text x="232" y="378" text-anchor="middle" font-size="18" fill="#5A3D7A">无 Indexer 路由</text>
+<polygon points="232,420 220,432 244,432" fill="#8A97A6"/>
+<rect x="28" y="444" width="408" height="78" rx="16" fill="#FFFFFF" stroke="#D5DEE8"/>
+<text x="232" y="490" text-anchor="middle" font-size="18" fill="#1B3A5C">仅局部 SWA</text>
+<polygon points="232,532 220,544 244,544" fill="#8A97A6"/>
+<rect x="28" y="556" width="408" height="88" rx="16" fill="#fff" stroke="#2B6CB0" stroke-width="3"/>
+<text x="232" y="594" text-anchor="middle" font-size="20" font-weight="700" fill="#1B3A5C">Core Attention</text>
+<text x="232" y="622" text-anchor="middle" font-size="15" fill="#5B6B7C">→ residual / mHC → MoE</text>
+</g>
+<g transform="translate(524,160)">
+<rect width="464" height="700" rx="22" fill="#EEF8F2" stroke="#E3E8F0" stroke-width="2"/>
+<path d="M0,22 h464 v56 H0 z" fill="#1A7F5A"/>
+<path d="M0,22 c0,-12 10,-22 22,-22 h420 c12,0 22,10 22,22 v20 H0 z" fill="#1A7F5A"/>
+<text x="232" y="36" text-anchor="middle" font-size="24" font-weight="700" fill="#fff">Full</text>
+<text x="232" y="64" text-anchor="middle" font-size="16" fill="#F4FBFF">L2 / 8 / 14 / 20</text>
+<rect x="28" y="108" width="408" height="78" rx="16" fill="#D7F0E4" stroke="#D5DEE8"/>
+<text x="232" y="154" text-anchor="middle" font-size="18" fill="#1F6B4A">本层 hidden → Q / SWA KV</text>
+<polygon points="232,196 220,208 244,208" fill="#8A97A6"/>
+<rect x="28" y="220" width="408" height="78" rx="16" fill="#DCE8F8" stroke="#D5DEE8"/>
+<text x="232" y="266" text-anchor="middle" font-size="18" fill="#2B4C7E">本层投影 Global KV</text>
+<polygon points="232,308 220,320 244,320" fill="#8A97A6"/>
+<rect x="28" y="332" width="408" height="78" rx="16" fill="#EADFF3" stroke="#D5DEE8"/>
+<text x="232" y="378" text-anchor="middle" font-size="18" fill="#5A3D7A">本层 Indexer Q/K → Top-K</text>
+<polygon points="232,420 220,432 244,432" fill="#8A97A6"/>
+<rect x="28" y="444" width="408" height="78" rx="16" fill="#FFFFFF" stroke="#D5DEE8"/>
+<text x="232" y="490" text-anchor="middle" font-size="18" fill="#1B3A5C">Global gather + SWA</text>
+<polygon points="232,532 220,544 244,544" fill="#8A97A6"/>
+<rect x="28" y="556" width="408" height="88" rx="16" fill="#fff" stroke="#1A7F5A" stroke-width="3"/>
+<text x="232" y="594" text-anchor="middle" font-size="20" font-weight="700" fill="#1B3A5C">Core Attention</text>
+<text x="232" y="622" text-anchor="middle" font-size="15" fill="#5B6B7C">→ residual / mHC → MoE</text>
+</g>
+<g transform="translate(1012,160)">
+<rect width="464" height="700" rx="22" fill="#F4EEF8" stroke="#E3E8F0" stroke-width="2"/>
+<path d="M0,22 h464 v56 H0 z" fill="#6B4C9A"/>
+<path d="M0,22 c0,-12 10,-22 22,-22 h420 c12,0 22,10 22,22 v20 H0 z" fill="#6B4C9A"/>
+<text x="232" y="36" text-anchor="middle" font-size="24" font-weight="700" fill="#fff">Reindex</text>
+<text x="232" y="64" text-anchor="middle" font-size="16" fill="#F4FBFF">L24 / 28 / 32 / 36</text>
+<rect x="28" y="108" width="408" height="78" rx="16" fill="#D7F0E4" stroke="#D5DEE8"/>
+<text x="232" y="154" text-anchor="middle" font-size="18" fill="#1F6B4A">本层 hidden → Q / SWA KV</text>
+<polygon points="232,196 220,208 244,208" fill="#8A97A6"/>
+<rect x="28" y="220" width="408" height="78" rx="16" fill="#DCE8F8" stroke="#D5DEE8"/>
+<text x="232" y="266" text-anchor="middle" font-size="18" fill="#2B4C7E">复用 L20 Global KV</text>
+<polygon points="232,308 220,320 244,320" fill="#8A97A6"/>
+<rect x="28" y="332" width="408" height="78" rx="16" fill="#EADFF3" stroke="#D5DEE8"/>
+<text x="232" y="378" text-anchor="middle" font-size="18" fill="#5A3D7A">本层 Q + L20 K / 候选池</text>
+<polygon points="232,420 220,432 244,432" fill="#8A97A6"/>
+<rect x="28" y="444" width="408" height="78" rx="16" fill="#FFFFFF" stroke="#D5DEE8"/>
+<text x="232" y="490" text-anchor="middle" font-size="18" fill="#1B3A5C">新 Top-K → gather + SWA</text>
+<polygon points="232,532 220,544 244,544" fill="#8A97A6"/>
+<rect x="28" y="556" width="408" height="88" rx="16" fill="#fff" stroke="#6B4C9A" stroke-width="3"/>
+<text x="232" y="594" text-anchor="middle" font-size="20" font-weight="700" fill="#1B3A5C">Core Attention</text>
+<text x="232" y="622" text-anchor="middle" font-size="15" fill="#5B6B7C">→ residual / mHC → MoE</text>
+</g>
+<g transform="translate(1500,160)">
+<rect width="464" height="700" rx="22" fill="#FBF3EC" stroke="#E3E8F0" stroke-width="2"/>
+<path d="M0,22 h464 v56 H0 z" fill="#C05621"/>
+<path d="M0,22 c0,-12 10,-22 22,-22 h420 c12,0 22,10 22,22 v20 H0 z" fill="#C05621"/>
+<text x="232" y="36" text-anchor="middle" font-size="24" font-weight="700" fill="#fff">Reuse</text>
+<text x="232" y="64" text-anchor="middle" font-size="16" fill="#F4FBFF">其余 CSA2 层</text>
+<rect x="28" y="108" width="408" height="78" rx="16" fill="#D7F0E4" stroke="#D5DEE8"/>
+<text x="232" y="154" text-anchor="middle" font-size="18" fill="#1F6B4A">本层 hidden → Q / SWA KV</text>
+<polygon points="232,196 220,208 244,208" fill="#8A97A6"/>
+<rect x="28" y="220" width="408" height="78" rx="16" fill="#DCE8F8" stroke="#D5DEE8"/>
+<text x="232" y="266" text-anchor="middle" font-size="18" fill="#2B4C7E">复用所属 source KV</text>
+<polygon points="232,308 220,320 244,320" fill="#8A97A6"/>
+<rect x="28" y="332" width="408" height="78" rx="16" fill="#EADFF3" stroke="#D5DEE8"/>
+<text x="232" y="378" text-anchor="middle" font-size="18" fill="#5A3D7A">沿用最近 source 的 Top-K</text>
+<polygon points="232,420 220,432 244,432" fill="#8A97A6"/>
+<rect x="28" y="444" width="408" height="78" rx="16" fill="#FFFFFF" stroke="#D5DEE8"/>
+<text x="232" y="490" text-anchor="middle" font-size="18" fill="#1B3A5C">Global gather + SWA</text>
+<polygon points="232,532 220,544 244,544" fill="#8A97A6"/>
+<rect x="28" y="556" width="408" height="88" rx="16" fill="#fff" stroke="#C05621" stroke-width="3"/>
+<text x="232" y="594" text-anchor="middle" font-size="20" font-weight="700" fill="#1B3A5C">Core Attention</text>
+<text x="232" y="622" text-anchor="middle" font-size="15" fill="#5B6B7C">→ residual / mHC → MoE</text>
+</g>
+<text x="62" y="910" font-size="17" fill="#3D4D5C">Encoder Full：ratio=2；Decoder L20 Full：ratio=1。</text>
+<text x="62" y="940" font-size="17" fill="#3D4D5C">Reindex 刷新稀疏选择；SWA 窗口滑动是另一条状态线。Top-K / 候选池按当前 query 跨层共享。</text>
+</g></svg>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="980" viewBox="0 0 2000 980" role="img">
+<rect width="2000" height="980" fill="#F7F8FB"/>
+<rect x="36" y="40" width="10" height="78" rx="5" fill="#1F8A7A"/>
+<g font-family="Microsoft YaHei, Noto Sans SC, sans-serif">
+<text x="62" y="72" font-size="34" font-weight="700" fill="#1B3A5C">图 4  两个 replay，两个边界</text>
+<text x="62" y="112" font-size="18" fill="#5B6B7C">N=4100，命中 c=4096，suffix=4，W=128；区间 [start, end)。横轴分段示意，不按长度比例。</text>
+<text x="280" y="158" font-size="15" fill="#5B6B7C">0</text>
+<text x="1110" y="142" text-anchor="middle" font-size="15" fill="#C05621">3968 = c-W</text>
+<text x="1180" y="168" text-anchor="middle" font-size="15" fill="#6B4C9A">3972 = N-W</text>
+<text x="1600" y="158" text-anchor="middle" font-size="15" fill="#2B6CB0">4096 = c</text>
+<text x="1940" y="158" text-anchor="end" font-size="15" fill="#1B3A5C">4100 = N</text>
+<line x1="280" y1="168" x2="280" y2="180" stroke="#5B6B7C" stroke-width="2"/>
+<line x1="1110" y1="168" x2="1110" y2="180" stroke="#C05621" stroke-width="2"/>
+<line x1="1180" y1="168" x2="1180" y2="180" stroke="#6B4C9A" stroke-width="2"/>
+<line x1="1600" y1="168" x2="1600" y2="180" stroke="#2B6CB0" stroke-width="2"/>
+<line x1="1940" y1="168" x2="1940" y2="180" stroke="#1B3A5C" stroke-width="2"/>
+<line x1="1180" y1="186" x2="1180" y2="760" stroke="#C5B3DC" stroke-width="2" stroke-dasharray="8 8"/>
+<line x1="1600" y1="186" x2="1600" y2="760" stroke="#A9C4E4" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="36" y="286" font-size="20" font-weight="700" fill="#1B3A5C">Global prefix</text>
+<rect x="280" y="214" width="1316" height="128" rx="16" fill="#D7E6F6" stroke="#D5DEE8"/>
+<text x="938" y="286" text-anchor="middle" font-size="18" fill="#1E4E86">已命中 Global KV：只读复用，不覆盖</text>
+<rect x="1604" y="214" width="336" height="128" rx="16" fill="#C8EDE0" stroke="#D5DEE8"/>
+<text x="1772" y="260" text-anchor="middle" font-size="17" fill="#0F6B52">suffix 新生成</text>
+<text x="1772" y="288" text-anchor="middle" font-size="16" fill="#0F6B52">4 token</text>
+<text x="36" y="456" font-size="20" font-weight="700" fill="#1B3A5C">Encoder</text>
+<rect x="280" y="384" width="826" height="140" rx="16" fill="#EEF1F5" stroke="#D5DEE8"/>
+<text x="693" y="462" text-anchor="middle" font-size="18" fill="#4A5B6B">不重跑早期 prefix</text>
+<rect x="1114" y="384" width="482" height="140" rx="16" fill="#F8E1C4" stroke="#D5DEE8"/>
+<text x="1355" y="440" text-anchor="middle" font-size="17" fill="#8A4B12">缺 SWA：Encoder replay</text>
+<text x="1355" y="470" text-anchor="middle" font-size="16" fill="#8A4B12">[3968, 4096) · 128 token</text>
+<rect x="1604" y="384" width="336" height="140" rx="16" fill="#C8EDE0" stroke="#D5DEE8"/>
+<text x="1772" y="440" text-anchor="middle" font-size="16" fill="#0F6B52">suffix forward</text>
+<text x="1772" y="470" text-anchor="middle" font-size="15" fill="#0F6B52">[4096, 4100) · 4</text>
+<text x="36" y="640" font-size="20" font-weight="700" fill="#1B3A5C">Decoder</text>
+<rect x="280" y="566" width="896" height="150" rx="16" fill="#EEF1F5" stroke="#D5DEE8"/>
+<text x="728" y="624" text-anchor="middle" font-size="17" fill="#4A5B6B">使用 H_enc 投影的 Global KV</text>
+<text x="728" y="654" text-anchor="middle" font-size="16" fill="#4A5B6B">不跑完整 prefix Decoder</text>
+<rect x="1184" y="566" width="412" height="150" rx="16" fill="#E6D8F4" stroke="#D5DEE8"/>
+<text x="1390" y="624" text-anchor="middle" font-size="17" fill="#5A2F86">prefix 尾部 · 124 token</text>
+<text x="1390" y="654" text-anchor="middle" font-size="16" fill="#5A2F86">[3972, 4096)</text>
+<rect x="1604" y="566" width="336" height="150" rx="16" fill="#C8EDE0" stroke="#D5DEE8"/>
+<text x="1772" y="624" text-anchor="middle" font-size="16" fill="#0F6B52">suffix · 4 token</text>
+<text x="1772" y="654" text-anchor="middle" font-size="15" fill="#0F6B52">[4096, 4100)</text>
+<path d="M1184 732 v16 H1940 v-16" fill="none" stroke="#6B4C9A" stroke-width="3"/>
+<text x="1562" y="772" text-anchor="middle" font-size="17" fill="#6B4C9A">Decoder tail [3972, 4100) = 124 + 4 = 128 token</text>
+<text x="62" y="860" font-size="17" fill="#3D4D5C">Encoder 恢复以命中点 c 为边界；Decoder 尾窗以完整 prompt 末端 N 为边界。</text>
+<text x="62" y="892" font-size="17" fill="#3D4D5C">suffix 只有 4 token，并不意味着 Decoder 只跑 4 token；尾窗还覆盖 124 个 prefix token。</text>
+</g></svg>
