@@ -1,0 +1,39 @@
+<svg width="503" height="170" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 170" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="170"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-170)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="4" y="75" width="91" height="63" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="33.04" y="110.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,221) scale(1,-1)">Global</text>
+			<text x="26.16" y="96.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,193) scale(1,-1)">BF16 A / B</text>
+			<path d="M 95,106 L 104,106 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="104 106, 99.61209 108.3971, 99.61209 103.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="105" y="75" width="91" height="63" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="133.365" y="110.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,221) scale(1,-1)">Shared</text>
+			<text x="134.115" y="96.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,193) scale(1,-1)">192 KiB</text>
+			<path d="M 196,106 L 205,106 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="205 106, 200.6121 108.3971, 200.6121 103.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="206" y="75" width="91" height="63" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="223.005" y="110.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,221) scale(1,-1)">Tensor Core</text>
+			<text x="229.42" y="96.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,193) scale(1,-1)">MMA x16</text>
+			<path d="M 297,106 L 306,106 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="306 106, 301.6121 108.3971, 301.6121 103.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="307" y="75" width="91" height="63" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="338.5" y="110.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,221) scale(1,-1)">TMEM</text>
+			<text x="336.605" y="96.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,193) scale(1,-1)">FP32 D</text>
+			<path d="M 398,106 L 407,106 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="407 106, 402.6121 108.3971, 402.6121 103.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="408" y="75" width="91" height="63" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="437.04" y="110.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,221) scale(1,-1)">Global</text>
+			<text x="437.35" y="96.5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,193) scale(1,-1)">BF16 C</text>
+			<text x="91.66" y="58" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,116) scale(1,-1)">TMA</text>
+			<text x="182.608" y="58" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,116) scale(1,-1)">descriptor</text>
+			<text x="278.988" y="58" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,116) scale(1,-1)">accumulate</text>
+			<text x="386.808" y="58" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,116) scale(1,-1)">ld + cast</text>
+			<text x="110.935" y="22" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,44) scale(1,-1)">一个 CTA 负责一个 128 x 256 输出 tile；沿 K 重复搬运与累加。</text>
+		</g>
+	</g>
+</svg>

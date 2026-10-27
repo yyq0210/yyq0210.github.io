@@ -1,0 +1,29 @@
+<svg width="503" height="170" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 170" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="170"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-170)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="150" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,300) scale(1,-1)">64-bit SMEM 描述符：低位到高位示意（字段非等比例）</text>
+			<rect x="0" y="66" width="118" height="61" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="38.282" y="100.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,201) scale(1,-1)">addr 编码</text>
+			<text x="47.1155" y="86.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">0..13*</text>
+			<rect x="118" y="66" width="118" height="61" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="158.3025" y="100.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,201) scale(1,-1)">LBO 编码</text>
+			<text x="166.389" y="86.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">16 起</text>
+			<rect x="236" y="66" width="118" height="61" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="276.1405" y="100.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,201) scale(1,-1)">SBO 编码</text>
+			<text x="284.389" y="86.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">32 起</text>
+			<rect x="354" y="66" width="72" height="61" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="382.521" y="100.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,201) scale(1,-1)">001</text>
+			<text x="377.535" y="86.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">46..48</text>
+			<rect x="426" y="66" width="72" height="61" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="447.78" y="100.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,201) scale(1,-1)">其它=0</text>
+			<text x="453.0" y="86.5" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">高位</text>
+			<text x="0" y="38" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,76) scale(1,-1)">* 本代码 desc_encode 保留18-bit字节地址再右移4位，得到14-bit值。</text>
+			<text x="0" y="17" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,34) scale(1,-1)">这是代码编码方式的示意，不是所有 PTX 版本描述符字段宽度的完整规范。</text>
+		</g>
+	</g>
+</svg>

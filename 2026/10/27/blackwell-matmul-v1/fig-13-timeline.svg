@@ -1,0 +1,40 @@
+<svg width="503" height="235" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 235" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="235"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-235)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="214" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,428) scale(1,-1)">v1 的单缓冲主循环：同一CTA中不重叠下一轮加载与当前计算</text>
+			<text x="0" y="169" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,338) scale(1,-1)">TMA</text>
+			<text x="0" y="126" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,252) scale(1,-1)">MMA</text>
+			<text x="0" y="83" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,166) scale(1,-1)">线程</text>
+			<rect x="67" y="153" width="82" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="90.621" y="164.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,328) scale(1,-1)">load tile</text>
+			<rect x="163" y="110" width="108" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="195.913" y="121.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,242) scale(1,-1)">16条MMA</text>
+			<rect x="67" y="67" width="91" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="92.75399999999999" y="78.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,156) scale(1,-1)">wait TMA</text>
+			<rect x="163" y="67" width="108" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="195.0355" y="78.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,156) scale(1,-1)">wait MMA</text>
+			<path d="M 150,164 L 163,137 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="163 137, 163.2563 141.9934, 158.9366 139.9136" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="287" y="153" width="82" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="310.621" y="164.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,328) scale(1,-1)">load tile</text>
+			<rect x="383" y="110" width="108" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="415.913" y="121.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,242) scale(1,-1)">16条MMA</text>
+			<rect x="287" y="67" width="91" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="312.754" y="78.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,156) scale(1,-1)">wait TMA</text>
+			<rect x="383" y="67" width="108" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="415.0355" y="78.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,156) scale(1,-1)">wait MMA</text>
+			<path d="M 370,164 L 383,137 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="383 137, 383.2563 141.9934, 378.9366 139.9136" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<text x="131.24" y="46" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,92) scale(1,-1)">iter_k = 0</text>
+			<text x="355.24" y="46" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,92) scale(1,-1)">iter_k = 1</text>
+			<path d="M 67,21 L 492,21 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="492 21, 487.6121 23.39713, 487.6121 18.60287" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<text x="20" y="17" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,34) scale(1,-1)">时间</text>
+		</g>
+	</g>
+</svg>

@@ -599,7 +599,7 @@ mjx-container[display="true"] + br {
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -607,7 +607,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">51</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -639,7 +639,7 @@ mjx-container[display="true"] + br {
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -647,7 +647,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">51</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -662,6 +662,78 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/10/27/blackwell-matmul-v1/">
+                            Blackwell GEMM 入门：图解 matmul_v1 的 SMEM、TMEM 与执行流程
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             Blackwell GEMM 入门：图解 matmul_v1 的 SMEM、TMEM 与执行流程
+
+源码作者：gau-nernst。本文依据固定提交 afcb20b1bd89065c31a1575c276aba686fc4dfce 整理，包含独立绘制的图解、地址推导与练习。
+
+本文使用常见的 Markdown 标题、表格、代码块和 PNG 图片，不依赖 Mermaid 或数学公式插件。代码...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Tue Oct 27 2026 21:56:47 GMT+0800">
+                
+                    2026-10-27
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-blackwell-gemm-cutlass/">cuda, blackwell, gemm, cutlass</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/10/27/blackwell-matmul-v1/">阅读全文<span class="seo-reader-text">Blackwell GEMM 入门：图解 matmul_v1 的 SMEM、TMEM 与执行流程</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1307,78 +1379,6 @@ forward 和 backward 数学原理，重点讲清线性分解这个核心。
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/07/22/bwd-ncu-and-optimization-playbook/">
-                            bwd-ncu-and-optimization-playbook
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             反向 Kernel A/B 优化通用方法论 —— ncu 指标解析 + 共同优化手段总结
-日期：2026-07-22
-GPU：H20-3e（sm_90a，Hopper）。
-本文是 Kernel A（串行 dstate 反向 scan） 和 Kernel B（并行 per-token 梯度，split 成 4 个小
-kernel） 两条优化战役的横向提炼：把两边反复用到的同一批 ncu 指标...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Wed Jul 22 2026 23:50:00 GMT+0800">
-                
-                    2026-07-22
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/07/22/bwd-ncu-and-optimization-playbook/">阅读全文<span class="seo-reader-text">bwd-ncu-and-optimization-playbook</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1409,7 +1409,7 @@ kernel） 两条优化战役的横向提炼：把两边反复用到的同一批 
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 51 篇文章
+                        共撰写了 52 篇文章
                     </span>
                     
                 </p>

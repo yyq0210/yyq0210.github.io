@@ -1,0 +1,31 @@
+<svg width="503" height="205" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 205" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="205"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-205)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="184" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,368) scale(1,-1)">每个线程写16字节连续数据，但相邻线程写不同的行</text>
+			<text x="0" y="130" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,260) scale(1,-1)">tid 0</text>
+			<rect x="65" y="119" width="432" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="281.0" y="129.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,258) scale(1,-1)"></text>
+			<rect x="133" y="119" width="91" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="161.75549999999998" y="129.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,258) scale(1,-1)">8个BF16</text>
+			<text x="238" y="128" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">C 的第 off_m+0 行</text>
+			<text x="0" y="94" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,188) scale(1,-1)">tid 1</text>
+			<rect x="65" y="83" width="432" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="281.0" y="93.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,186) scale(1,-1)"></text>
+			<rect x="133" y="83" width="91" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="161.75549999999998" y="93.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,186) scale(1,-1)">8个BF16</text>
+			<text x="238" y="92" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,184) scale(1,-1)">C 的第 off_m+1 行</text>
+			<text x="0" y="58" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,116) scale(1,-1)">tid 2</text>
+			<rect x="65" y="47" width="432" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="281.0" y="57.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,114) scale(1,-1)"></text>
+			<rect x="133" y="47" width="91" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="161.75549999999998" y="57.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,114) scale(1,-1)">8个BF16</text>
+			<text x="238" y="56" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,112) scale(1,-1)">C 的第 off_m+2 行</text>
+			<text x="121.99000000000001" y="20" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">相邻线程起点相差 N x 2 字节；N=4096 时相差8192字节。</text>
+		</g>
+	</g>
+</svg>

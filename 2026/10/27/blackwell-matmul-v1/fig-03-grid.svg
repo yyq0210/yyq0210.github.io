@@ -1,0 +1,142 @@
+<svg width="503" height="235" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 235" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="235"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-235)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="216" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,432) scale(1,-1)">输出 C 的 tile 网格：32 行 x 16 列（仅画前 4 行）</text>
+			<rect x="5" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="17.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">0</text>
+			<rect x="36" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="48.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">1</text>
+			<rect x="67" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="79.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">2</text>
+			<rect x="98" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="110.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">3</text>
+			<rect x="129" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="141.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">4</text>
+			<rect x="160" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="172.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">5</text>
+			<rect x="191" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="203.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">6</text>
+			<rect x="222" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="234.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">7</text>
+			<rect x="253" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="265.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">8</text>
+			<rect x="284" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="296.284" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">9</text>
+			<rect x="315" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="325.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">10</text>
+			<rect x="346" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="356.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">11</text>
+			<rect x="377" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="387.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">12</text>
+			<rect x="408" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="418.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">13</text>
+			<rect x="439" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="449.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">14</text>
+			<rect x="470" y="152" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="480.068" y="163.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,326) scale(1,-1)">15</text>
+			<rect x="5" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="15.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">16</text>
+			<rect x="36" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="46.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">17</text>
+			<rect x="67" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="77.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">18</text>
+			<rect x="98" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="108.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">19</text>
+			<rect x="129" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="139.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">20</text>
+			<rect x="160" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="170.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">21</text>
+			<rect x="191" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="201.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">22</text>
+			<rect x="222" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="232.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">23</text>
+			<rect x="253" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="263.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">24</text>
+			<rect x="284" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="294.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">25</text>
+			<rect x="315" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="325.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">26</text>
+			<rect x="346" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="356.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">27</text>
+			<rect x="377" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="387.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">28</text>
+			<rect x="408" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="418.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">29</text>
+			<rect x="439" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="449.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">30</text>
+			<rect x="470" y="120" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="480.068" y="131.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,262) scale(1,-1)">31</text>
+			<rect x="5" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="15.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">32</text>
+			<rect x="36" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="46.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">33</text>
+			<rect x="67" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="77.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">34</text>
+			<rect x="98" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="108.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">35</text>
+			<rect x="129" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="139.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">36</text>
+			<rect x="160" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="170.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">37</text>
+			<rect x="191" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="201.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">38</text>
+			<rect x="222" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="232.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">39</text>
+			<rect x="253" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="263.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">40</text>
+			<rect x="284" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="294.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">41</text>
+			<rect x="315" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="325.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">42</text>
+			<rect x="346" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="356.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">43</text>
+			<rect x="377" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="387.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">44</text>
+			<rect x="408" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="418.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">45</text>
+			<rect x="439" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="449.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">46</text>
+			<rect x="470" y="88" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="480.068" y="99.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,198) scale(1,-1)">47</text>
+			<rect x="5" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="15.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">48</text>
+			<rect x="36" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="46.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">49</text>
+			<rect x="67" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="77.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">50</text>
+			<rect x="98" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="108.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">51</text>
+			<rect x="129" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="139.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">52</text>
+			<rect x="160" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="170.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">53</text>
+			<rect x="191" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="201.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">54</text>
+			<rect x="222" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="232.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">55</text>
+			<rect x="253" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="263.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">56</text>
+			<rect x="284" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="294.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">57</text>
+			<rect x="315" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="325.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">58</text>
+			<rect x="346" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="356.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">59</text>
+			<rect x="377" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="387.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">60</text>
+			<rect x="408" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="418.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">61</text>
+			<rect x="439" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="449.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">62</text>
+			<rect x="470" y="56" width="29" height="28" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="480.068" y="67.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,134) scale(1,-1)">63</text>
+			<text x="158.42499999999998" y="37" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,74) scale(1,-1)">每个小格 = 128行 x 256列；数字 = blockIdx.x</text>
+			<text x="119.465" y="15" style="font-family: sans-serif; font-size: 10px;fill: rgb(3%,49%,54%); stroke:none;" transform="translate(0,30) scale(1,-1)">bid 35 → (bid_m=2, bid_n=3) → (off_m=256, off_n=768)</text>
+		</g>
+	</g>
+</svg>

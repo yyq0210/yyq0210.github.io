@@ -1,0 +1,93 @@
+<svg width="503" height="230" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 230" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="230"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-230)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="210" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,420) scale(1,-1)">缩小示意：16行 x 32个BF16；每个色块宽8个BF16</text>
+			<text x="55.6" y="184" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,368) scale(1,-1)">逻辑矩阵 / global 行优先</text>
+			<text x="333.165" y="184" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,368) scale(1,-1)">shared 中按条带存放</text>
+			<rect x="7" y="158" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="158" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="158" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="158" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="150" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="150" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="150" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="150" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="142" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="142" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="142" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="142" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="134" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="134" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="134" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="134" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="126" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="126" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="126" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="126" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="118" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="118" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="118" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="118" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="110" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="110" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="110" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="110" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="102" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="102" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="102" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="102" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="94" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="94" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="94" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="94" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="86" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="86" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="86" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="86" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="78" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="78" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="78" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="78" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="70" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="70" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="70" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="70" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="62" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="62" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="62" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="62" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="54" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="54" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="54" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="54" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="46" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="46" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="46" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="46" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="7" y="38" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<rect x="60" y="38" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<rect x="113" y="38" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<rect x="166" y="38" width="51" height="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<rect x="270" y="125" width="230" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="305.408" y="135.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,270) scale(1,-1)">条0：row 0 的8个数 → … → row 15 的8个数</text>
+			<text x="21.624000000000002" y="20" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">q 0..7</text>
+			<rect x="270" y="94" width="230" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="305.408" y="104.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,208) scale(1,-1)">条1：row 0 的8个数 → … → row 15 的8个数</text>
+			<text x="72.408" y="20" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">q 8..15</text>
+			<rect x="270" y="63" width="230" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="305.408" y="73.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,146) scale(1,-1)">条2：row 0 的8个数 → … → row 15 的8个数</text>
+			<text x="123.19200000000001" y="20" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">q 16..23</text>
+			<rect x="270" y="32" width="230" height="26" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="305.408" y="42.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,84) scale(1,-1)">条3：row 0 的8个数 → … → row 15 的8个数</text>
+			<text x="176.192" y="20" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">q 24..31</text>
+			<path d="M 224,108 L 264,108 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="264 108, 259.6121 110.3971, 259.6121 105.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<text x="327.0" y="9" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,18) scale(1,-1)">右侧各条在地址上首尾相接</text>
+		</g>
+	</g>
+</svg>

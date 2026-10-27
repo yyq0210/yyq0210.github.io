@@ -1,0 +1,28 @@
+<svg width="503" height="225" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 225" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="225"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-225)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="204" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,408) scale(1,-1)">以 warp 1、n=2 为例：一次协同读取32行 x 8列</text>
+			<rect x="5" y="59" width="218" height="116" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="83.7" y="135.0" style="font-family: sans-serif; font-size: 12px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,270) scale(1,-1)">TMEM 子块</text>
+			<text x="82.83" y="121.0" style="font-family: sans-serif; font-size: 12px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,242) scale(1,-1)">rows 32..63</text>
+			<text x="84.53999999999999" y="107.0" style="font-family: sans-serif; font-size: 12px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,214) scale(1,-1)">cols 16..23</text>
+			<text x="84.918" y="93.0" style="font-family: sans-serif; font-size: 12px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,186) scale(1,-1)">256个FP32</text>
+			<path d="M 230,118 L 269,118 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="269 118, 264.6121 120.3971, 264.6121 115.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="277" y="145" width="221" height="29" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="325.592" y="156.5" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,313) scale(1,-1)">lane 0 → tmp[0..7] = D[32,16..23]</text>
+			<rect x="277" y="110" width="221" height="29" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="325.592" y="121.5" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,243) scale(1,-1)">lane 1 → tmp[0..7] = D[33,16..23]</text>
+			<rect x="277" y="75" width="221" height="29" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="325.592" y="86.5" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,173) scale(1,-1)">lane 3 → tmp[0..7] = D[35,16..23]</text>
+			<rect x="277" y="40" width="221" height="29" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="323.376" y="51.5" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,103) scale(1,-1)">lane 31 → tmp[0..7] = D[63,16..23]</text>
+			<text x="101.79999999999998" y="20" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,40) scale(1,-1)">所有lane传入相同addr；lane编号隐式决定每个线程拿到哪一行。</text>
+		</g>
+	</g>
+</svg>

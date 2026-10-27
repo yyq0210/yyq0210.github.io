@@ -1,0 +1,39 @@
+<svg width="503" height="205" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 205" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="205"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-205)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="185" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,370) scale(1,-1)">相同的目标布局，两种发指令方式</text>
+			<rect x="8" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="28.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条0</text>
+			<rect x="69" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="89.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条1</text>
+			<rect x="130" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="150.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条2</text>
+			<rect x="191" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="211.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条3</text>
+			<rect x="252" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="272.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条4</text>
+			<rect x="313" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="333.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条5</text>
+			<rect x="374" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="394.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条6</text>
+			<rect x="435" y="111" width="56" height="40" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="455.23" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">条7</text>
+			<rect x="0" y="40" width="235" height="48" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="59.129999999999995" y="68.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,136) scale(1,-1)">v1a：一条带一个 2D TMA</text>
+			<text x="52.515" y="54.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,108) scale(1,-1)">实际每个输入 tile 为32条指令</text>
+			<rect x="264" y="40" width="235" height="48" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="317.55" y="68.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,136) scale(1,-1)">v1b：把条带编号作为第三维</text>
+			<text x="322.795" y="54.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,108) scale(1,-1)">每个输入 tile 为1条3D指令</text>
+			<path d="M 117,88 L 117,107 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="117 107, 114.6029 102.6121, 119.3971 102.6121" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<path d="M 381,88 L 381,107 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="381 107, 378.6029 102.6121, 383.3971 102.6121" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<text x="127.37849999999999" y="14" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,28) scale(1,-1)">图中只画8条；实际 BK=256，对应32条。16B指最内维宽度。</text>
+		</g>
+	</g>
+</svg>

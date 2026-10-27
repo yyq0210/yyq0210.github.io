@@ -1,0 +1,32 @@
+<svg width="503" height="230" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 230" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="230"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-230)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="0" y="210" style="font-family: sans-serif; font-size: 11px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,420) scale(1,-1)">本例可见的 TMEM 二维地址空间示意</text>
+			<rect x="75" y="149" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="137.655" y="162.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,324) scale(1,-1)">warp 0: rows 0..31</text>
+			<rect x="289" y="149" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="353.5" y="162.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,324) scale(1,-1)">不属于本次分配的列</text>
+			<rect x="75" y="115" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="134.885" y="128.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">warp 1: rows 32..63</text>
+			<rect x="289" y="115" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="353.5" y="128.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,256) scale(1,-1)">不属于本次分配的列</text>
+			<rect x="75" y="81" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="134.885" y="94.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,188) scale(1,-1)">warp 2: rows 64..95</text>
+			<rect x="289" y="81" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="353.5" y="94.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,188) scale(1,-1)">不属于本次分配的列</text>
+			<rect x="75" y="47" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="132.115" y="60.0" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,120) scale(1,-1)">warp 3: rows 96..127</text>
+			<rect x="289" y="47" width="210" height="32" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(94%,95%,96%); fill-rule: evenodd;"/>
+			<text x="353.5" y="60.0" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,120) scale(1,-1)">不属于本次分配的列</text>
+			<text x="146.69" y="190" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,380) scale(1,-1)">本次分配256列</text>
+			<text x="352.5" y="190" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,380) scale(1,-1)">其余列仅作容量示意</text>
+			<text x="119.2525" y="25" style="font-family: sans-serif; font-size: 11px;fill: rgb(3%,49%,54%); stroke:none;" transform="translate(0,50) scale(1,-1)">128 x 256 x 4 B = 128 KiB</text>
+			<text x="75" y="5" style="font-family: sans-serif; font-size: 10px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,10) scale(1,-1)">地址：taddr + (row &lt;&lt; 16) + col；不是 row * N * 4。</text>
+		</g>
+	</g>
+</svg>

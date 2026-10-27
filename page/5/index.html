@@ -545,7 +545,7 @@ mjx-container[display="true"] + br {
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -553,7 +553,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">51</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -585,7 +585,7 @@ mjx-container[display="true"] + br {
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -593,7 +593,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">51</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -608,6 +608,79 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/04/21/DeepSeekV3.2%E4%B9%8BDSA/">
+                            DeepSeekV3.2之DSA
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            论文链接：arxiv.org/pdf/2512.02556
+ DeepSeek-V3.2 的 DSA（DeepSeek Sparse Attention）详解
+
+面向小白：从「为什么需要 DSA」讲起，结合论文数学公式和 sglang 源码，
+最后把 MLA + DSA 串起来，看清 DeepSeek-V3.2 完整的注意力是怎么跑的。
+建议先读完同目录的MLA，本文大量复用 MLA 的结论...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Tue Apr 21 2026 23:50:00 GMT+0800">
+                
+                    2026-04-21
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/04/21/DeepSeekV3.2%E4%B9%8BDSA/">阅读全文<span class="seo-reader-text">DeepSeekV3.2之DSA</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1269,78 +1342,6 @@ matxscript运行时系统的内存管理机制负责高效地分配和回收运�
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2025/06/07/conv2d%E4%B9%8Bbackward/">
-                            conv2d之backward
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             1 填充
-在此之前，先补充一些卷积层前向过程中的一个步骤：填充（padding）；首先引出问题，例如现在有一个卷积运算具体参数如下：
-
-卷积的输入 X 宽高都是28，卷积核 W 的宽高是5，取步长 S 为1，那么输出 A 宽高就是24
-因为卷积运输的计算方式决定了输出的长度总是小于输入（长度为1的卷积核除外），这样有时会碰到一些问题，例如输入边缘的信息很重要，但是卷积计算对输入的边缘采样不...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Jun 07 2025 22:13:32 GMT+0800">
-                
-                    2025-06-07
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/cuda/">cuda</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2025/06/07/conv2d%E4%B9%8Bbackward/">阅读全文<span class="seo-reader-text">conv2d之backward</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1371,7 +1372,7 @@ matxscript运行时系统的内存管理机制负责高效地分配和回收运�
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 51 篇文章
+                        共撰写了 52 篇文章
                     </span>
                     
                 </p>

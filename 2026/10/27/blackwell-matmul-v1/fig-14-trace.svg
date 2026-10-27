@@ -1,0 +1,36 @@
+<svg width="503" height="190" preserveAspectRatio="xMinYMin meet" viewBox="0 0 503 190" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink"><style>text{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif!important}</style>
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="503" height="190"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-190)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="4" y="83" width="91" height="64" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="29.328" y="119.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,238) scale(1,-1)">A[291,273]</text>
+			<text x="13.235999999999997" y="105.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,210) scale(1,-1)">B_storage[786,273]</text>
+			<path d="M 96,115 L 103,115 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="103 115, 98.61209 117.3971, 98.61209 112.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="105" y="83" width="91" height="64" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(83%,93%,91%); fill-rule: evenodd;"/>
+			<text x="132.796" y="119.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,238) scale(1,-1)">SMEM条2</text>
+			<text x="132.284" y="105.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,210) scale(1,-1)">条内元素1</text>
+			<path d="M 197,115 L 204,115 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="204 115, 199.6121 117.3971, 199.6121 112.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="206" y="83" width="91" height="64" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(98%,90%,78%); fill-rule: evenodd;"/>
+			<text x="237.972" y="119.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,238) scale(1,-1)">MMA 1</text>
+			<text x="231.2" y="105.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,210) scale(1,-1)">K=272..287</text>
+			<path d="M 298,115 L 305,115 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="305 115, 300.6121 117.3971, 300.6121 112.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="307" y="83" width="91" height="64" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(90%,87%,95%); fill-rule: evenodd;"/>
+			<text x="336.744" y="119.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,238) scale(1,-1)">D[35,18]</text>
+			<text x="343.76" y="105.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,210) scale(1,-1)">FP32</text>
+			<path d="M 399,115 L 406,115 Z" style="stroke: rgb(13%,45%,67%); stroke-linecap: butt; stroke-width: 1.4;"/>
+			<polygon points="406 115, 401.6121 117.3971, 401.6121 112.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(13%,45%,67%); fill-rule: evenodd;"/>
+			<rect x="408" y="83" width="91" height="64" rx="5" ry="5" style="stroke: rgb(78%,84%,88%); stroke-linecap: butt; stroke-width: 0.7; fill: rgb(85%,92%,97%); fill-rule: evenodd;"/>
+			<text x="435.76800000000003" y="119.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,238) scale(1,-1)">tid35 / n2</text>
+			<text x="440.64" y="105.0" style="font-family: sans-serif; font-size: 8px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,210) scale(1,-1)">tmp[2]</text>
+			<text x="125.01799999999999" y="50" style="font-family: sans-serif; font-size: 9px;fill: rgb(7%,16%,25%); stroke:none;" transform="translate(0,100) scale(1,-1)">这里只跟踪一个乘积项；D[35,18] 还要累加全部4096个K元素。</text>
+			<text x="124.808" y="22" style="font-family: sans-serif; font-size: 11px;fill: rgb(3%,49%,54%); stroke:none;" transform="translate(0,44) scale(1,-1)">最终写回 C[291,786]，而不是在每次MMA后写回。</text>
+		</g>
+	</g>
+</svg>
