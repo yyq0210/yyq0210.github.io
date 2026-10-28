@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/10/28/blackwell-matmul-v2/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/10/28/blackwell-matmul-v2/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-10-28T13:27:12.000Z">
+<meta property="article:modified_time" content="2026-10-28T13:27:30.881Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="cuda, blackwell, gemm, cutlass">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body img[src$=".svg"],
+.article-content .markdown-body img[data-src$=".svg"] {
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .mermaid {
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+.article-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Mermaid labels inherit page color; dark mode becomes white-on-white */
+.article-content .mermaid foreignObject,
+.article-content .mermaid foreignObject *,
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel {
+  color: #213547 !important;
+}
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel,
+.article-content .mermaid .label,
+.article-content .mermaid text,
+.article-content .mermaid tspan {
+  fill: #213547 !important;
+}
+</style>
+
+                
+    
+            
+                
+                    <script data-swup-reload-script>
+(function () {
+  function renderMermaid() {
+    if (!window.mermaid) return;
+    var nodes = document.querySelectorAll(".mermaid");
+    if (!nodes.length) return;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "default",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, useMaxWidth: true }
+    });
+    nodes.forEach(function (el) {
+      el.removeAttribute("data-processed");
+      var original = el.getAttribute("data-original-code");
+      if (original) el.innerHTML = original;
+    });
+    mermaid.run({ querySelector: ".mermaid" }).catch(function (err) {
+      console.error("mermaid.run failed", err);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: false });
+  });
+  window.addEventListener("load", renderMermaid);
+  document.addEventListener("swup:page:view", renderMermaid);
+  if (window.swup && window.swup.hooks) {
+    window.swup.hooks.on("page:view", renderMermaid);
+  }
+})();
+</script>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-10-28 21:27:12</span>
+        <span class="mobile">2026-10-28 21:27:12</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-10-28 21:27:30</span>
+            <span class="mobile">2026-10-28 21:27:30</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-blackwell-gemm-cutlass/">cuda, blackwell, gemm, cutlass</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="从-16b-到-128b图解-blackwell-tma-swizzle-与-matmul_v2"><a class="markdownIt-Anchor" href="#从-16b-到-128b图解-blackwell-tma-swizzle-与-matmul_v2"></a> 从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</h1>
+<p>在 Blackwell GEMM 中，TMA 负责把 A/B 从显存搬入 shared memory（SMEM），<code>tcgen05.mma</code> 读取 SMEM 并将结果累加到 tensor memory（TMEM）。本文围绕 gau-nernst 的 <a class="link" target="_blank" rel="noopener" href="https://gau-nernst.github.io/tcgen05/#128-byte-global-load-and-swizzling">128-byte global load and swizzling<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 一节，逐段解释 <code>matmul_v2.cu</code>，并从具体元素出发推导地址公式、LBO/SBO 和 <code>k1/k2</code>。</p>
+<p><strong>v2 的变化是：将 SMEM 中每行的切片宽度从 16B 扩大到 128B，同时让 TMA 和 MMA 使用一致的 swizzle 规则。计算的数学含义、MMA 的 K 宽度和最终输出布局保持不变。</strong></p>
+<p>源码作者为 gau-nernst；本文图解、数值推导和讲解独立整理。本地 B300 测试结果见第 19 节。本文按固定提交 <a target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/tree/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100"><code>afcb20b1bd89065c31a1575c276aba686fc4dfce</code></a> 的源码解释，避免 <code>main</code> 更新后行号漂移。配套包包含 PNG 插图、可编辑 SVG、源码快照和 CPU 地址校验脚本；不依赖 Mermaid 或数学公式插件。</p>
+<h2 id="阅读路线"><a class="markdownIt-Anchor" href="#阅读路线"></a> 阅读路线</h2>
+<ul>
+<li>第 1–5 节：为什么要扩大 TMA 切片，swizzle 到底做了什么。</li>
+<li>第 6–9 节：单元素地址、LBO/SBO、MMA 起点、单层循环的完整推导。</li>
+<li>第 10–16 节：从 host 初始化到 kernel 输出的执行顺序。</li>
+<li>第 17–18 节：源码笔误、适用边界、常见问题索引。</li>
+<li>第 19–20 节：B300 实测、与教程 B200 对照，以及地址映射验证。</li>
+</ul>
+<h2 id="1-先统一形状-单位和三个不同的宽度"><a class="markdownIt-Anchor" href="#1-先统一形状-单位和三个不同的宽度"></a> 1. 先统一形状、单位和三个不同的“宽度”</h2>
+<p>源码的两个入口都采用以下配置：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">BLOCK_M = <span class="number">128</span>;</span><br><span class="line">BLOCK_N = <span class="number">256</span>;</span><br><span class="line">BLOCK_K = <span class="number">256</span>;</span><br><span class="line">MMA_K   = <span class="number">16</span>;</span><br><span class="line">NUM_WARPS = <span class="number">4</span>;</span><br><span class="line">TB_SIZE   = <span class="number">128</span>;</span><br></pre></td></tr></table></figure></div>
+<p>A 的物理存储形状是 <code>[M,K]</code>，B 是 <code>[N,K]</code>，两者都沿 K 连续。输出 C 为 <code>[M,N]</code>，数学计算为 <code>C = A × Bᵀ</code>。不要把这里物理存储的 B 当成普通行主序的 <code>[K,N]</code>。</p>
+<p>每个 block 负责 C 中一个 <code>128×256</code> 的区域。每轮沿 K 搬入 256 个元素：A tile 是 <code>128×256</code>，B tile 是 <code>256×256</code>，两者都是 BF16；累加结果为 FP32，写回 C 前转为 BF16。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>BF16 元素数</th>
+<th>字节数</th>
+<th>本文中的用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>swizzle 小包</td>
+<td>8</td>
+<td>16B</td>
+<td>本节模式整体重排的最小单位</td>
+</tr>
+<tr>
+<td>v1 每行切片宽度</td>
+<td>8</td>
+<td>16B</td>
+<td>无 swizzle 的窄切片</td>
+</tr>
+<tr>
+<td>v2 每行切片宽度</td>
+<td>64</td>
+<td>128B</td>
+<td>128B swizzle 的宽切片</td>
+</tr>
+<tr>
+<td>一条 MMA 的 K 宽度</td>
+<td>16</td>
+<td>32B</td>
+<td>一条指令参与计算的归约区间</td>
+</tr>
+<tr>
+<td>一轮 <code>iter_k</code> 的 K 宽度</td>
+<td>256</td>
+<td>每行 512B</td>
+<td>一轮 TMA 搬运与 MMA 累加的范围</td>
+</tr>
+</tbody>
+</table>
+<p>**TMA 搬多宽、swizzle 按多大单位移动、MMA 一次算多宽，是三个不同的概念。**将 TMA 宽度改为 128B，不会把 <code>MMA_K</code> 改成 64，也不会让一条 MMA 完成整个 K=256 的归约。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/01-pipeline.png" class="" title="v2 数据流">
+<h2 id="2-从-v1-的-16b-切片到-v2-的-128b-切片"><a class="markdownIt-Anchor" href="#2-从-v1-的-16b-切片到-v2-的-128b-切片"></a> 2. 从 v1 的 16B 切片到 v2 的 128B 切片</h2>
+<p>先看 A。记 <code>H=BLOCK_M=128</code>；对 B 应将 H 替换成 <code>BLOCK_N=256</code>。</p>
+<p>v1 沿 K 每 8 个 BF16 切一片，并在 SMEM 中先放完这一片的全部 H 行，再放下一片：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">切片 0：所有 H 行的 K[0:8]</span><br><span class="line">切片 1：所有 H 行的 K[8:16]</span><br><span class="line">切片 2：所有 H 行的 K[16:24]</span><br><span class="line">……</span><br><span class="line">切片 31：所有 H 行的 K[248:256]</span><br></pre></td></tr></table></figure></div>
+<p>v2 每 64 个 BF16 切一片：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">切片 0：所有 H 行的 K[0:64]</span><br><span class="line">切片 1：所有 H 行的 K[64:128]</span><br><span class="line">切片 2：所有 H 行的 K[128:192]</span><br><span class="line">切片 3：所有 H 行的 K[192:256]</span><br></pre></td></tr></table></figure></div>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/02-smem-slices.png" class="" title="v1 与 v2 的切片布局">
+<table>
+<thead>
+<tr>
+<th>对 A 的搬运</th>
+<th>v1</th>
+<th>v2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单个切片每行宽度</td>
+<td>8 BF16 = 16B</td>
+<td>64 BF16 = 128B</td>
+</tr>
+<tr>
+<td>单个切片大小</td>
+<td>128×16B = 2 KiB</td>
+<td>128×128B = 16 KiB</td>
+</tr>
+<tr>
+<td>一个 tile 的切片数</td>
+<td>32</td>
+<td>4</td>
+</tr>
+<tr>
+<td>A tile 总大小</td>
+<td>64 KiB</td>
+<td>64 KiB</td>
+</tr>
+<tr>
+<td>使用 2D TMA 时的 A 指令数</td>
+<td>32</td>
+<td>4</td>
+</tr>
+<tr>
+<td>使用 3D TMA 时的 A 指令数</td>
+<td>1</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>B 的总大小为 128 KiB；v2 中每个 B 宽切片占 <code>256×128B=32 KiB</code>。</p>
+<p>标题里的“128-byte global load”强调这里选择的连续搬运宽度。<strong>一条 TMA 并非只能搬 128B</strong>：本例一条 2D TMA 搬 A 的 16 KiB 或 B 的 32 KiB；一条 3D TMA 则搬完整 A tile 或 B tile。</p>
+<p>3D TMA 的指令数前后都是 1，也不意味着内部搬运代价相同。Tensor map 描述的数据布局同样会影响性能。更宽切片有利于形成高效访问，但不能只根据指令数断言性能。</p>
+<h2 id="3-swizzle-为什么能帮助-shared-memory-访问"><a class="markdownIt-Anchor" href="#3-swizzle-为什么能帮助-shared-memory-访问"></a> 3. Swizzle 为什么能帮助 shared memory 访问</h2>
+<p>Shared memory 有 32 个 bank，相邻的 32-bit word 分配到相邻 bank。对本节的理解，可以使用：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bank = (byte_address / <span class="number">4</span>) % <span class="number">32</span>;</span><br></pre></td></tr></table></figure></div>
+<p>如果直接将每行宽度扩大成 128B，又按普通行主序放置，那么相邻行的相同列相差 <code>128B=32×4B</code>，会再次映射到同一组 bank。例如每行开头的 16B 都落在 bank 0–3。</p>
+<p>当访问模式需要同时读取不同的行、相同逻辑位置的数据时，就可能产生 bank 冲突。Swizzle 将不同的行以不同方式排列到 bank 上，从而分散这类访问。</p>
+<p>这是一种用于解释“宽行为什么需要重新安排”的访问示例，<strong>不表示 v1 的合法窄切片布局本来就有同样的冲突</strong>，也不是对任意指令都承诺“开启 swizzle 就没有冲突”。实际效果取决于访问模式与事务划分。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html#shared-memory-bank-swizzling">CUDA Shared-Memory Bank Swizzling<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="4-128b-swizzle-实际重排的是什么"><a class="markdownIt-Anchor" href="#4-128b-swizzle-实际重排的是什么"></a> 4. 128B swizzle 实际重排的是什么</h2>
+<p>本节使用 16B atomicity 的 128B swizzle。一行 128B 分成 8 个 16B 小包，每包 8 个 BF16。<strong>小包整体移动，包内的 8 个元素顺序不变。</strong></p>
+<p>在源码的切片起点满足 1024B 对齐时，可以把规则写成：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">physical_pack = logical_pack ^ (row % <span class="number">8</span>);</span><br></pre></td></tr></table></figure></div>
+<p><code>^</code> 是按位异或，不是乘方。例如 <code>1^1=0</code>，<code>2^1=3</code>。下图格子里的数字是逻辑小包号，横向位置是物理小包位置。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/03-swizzle.png" class="" title="128B swizzle 的 8×8 小包重排">
+<p>逻辑小包 0 在第 0–7 行分别落到物理包 0–7，对应 bank 0–3、4–7、……、28–31。原本集中在一组 bank 的这种跨行访问因此被分散。</p>
+<p>两个重要条件：</p>
+<ul>
+<li>行宽在这个推导中恰好为 128B；不能把 <code>pack ^ (row%8)</code> 不加修改地套到任意行宽。</li>
+<li>基址按 1024B 对齐，使初始 swizzle base offset 为 0。本例 A/B 的切片大小也都是 1024B 的整数倍。换成非零 base offset 时，必须考虑起始模式偏移。</li>
+</ul>
+<p>Swizzle 改变的是 SMEM 地址映射，不是 A/B 的逻辑元素，也不会改变矩阵乘法的数学结果。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tensor-swizzling-modes">PTX Tensor Swizzling<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="41-原文的-32b-64b-图为什么不能简单按每行-xor-行号套用"><a class="markdownIt-Anchor" href="#41-原文的-32b-64b-图为什么不能简单按每行-xor-行号套用"></a> 4.1 原文的 32B、64B 图为什么不能简单按“每行 XOR 行号”套用</h3>
+<p>原文还讨论 32B 和 64B 模式。常用 TMA box 最内维宽度分别选为 32B、64B、128B；官方限制是最内维不能超过相应 swizzle span，并不要求所有应用都恰好等于 span。本文 kernel 恰好选满 128B。</p>
+<p>原文更新特别指出：这些标准模式用于计算重排的“行号”，应从 <strong>128B 的物理地址分组</strong>理解。32B 或 64B 的 TMA 逻辑行，不能直接当成 128B 模式里的行。本文只对每行 128B 的 v2 使用简化 XOR 公式。</p>
+<p>CuTe 的 <code>Swizzle&lt;3,4,3&gt;</code> 可理解为：保留最低 4 位，即 16B 小包内部的字节位置；用更高的三位影响小包位置。对零 base offset、以字节计的本例布局，可写出等价地址变换 <code>x ^ ((x &gt;&gt; 3) &amp; 0x70)</code>。不必先掌握完整 CuTe 布局代数，才能读懂本例。</p>
+<h3 id="42-对照原文的-canonical-layout-表"><a class="markdownIt-Anchor" href="#42-对照原文的-canonical-layout-表"></a> 4.2 对照原文的 canonical layout 表</h3>
+<p>将一个 16B 小包看作规范化单位，K-major 布局的基础行距会随模式变化：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>canonical layout 中基础行距</th>
+<th>对应的 8 行区域</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无 swizzle</td>
+<td>16B</td>
+<td>8×16B</td>
+</tr>
+<tr>
+<td>32B swizzle</td>
+<td>32B</td>
+<td>8×32B</td>
+</tr>
+<tr>
+<td>64B swizzle</td>
+<td>64B</td>
+<td>8×64B</td>
+</tr>
+<tr>
+<td>128B swizzle</td>
+<td>128B</td>
+<td>8×128B</td>
+</tr>
+</tbody>
+</table>
+<p>这里的基础布局还要再应用规定的 swizzle。它说明：v2 的宽切片布局和 MMA descriptor 必须一起更改，不能只把 TMA box 加宽，再继续沿用 v1 的无 swizzle 描述符。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts">PTX Canonical Layouts<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="5-调用处看不到-swizzle因为它在两套描述符里"><a class="markdownIt-Anchor" href="#5-调用处看不到-swizzle因为它在两套描述符里"></a> 5. 调用处看不到 swizzle，因为它在两套描述符里</h2>
+<h3 id="51-init_tmap_3d_128b-也开启了-swizzle"><a class="markdownIt-Anchor" href="#51-init_tmap_3d_128b-也开启了-swizzle"></a> 5.1 <code>init_tmap_3d_128B()</code> 也开启了 swizzle</h3>
+<p><code>init_tmap_2d_simple()</code> 是通用函数：调用者传入 <code>CU_TENSOR_MAP_SWIZZLE_128B</code>，它再将参数交给 <code>cuTensorMapEncodeTiled()</code>。</p>
+<p><code>init_tmap_3d_128B()</code> 是专用函数：调用接口没有 swizzle 参数，但函数内部在 <code>cuTensorMapEncodeTiled()</code> 中固定填写 <code>CU_TENSOR_MAP_SWIZZLE_128B</code>。</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>配置方式</th>
+<th>v2 最终配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init_tmap_2d_simple()</code></td>
+<td>从函数参数传入</td>
+<td>128B swizzle</td>
+</tr>
+<tr>
+<td><code>init_tmap_3d_128B()</code></td>
+<td>在函数内部固定填写</td>
+<td>128B swizzle</td>
+</tr>
+</tbody>
+</table>
+<p>所以 v2a、v2b 都有 swizzle。<a class="link" target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/blob/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100/common.h">common.h<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="52-tma-发起时为什么没有额外的-xor"><a class="markdownIt-Anchor" href="#52-tma-发起时为什么没有额外的-xor"></a> 5.2 TMA 发起时为什么没有额外的 XOR</h3>
+<p>Tensor map 已经包含源地址、源形状和步长、box 形状、swizzle 模式。<code>tma_2d_g2s()</code> / <code>tma_3d_g2s()</code> 调用只需要提供描述符、源坐标、SMEM 目的地址和 barrier 地址。</p>
+<p>TMA 硬件读取 tensor map 后，直接按规定的 swizzle 写入 SMEM。不需要在搬运后再启动 CUDA 循环交换元素。</p>
+<h3 id="53-mma-发起时为什么也没有额外的-xor"><a class="markdownIt-Anchor" href="#53-mma-发起时为什么也没有额外的-xor"></a> 5.3 MMA 发起时为什么也没有额外的 XOR</h3>
+<p>MMA 使用另一套 64 位 SMEM descriptor。v2 的 <code>make_desc()</code> 中，<code>2ULL &lt;&lt; 61ULL</code> 指定 128B swizzle。硬件按照这种布局读取逻辑上所需的元素。</p>
+<p>MMA 不会先把整块 SMEM 还原成普通数组再计算。数据仍保留原来的物理摆放，读取地址由描述符解释。两边需要一致：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">TMA tensor map：按 128B swizzle 写入</span><br><span class="line">                         ↓</span><br><span class="line">                    swizzled SMEM</span><br><span class="line">                         ↓</span><br><span class="line">MMA SMEM descriptor：按同样的 128B swizzle 读取</span><br></pre></td></tr></table></figure></div>
+<h2 id="6-单元素地址从-amk-一步步找到-smem"><a class="markdownIt-Anchor" href="#6-单元素地址从-amk-一步步找到-smem"></a> 6. 单元素地址：从 <code>A[m,k]</code> 一步步找到 SMEM</h2>
+<p>本节的 m、k 均为<strong>当前已搬入 tile 内的逻辑坐标</strong>，不是线程编号，也不是全局 K 坐标。所有 offset 都以字节为单位，实际地址为 <code>A_smem + offset</code>。令 <code>H=128</code>；对 B 使用 <code>H=256</code> 和其对应的行坐标。</p>
+<h3 id="61-v1先当作普通三维数组"><a class="markdownIt-Anchor" href="#61-v1先当作普通三维数组"></a> 6.1 v1：先当作普通三维数组</h3>
+<p>v1 的存储组织可看成：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">BF16 smem[BLOCK_K / <span class="number">8</span>][H][<span class="number">8</span>];</span><br><span class="line"><span class="comment">// A[m,k] 对应：</span></span><br><span class="line">smem[k / <span class="number">8</span>][m][k % <span class="number">8</span>];</span><br></pre></td></tr></table></figure></div>
+<p>先按元素数展开，再乘 2B：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">element_offset = (k / <span class="number">8</span>) * H * <span class="number">8</span> + m * <span class="number">8</span> + (k % <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">offset_v1 = (k / <span class="number">8</span>) * H * <span class="number">16</span>   <span class="comment">// 跳过完整窄切片</span></span><br><span class="line">          + m * <span class="number">16</span>             <span class="comment">// 跳过切片内前面的行</span></span><br><span class="line">          + (k % <span class="number">8</span>) * <span class="number">2</span>;       <span class="comment">// 找到行内元素</span></span><br></pre></td></tr></table></figure></div>
+<p>这里 <code>/</code> 是整数除法。公式里的 <code>H=128</code> 是行数，<code>16</code> 是每行字节数，不是 MMA 的元素数。</p>
+<h3 id="62-v2三维数组寻址再替换行内小包的位置"><a class="markdownIt-Anchor" href="#62-v2三维数组寻址再替换行内小包的位置"></a> 6.2 v2：三维数组寻址，再替换行内小包的位置</h3>
+<p>忽略 swizzle 时，基础组织是：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">BF16 smem[BLOCK_K / <span class="number">64</span>][H][<span class="number">64</span>];</span><br></pre></td></tr></table></figure></div>
+<p>因此未重排的字节偏移为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(k / <span class="number">64</span>) * H * <span class="number">128</span> + m * <span class="number">128</span> + (k % <span class="number">64</span>) * <span class="number">2</span>;</span><br></pre></td></tr></table></figure></div>
+<p>将最后的行内坐标进一步拆成包号和包内元素号：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> slice = k / <span class="number">64</span>;</span><br><span class="line"><span class="type">int</span> pack  = (k % <span class="number">64</span>) / <span class="number">8</span>;</span><br><span class="line"><span class="type">int</span> inner = k % <span class="number">8</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> physical_pack = pack ^ (m % <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> offset_v2 = slice * H * <span class="number">128</span>       <span class="comment">// 整个宽切片的偏移</span></span><br><span class="line">              + m * <span class="number">128</span>             <span class="comment">// 行的偏移</span></span><br><span class="line">              + physical_pack * <span class="number">16</span>  <span class="comment">// 物理小包的偏移</span></span><br><span class="line">              + inner * <span class="number">2</span>;          <span class="comment">// 小包内 BF16 的偏移</span></span><br></pre></td></tr></table></figure></div>
+<p>没有 swizzle 时，第三项就是 <code>pack*16</code>。Swizzle 只改变这一项；小包内部依然通过 <code>inner*2</code> 定位。以上公式假设本例的零 base offset 和 128B 行宽。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/04-element-address.png" class="" title="同一个矩阵元素 A（1，10）的地址推导">
+<h3 id="63-具体计算-a110"><a class="markdownIt-Anchor" href="#63-具体计算-a110"></a> 6.3 具体计算 <code>A[1,10]</code></h3>
+<p>v1 中：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">切片号：10 / 8 = 1</span><br><span class="line">行号：  1</span><br><span class="line">行内：  10 % 8 = 2</span><br><span class="line"></span><br><span class="line">offset_v1 = 1×128×16 + 1×16 + 2×2</span><br><span class="line">          = 2048 + 16 + 4</span><br><span class="line">          = 2068B</span><br></pre></td></tr></table></figure></div>
+<p>v2 中：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">slice = 10 / 64 = 0</span><br><span class="line">pack  = (10 % 64) / 8 = 1</span><br><span class="line">inner = 10 % 8 = 2</span><br><span class="line"></span><br><span class="line">physical_pack = 1 XOR 1 = 0</span><br><span class="line"></span><br><span class="line">offset_v2 = 0 + 1×128 + 0×16 + 2×2</span><br><span class="line">          = 132B</span><br></pre></td></tr></table></figure></div>
+<p>在第 1 行，逻辑元素 8–15 所在的小包搬到了物理小包位置 0，因此元素 10 位于这一行的第 4 个字节偏移处。</p>
+<h3 id="64-再核对几个点"><a class="markdownIt-Anchor" href="#64-再核对几个点"></a> 6.4 再核对几个点</h3>
+<table>
+<thead>
+<tr>
+<th>元素</th>
+<th>v1 字节偏移</th>
+<th>v2 字节偏移</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A[0,0]</code></td>
+<td>0</td>
+<td>0</td>
+<td>两者起点相同</td>
+</tr>
+<tr>
+<td><code>A[1,0]</code></td>
+<td>16</td>
+<td>144</td>
+<td>v2 第 1 行逻辑包 0 被放到物理包 1</td>
+</tr>
+<tr>
+<td><code>A[0,8]</code></td>
+<td>2048</td>
+<td>16</td>
+<td>v1 跨窄切片，v2 仍在第一行内</td>
+</tr>
+<tr>
+<td><code>A[1,10]</code></td>
+<td>2068</td>
+<td>132</td>
+<td>具体例子</td>
+</tr>
+<tr>
+<td><code>A[1,74]</code></td>
+<td>18452</td>
+<td>16516</td>
+<td>v2 进入第二个宽切片</td>
+</tr>
+</tbody>
+</table>
+<p>这些是用于解释和 CPU 校验的元素地址公式。实际 kernel 没有逐元素算这些地址；TMA 和 MMA 硬件执行了对应布局的存取。</p>
+<h2 id="7-为什么-v1v2-的-lbo-和-sbo-不一样"><a class="markdownIt-Anchor" href="#7-为什么-v1v2-的-lbo-和-sbo-不一样"></a> 7. 为什么 v1/v2 的 LBO 和 SBO 不一样</h2>
+<p>LBO/SBO 属于 MMA 的 SMEM descriptor，用来解释输入矩阵的布局。下面仅讨论本例 K-major、相对偏移模式；不要把这套解释直接推广到 MN-major 或其他模式。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/05-descriptor-strides.png" class="" title="LBO 与 SBO 对照">
+<h3 id="71-sbo跨过一组-8-行"><a class="markdownIt-Anchor" href="#71-sbo跨过一组-8-行"></a> 7.1 SBO：跨过一组 8 行</h3>
+<p>K-major 的 SBO 是从前 8 行跨到后 8 行的字节距离。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">v1：每行 16B  → SBO = 8×16  = 128B</span><br><span class="line">v2：每行 128B → SBO = 8×128 = 1024B</span><br></pre></td></tr></table></figure></div>
+<p>v2 中 row 0 和 row 8 的 XOR 模式相同，因此同一逻辑小包跨过这 8 行，偏移正好增加 1024B。</p>
+<p>**SBO 不是整个切片大小。**v2 的 A 切片包含 128 行，占 16384B；SBO 只跨 8 行，占 1024B。B 切片有 256 行，占 32768B，但其 SBO 仍是 1024B。</p>
+<h3 id="72-v1-的-lbo寻找相邻的-16b-逻辑小包"><a class="markdownIt-Anchor" href="#72-v1-的-lbo寻找相邻的-16b-逻辑小包"></a> 7.2 v1 的 LBO：寻找相邻的 16B 逻辑小包</h3>
+<p>一次 BF16 MMA 沿 K 使用 16 个元素，即 32B。v1 每个切片只有 8 个元素，即 16B，所以一次 MMA 要取两个窄切片。</p>
+<p>同一行的两个小包，物理上隔着一个完整切片。例如 A 的 <code>A[0,0]</code> 与 <code>A[0,8]</code> 相差 2048B：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">LBO_v1_A = BLOCK_M × 16 = 2048B</span><br><span class="line">LBO_v1_B = BLOCK_N × 16 = 4096B</span><br></pre></td></tr></table></figure></div>
+<p>MMA descriptor 需要告诉硬件如何从第一半 K 找到第二半 K。这就是 v1 的 <code>LBO=height*16</code>。</p>
+<h3 id="73-v2-不再通过-lbo-字段指定这段跳转"><a class="markdownIt-Anchor" href="#73-v2-不再通过-lbo-字段指定这段跳转"></a> 7.3 v2 不再通过 LBO 字段指定这段跳转</h3>
+<p>在 v2 中，一个宽切片每行已经包含 8 个 16B 小包。相邻逻辑小包的物理关系由规范的 swizzled layout 决定。PTX 对此处 K-major swizzled layout 的定义是：LBO 不使用，隐含为 1。</p>
+<p>源码的“implied to be 1”不是说两个 BF16 相隔 1B。规范在该定义中把元素归一化为 128-bit，即 16B 单位；最终地址还要应用 swizzle。不要因此往 descriptor 填一个 1B 的 LBO。</p>
+<p>更不能认为 swizzle 后相邻逻辑包的物理距离总是正向 16B：第 1 行的物理顺序为逻辑包 <code>[1,0,3,2,5,4,7,6]</code>，从逻辑包 0 到包 1，物理地址反而减少 16B。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>v1</th>
+<th>v2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每行切片宽度</td>
+<td>16B</td>
+<td>128B</td>
+</tr>
+<tr>
+<td>A 的 LBO</td>
+<td>2048B</td>
+<td>本例模式不使用该字段</td>
+</tr>
+<tr>
+<td>B 的 LBO</td>
+<td>4096B</td>
+<td>本例模式不使用该字段</td>
+</tr>
+<tr>
+<td>SBO</td>
+<td>128B</td>
+<td>1024B</td>
+</tr>
+<tr>
+<td>swizzle</td>
+<td>无</td>
+<td>128B，16B 小包</td>
+</tr>
+</tbody>
+</table>
+<p><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-leading-dimension-byte-offset">PTX Leading Dimension 与 Stride 定义<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="8-iter_k-k1-k2-分别在选择什么"><a class="markdownIt-Anchor" href="#8-iter_k-k1-k2-分别在选择什么"></a> 8. <code>iter_k</code>、<code>k1</code>、<code>k2</code> 分别在选择什么</h2>
+<p>三者都是循环坐标，不是线程号或 warp 号：</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>选择的范围</th>
+<th>本例宽度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>iter_k</code></td>
+<td>全局 K 中的一轮大 tile</td>
+<td>256 个 BF16</td>
+</tr>
+<tr>
+<td><code>k1</code></td>
+<td>当前 tile 内的宽切片</td>
+<td>64 个 BF16</td>
+</tr>
+<tr>
+<td><code>k2</code></td>
+<td>当前切片内的一次 MMA</td>
+<td>16 个 BF16</td>
+</tr>
+</tbody>
+</table>
+<p>一次 MMA 的全局 K 起点是：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">global_k_start = iter_k * BLOCK_K + k1 * <span class="number">64</span> + k2 * MMA_K;</span><br><span class="line"><span class="comment">// 本例：iter_k*256 + k1*64 + k2*16</span></span><br></pre></td></tr></table></figure></div>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/06-mma-addresses.png" class="" title="16 次 MMA 的切片与地址">
+<p>一个宽切片有 64 个 BF16，而一条 MMA 沿 K 需要 16 个，所以一个切片内有 4 次 MMA。四个宽切片合计 16 次 MMA。</p>
+<p>每条 MMA 都计算 A 的 <code>128×16</code> 子块与 B 的 <code>256×16</code> 子块，更新同一块 <code>128×256</code> TMEM。它们只是在归约 K 的不同区间，不是在产生 16 块独立的输出。</p>
+<h3 id="81-为什么地址是大跳转-小跳转"><a class="markdownIt-Anchor" href="#81-为什么地址是大跳转-小跳转"></a> 8.1 为什么地址是“大跳转 + 小跳转”</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a_addr = A_smem + k1 * BLOCK_M * <span class="number">128</span> + k2 * <span class="number">32</span>;</span><br><span class="line">b_addr = B_smem + k1 * BLOCK_N * <span class="number">128</span> + k2 * <span class="number">32</span>;</span><br></pre></td></tr></table></figure></div>
+<p>第一项跳过完整宽切片；第二项在当前切片的第一行里选择本次 MMA 起点。<code>k2*32</code> 不乘行数，因为后续行由 descriptor 和 swizzle 规则定位。</p>
+<table>
+<thead>
+<tr>
+<th>k1</th>
+<th>k2</th>
+<th>tile 内逻辑 K 范围</th>
+<th>A 起点偏移</th>
+<th>B 起点偏移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td><code>[0,16)</code></td>
+<td>0B</td>
+<td>0B</td>
+</tr>
+<tr>
+<td>0</td>
+<td>1</td>
+<td><code>[16,32)</code></td>
+<td>32B</td>
+<td>32B</td>
+</tr>
+<tr>
+<td>0</td>
+<td>2</td>
+<td><code>[32,48)</code></td>
+<td>64B</td>
+<td>64B</td>
+</tr>
+<tr>
+<td>0</td>
+<td>3</td>
+<td><code>[48,64)</code></td>
+<td>96B</td>
+<td>96B</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td><code>[64,80)</code></td>
+<td>16384B</td>
+<td>32768B</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td><code>[80,96)</code></td>
+<td>16416B</td>
+<td>32800B</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td><code>[176,192)</code></td>
+<td>32864B</td>
+<td>65632B</td>
+</tr>
+</tbody>
+</table>
+<p>MMA descriptor 的起点并不意味着整个 MMA 输入物理上连续在这个地址之后。特别是其他行的数据已经 swizzle，不能按普通二维数组自行假设。</p>
+<h3 id="82-为什么地址里没有-iter_k"><a class="markdownIt-Anchor" href="#82-为什么地址里没有-iter_k"></a> 8.2 为什么地址里没有 <code>iter_k</code></h3>
+<p><code>iter_k</code> 改变的是 TMA 的全局源坐标。每轮 TMA 都覆盖并复用同一块 A/B SMEM：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">第 0 轮：SMEM 保存全局 K[0:256]</span><br><span class="line">第 1 轮：同一块 SMEM 改为保存 K[256:512]</span><br></pre></td></tr></table></figure></div>
+<p>所以 MMA 只需通过 <code>k1/k2</code> 选择本轮缓冲区里的数据。下一轮覆盖前必须先确认当前 MMA 已读完。</p>
+<h2 id="9-v2-完全可以用-block_kmma_k-的单层循环"><a class="markdownIt-Anchor" href="#9-v2-完全可以用-block_kmma_k-的单层循环"></a> 9. v2 完全可以用 <code>BLOCK_K/MMA_K</code> 的单层循环</h2>
+<p>拆成 <code>k1/k2</code> 是为了直观表达布局层次，不是硬件要求。</p>
+<h3 id="91-从单元素公式推导-mma-起点"><a class="markdownIt-Anchor" href="#91-从单元素公式推导-mma-起点"></a> 9.1 从单元素公式推导 MMA 起点</h3>
+<p>第 j 次 MMA 的起点对应第一行、K 起点 <code>j*16</code>。因此在元素公式中令 <code>m=0, k=j*16</code>。</p>
+<p>v1：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">offset_v1 = ((j×16)/8) × H × 16</span><br><span class="line">          = j × H × 32</span><br></pre></td></tr></table></figure></div>
+<p>A 的起点等间距：<code>0, 4096, 8192, 12288, ...</code>。每次 MMA 消耗两个窄切片。</p>
+<p>v2：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">slice = (j×16)/64 = j/4</span><br><span class="line">pack  = ((j×16)%64)/8 = 2×(j%4)</span><br><span class="line">inner = 0</span><br><span class="line">m=0，因此 XOR 不改变 pack。</span><br><span class="line"></span><br><span class="line">offset_v2 = (j/4) × H × 128 + (j%4) × 32</span><br></pre></td></tr></table></figure></div>
+<p>这正好给出：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">k1 = j / <span class="number">4</span>;</span><br><span class="line">k2 = j % <span class="number">4</span>;</span><br></pre></td></tr></table></figure></div>
+<h3 id="92-等价的单层循环"><a class="markdownIt-Anchor" href="#92-等价的单层循环"></a> 9.2 等价的单层循环</h3>
+<p>以下是替换 MMA 发起序列的等价写法，使用 v2 原有的 <code>make_desc()</code>，放在 elected-thread 分支中；保留循环之后的 commit，以及分支外的等待。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> MMA_PER_SLICE = <span class="number">64</span> / MMA_K;  <span class="comment">// BF16 本例为 4</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; BLOCK_K / MMA_K; ++j) {</span><br><span class="line">    <span class="type">int</span> slice_id = j / MMA_PER_SLICE;</span><br><span class="line">    <span class="type">int</span> mma_in_slice = j % MMA_PER_SLICE;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> a_addr = A_smem</span><br><span class="line">               + slice_id * BLOCK_M * <span class="number">128</span></span><br><span class="line">               + mma_in_slice * <span class="number">32</span>;</span><br><span class="line">    <span class="type">int</span> b_addr = B_smem</span><br><span class="line">               + slice_id * BLOCK_N * <span class="number">128</span></span><br><span class="line">               + mma_in_slice * <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> accumulate = (iter_k != <span class="number">0</span>) || (j != <span class="number">0</span>);</span><br><span class="line">    <span class="built_in">tcgen05_mma_f16</span>(taddr, <span class="built_in">make_desc</span>(a_addr), <span class="built_in">make_desc</span>(b_addr),</span><br><span class="line">                   i_desc, accumulate);</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>**可以去掉两层循环，但不能把 v2 的地址改成 v1 的 <code>j*H*32</code>。**写法可以等价变换，数据仍按 v2 布局存放。本文验证了地址序列等价；这段改写没有单独做 GPU 编译或性能评测，不能据此宣称与原循环性能完全相同。</p>
+<h2 id="10-host-端tensor-map-与-kernel-launch"><a class="markdownIt-Anchor" href="#10-host-端tensor-map-与-kernel-launch"></a> 10. Host 端：tensor map 与 kernel launch</h2>
+<p>接下来按源码执行顺序串起整个 kernel。入口 <code>matmul_v2a()</code> 使用 <code>&lt;256,256,false&gt;</code>，<code>matmul_v2b()</code> 使用 <code>&lt;256,256,true&gt;</code>；false/true 选择 2D/3D TMA。</p>
+<h3 id="101-2d-tensor-map"><a class="markdownIt-Anchor" href="#101-2d-tensor-map"></a> 10.1 2D tensor map</h3>
+<p>对 A，<code>init_tmap_2d_simple()</code> 生成的关键参数是：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">globalDim    = {K, M}</span><br><span class="line">globalStride = {K×2}       // 字节</span><br><span class="line">boxDim       = {64, 128}   // BF16 元素数</span><br><span class="line">swizzle      = 128B</span><br></pre></td></tr></table></figure></div>
+<p>TMA 的维度书写顺序是最快变化维在前，和通常的 <code>[M,K]</code> 表达相反。这里最内维 64 个 BF16 等于 128B。</p>
+<p>B 的正确描述应为 <code>globalDim={K,N}</code>、<code>boxDim={64,256}</code>。固定源码的 2D 分支有一个高度参数笔误，见第 17 节。</p>
+<h3 id="102-3d-tensor-map"><a class="markdownIt-Anchor" href="#102-3d-tensor-map"></a> 10.2 3D tensor map</h3>
+<p>3D 版本将 A 的逻辑视图变为：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">原始形状：[M,K]          stride=[K,1]</span><br><span class="line">拆开 K： [M,K/64,64]     stride=[K,64,1]</span><br><span class="line">换维顺序：[K/64,M,64]    stride=[64,K,1]</span><br></pre></td></tr></table></figure></div>
+<p>这只是在 descriptor 中重解释坐标和地址，没有先在 global memory 中真正做一遍 transpose。</p>
+<p>以最快维在前写入 tensor map：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">globalDim     = {64, M, K/64}</span><br><span class="line">globalStrides = {K×2, 128}       // 字节</span><br><span class="line">boxDim        = {64, 128, 4}</span><br><span class="line">swizzle       = 128B</span><br></pre></td></tr></table></figure></div>
+<p>源地址步长可以不是单调递增；目的端的基础布局由 box 的连续展开顺序决定，再应用 swizzle。一次 TMA 因此能将四个宽切片按所需次序摆到 SMEM 中。</p>
+<h3 id="103-launch-参数"><a class="markdownIt-Anchor" href="#103-launch-参数"></a> 10.3 launch 参数</h3>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">grid = (M/128) × (N/256)</span><br><span class="line">block = 128 threads</span><br><span class="line">dynamic SMEM = (128+256)×256×2 = 196608B = 192 KiB</span><br></pre></td></tr></table></figure></div>
+<p>源码在动态 SMEM 大小超过 48000B 时，调用 <code>cudaFuncSetAttribute</code> 申请更大的每 block 动态共享内存上限，再启动 kernel。它不是额外分配一份 A/B，而是为本次 launch 设置资源属性。</p>
+<p>kernel 参数里的 <code>const __grid_constant__ CUtensorMap</code> 用于向 kernel 提供网格内不变的 tensor map。实际输入矩阵的 global 地址已经编码在 map 中，所以 kernel 不需要再接收单独的 A_ptr/B_ptr。</p>
+<h2 id="11-grid-block-warp-与线程分工"><a class="markdownIt-Anchor" href="#11-grid-block-warp-与线程分工"></a> 11. Grid、block、warp 与线程分工</h2>
+<p>kernel 使用一维 grid，然后还原二维输出 tile 坐标：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">grid_n = N / BLOCK_N;</span><br><span class="line">bid_m = blockIdx.x / grid_n;</span><br><span class="line">bid_n = blockIdx.x % grid_n;</span><br><span class="line">off_m = bid_m * BLOCK_M;</span><br><span class="line">off_n = bid_n * BLOCK_N;</span><br></pre></td></tr></table></figure></div>
+<p>例如 M=N=4096，沿 M 有 32 块、沿 N 有 16 块，总共 512 个 block。每块只负责自己的 C tile，K 归约在块内完成。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/09-block-warp.png" class="" title="Block 与 warp 分工">
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>执行者</th>
+<th>工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>初始化 barrier</td>
+<td>warp 0 中 elected 的一个线程</td>
+<td>arrival count 设为 1，发布初始化</td>
+</tr>
+<tr>
+<td>分配 TMEM</td>
+<td>warp 1 全部 32 个线程</td>
+<td>协同执行 alloc，将结果地址写进 SMEM 槽</td>
+</tr>
+<tr>
+<td>发起 TMA / MMA / commit</td>
+<td>warp 0 中 elected 的一个线程</td>
+<td>控制专用硬件执行搬运与计算</td>
+</tr>
+<tr>
+<td>等待 TMA / MMA</td>
+<td>全部 128 个线程</td>
+<td>等待对应 barrier 阶段</td>
+</tr>
+<tr>
+<td>读取 TMEM 与写 C</td>
+<td>全部四个 warp</td>
+<td>每 warp 覆盖 32 行</td>
+</tr>
+<tr>
+<td>释放 TMEM</td>
+<td>warp 0 全部 32 个线程</td>
+<td>在所有读取完成后执行 dealloc</td>
+</tr>
+</tbody>
+</table>
+<p><code>elect_sync()</code> 选出 warp 中一个线程，避免重复发起整块操作；不要把它理解成所有线程分别计算一个小 GEMM。<code>lane_id</code> 在源码中虽然计算了，但输出行主要直接通过 <code>tid</code> 表示。</p>
+<h2 id="12-准备-smem-barrier-tmem-与-instruction-descriptor"><a class="markdownIt-Anchor" href="#12-准备-smem-barrier-tmem-与-instruction-descriptor"></a> 12. 准备 SMEM、barrier、TMEM 与 instruction descriptor</h2>
+<h3 id="121-smem-分区和地址单位"><a class="markdownIt-Anchor" href="#121-smem-分区和地址单位"></a> 12.1 SMEM 分区和地址单位</h3>
+<p>动态 SMEM 声明为按 1024B 对齐的字节数组。<code>__cvta_generic_to_shared()</code> 将通用地址转换成 shared 地址；这里保存到 int 的 A_smem/B_smem 是<strong>字节地址</strong>。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">A_smem</span><br><span class="line">  ├─ A tile：128×256×2 = 65536B = 64 KiB</span><br><span class="line">B_smem = A_smem + 65536</span><br><span class="line">  └─ B tile：256×256×2 = 131072B = 128 KiB</span><br></pre></td></tr></table></figure></div>
+<p>这也是为什么 <code>A_smem + ...</code> 直接加字节数，不能再乘一次 <code>sizeof(BF16)</code>。与之相对，输出的 <code>C_ptr</code> 是 <code>nv_bfloat16*</code>，C++ 指针加法按 BF16 元素计数。</p>
+<h3 id="122-barrier-和-tmem-地址槽"><a class="markdownIt-Anchor" href="#122-barrier-和-tmem-地址槽"></a> 12.2 barrier 和 TMEM 地址槽</h3>
+<p><code>mbars[1]</code> 是 SMEM 中的 64 位 barrier 对象；<code>tmem_addr[1]</code> 是 SMEM 中存放 TMEM 分配结果的 32 位地址槽。它们不是存放矩阵数据的同一块逻辑区域。</p>
+<p>初始化 barrier 的 arrival count 为 1，因为每阶段的发起/完成协议只要求对应的一次 arrival；等待的线程有 128 个，不意味着 arrival count 必须是 128。</p>
+<p><code>fence.mbarrier_init.release.cluster</code> 发布 barrier 初始化，使异步访问者能看到它。随后 <code>__syncthreads()</code> 让整个 CTA 在使用已初始化对象和 TMEM 地址前完成同步。</p>
+<h3 id="123-分配-tmem"><a class="markdownIt-Anchor" href="#123-分配-tmem"></a> 12.3 分配 TMEM</h3>
+<p>分配参数为 <code>BLOCK_N=256</code> 列，程序使用 128 行、每元素 32-bit 的 TMEM 累加器，即 128 KiB 的逻辑数据容量。</p>
+<p>源码注释说 <code>taddr</code> 在本例会是 0，但正确的使用方式仍然是读取分配返回值，不能把“通常观测到 0”当作通用保证。TMEM 地址不是普通的线性字节指针。</p>
+<h3 id="124-三套信息不要混淆"><a class="markdownIt-Anchor" href="#124-三套信息不要混淆"></a> 12.4 三套信息不要混淆</h3>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A_tmap/B_tmap</code></td>
+<td>TMA 如何从 global 取数据、怎样写入 SMEM</td>
+</tr>
+<tr>
+<td><code>a_desc/b_desc</code></td>
+<td>MMA 如何定位 SMEM 中的输入</td>
+</tr>
+<tr>
+<td><code>i_desc</code></td>
+<td>MMA 的类型、输出形状等指令属性</td>
+</tr>
+</tbody>
+</table>
+<p><code>i_desc</code> 在这里指定 A/B 为 BF16、累加为 FP32、M=128、N=256。源码分别通过 <code>BLOCK_N/8</code> 和 <code>BLOCK_M/16</code> 编码形状字段。函数名 <code>tcgen05_mma_f16</code> 中的 f16 对应指令 family，不代表输入被改为 IEEE FP16；实际 A/B 类型由 descriptor 指定为 BF16。</p>
+<h2 id="13-每轮-tma-barrier-字节计数与等待"><a class="markdownIt-Anchor" href="#13-每轮-tma-barrier-字节计数与等待"></a> 13. 每轮 TMA、barrier 字节计数与等待</h2>
+<p>最外层 <code>iter_k</code> 遍历 <code>K/BLOCK_K</code> 轮。对于 K=4096，共 16 轮。</p>
+<p>2D 分支每轮对 A 发四次 TMA、对 B 发四次。循环里的 k 是 TMA 切片号，作用对应 MMA 阶段的 k1，但不是同一个循环：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">源 K 坐标：iter_k×256 + k×64</span><br><span class="line">A 目的地址：A_smem + k×16384</span><br><span class="line">B 目的地址：B_smem + k×32768</span><br></pre></td></tr></table></figure></div>
+<p>3D 分支一次搬 A、一次搬 B，第三维坐标为 <code>off_k/64</code>。因为第三维表示 64 元素切片，所以它使用切片编号而不是原始 K 元素编号。</p>
+<p>两种分支搬运的总字节数相同，barrier 的 <code>expect_tx</code> 都是 196608B。TMA 完成通知会抵扣待完成字节数；arrival 与字节完成条件均满足后，该 barrier 阶段完成。</p>
+<p>线程通过 acquire 语义的 <code>mbarrier_wait()</code> 等待，确保随后消费的是已完成的搬运结果。之后的 <code>tcgen05.fence::after_thread_sync</code> 用于连接线程同步与 tcgen05 操作的顺序要求。<strong>fence 不代替完成等待，不能删除 wait 后仅保留 fence。</strong></p>
+<h2 id="14-发起-mma描述符-首次不累加-commit"><a class="markdownIt-Anchor" href="#14-发起-mma描述符-首次不累加-commit"></a> 14. 发起 MMA：描述符、首次不累加、commit</h2>
+<h3 id="141-make_desc-做什么"><a class="markdownIt-Anchor" href="#141-make_desc-做什么"></a> 14.1 <code>make_desc()</code> 做什么</h3>
+<p>它将起点地址、SBO、格式固定位和 swizzle 模式编码成 64 位值。<code>desc_encode()</code> 将相应字节地址/偏移按 16B 单位编码，低 4 位因对齐而省略。</p>
+<table>
+<thead>
+<tr>
+<th>v2 中的设置</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>desc_encode(addr)</code></td>
+<td>本次 MMA 的输入起点</td>
+</tr>
+<tr>
+<td><code>desc_encode(8*128)</code> 放入 SBO 字段</td>
+<td>下一组 8 行相隔 1024B</td>
+</tr>
+<tr>
+<td><code>1ULL &lt;&lt; 46ULL</code></td>
+<td>按 descriptor 格式设置固定位</td>
+</tr>
+<tr>
+<td><code>2ULL &lt;&lt; 61ULL</code></td>
+<td>128B swizzle</td>
+</tr>
+</tbody>
+</table>
+<p>描述符的格式固定位不是某个“开启 Tensor Core 优化”的开关。LBO 在本例 K-major swizzled 模式下不用编码，详见第 7 节。</p>
+<h3 id="142-为什么第一条-mma-单独写"><a class="markdownIt-Anchor" href="#142-为什么第一条-mma-单独写"></a> 14.2 为什么第一条 MMA 单独写</h3>
+<p><code>tcgen05_mma_f16()</code> 最后一个参数转换为“是否非零”的谓词：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">0：     D = A×Bᵀ</span><br><span class="line">非 0：  D = A×Bᵀ + D</span><br></pre></td></tr></table></figure></div>
+<p>整个 K 归约的第一条 MMA 不应读取旧 TMEM 值，所以第一轮第一条传 0。其余指令继续累加。</p>
+<p>源码把每轮第一条的最后参数写成 <code>iter_k</code>：第一轮为 0，后续轮为非零。**不是乘以 iter_k，也不是选择第 iter_k 块 TMEM。**其余指令都传 1。</p>
+<h3 id="143-源码循环数没有少"><a class="markdownIt-Anchor" href="#143-源码循环数没有少"></a> 14.3 源码循环数没有少</h3>
+<p>源码先手动发出 <code>(k1=0,k2=0)</code>，再处理 k2=1、2、3；之后循环 k1=1、2、3，各发四次 MMA：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1 + 3 + 3×4 = 16 次 MMA / iter_k</span><br></pre></td></tr></table></figure></div>
+<p>K=4096 时，每 block 有 16 轮 iter_k，总计 256 条 MMA。最终都累加到同一块输出 tile。</p>
+<h3 id="144-commit-与等待各自负责什么"><a class="markdownIt-Anchor" href="#144-commit-与等待各自负责什么"></a> 14.4 commit 与等待各自负责什么</h3>
+<p>MMA 是异步的。<code>tcgen05.commit...mbarrier</code> 安排在前面的 MMA 完成后向 barrier 发完成通知，它本身不阻塞到计算结束。线程再执行 <code>mbarrier_wait()</code>，确认 MMA 已结束，才可以让下一轮 TMA 覆盖 A/B 的 SMEM。</p>
+<h2 id="15-v2-的时间线还没有搬运计算流水重叠"><a class="markdownIt-Anchor" href="#15-v2-的时间线还没有搬运计算流水重叠"></a> 15. v2 的时间线：还没有搬运/计算流水重叠</h2>
+<p>虽然 TMA/MMA 指令异步发起，v2 使用一份 A/B 缓冲，并在每阶段后等待，因此本轮数据流仍然串行。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/08-barrier.png" class="" title="barrier 与执行时间线">
+<table>
+<thead>
+<tr>
+<th>顺序</th>
+<th>等待的 parity</th>
+<th>发生的事情</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>发 TMA，设置本轮 192 KiB 的完成字节数</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>等待 TMA 完成，随后翻转 phase</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>发 16 次 MMA，commit 完成通知</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>等待 MMA 完成，随后再次翻转 phase</td>
+</tr>
+<tr>
+<td>5</td>
+<td>0</td>
+<td>下一轮 TMA 可以覆盖同一块 SMEM</td>
+</tr>
+</tbody>
+</table>
+<p><code>phase</code> 保存的是阶段奇偶性 0/1，不是“这个 barrier 只有两个完整阶段”。每次完成都会进入后续阶段，代码只需跟踪 parity。</p>
+<p>实际顺序为 <code>load0 → wait → MMA0 → wait → load1 → ...</code>。后续 pipelining 才会引入多缓冲等机制，将下一轮数据搬运与当前计算重叠。不能把 v2 的性能变化全部解释成“已经有流水线”。</p>
+<h2 id="16-v1v2-的-tmem-输出布局与写回规则"><a class="markdownIt-Anchor" href="#16-v1v2-的-tmem-输出布局与写回规则"></a> 16. v1/v2 的 TMEM 输出布局与写回规则</h2>
+<p>输入 SMEM 布局变了，但本例的输出形状、TMEM Layout D 和 epilogue 没变。程序看到的是 128×256 个 FP32 累加结果。输入的 swizzle 不会自动施加到输出行列上。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/07-tmem.png" class="" title="TMEM 逻辑布局与输出线程分工">
+<h3 id="161-tmem-取数地址"><a class="markdownIt-Anchor" href="#161-tmem-取数地址"></a> 16.1 TMEM 取数地址</h3>
+<p>源码每轮 n 从 0 遍历到 <code>BLOCK_N/8-1</code>，本例共 32 轮。地址由 <code>taddr</code>、warp 起始行和列起点组成：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">warp 起始行：warp_id×32</span><br><span class="line">本轮列起点：n×8</span><br><span class="line">地址形式：taddr + ((warp_id×32)&lt;&lt;16) + n×8</span><br></pre></td></tr></table></figure></div>
+<p>高位表达行、低位表达列，不是普通 <code>row×stride+col</code> 的字节指针。指令 <code>.32x32b.x8</code> 在这里让 warp 的每个 lane 取得对应行的 8 个 FP32；lane 所对应的行由加载布局隐含确定，因此传入地址中不直接出现 lane_id。</p>
+<p><code>tcgen05.wait::ld.sync.aligned</code> 等待本次 TMEM load 完成，再使用寄存器中的结果。前面的 <code>tcgen05.fence::after_thread_sync</code> 建立所需顺序。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-data-path-layout-d">PTX Layout D<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="162-bf16-转换与-global-store"><a class="markdownIt-Anchor" href="#162-bf16-转换与-global-store"></a> 16.2 BF16 转换与 global store</h3>
+<p>每个线程每轮取得 8 个 FP32，转换为 8 个 BF16，打包成 4 个 <code>nv_bfloat162</code>，共 16B。再通过一次 16B 向量 store 写到 C。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">tid = warp_id×32 + lane_id</span><br><span class="line">输出行 = off_m + tid</span><br><span class="line">输出列 = off_n + 8n ... off_n + 8n + 7</span><br></pre></td></tr></table></figure></div>
+<p>128 个线程各写一行；32 轮完成每行的 256 列。线程内部的 8 个元素连续，但相邻 lane 写到不同的行，因此这种跨 warp 访问仍然是跨行分散的，不能因使用 int4 就称为完全合并写入。</p>
+<p>最后 <code>__syncthreads()</code> 确保所有线程完成 TMEM 读取，再由 warp 0 的全部线程协同释放 TMEM。TMEM 释放不能在其他 warp 还读数据时提前执行。</p>
+<h2 id="17-固定源码中的笔误和适用边界"><a class="markdownIt-Anchor" href="#17-固定源码中的笔误和适用边界"></a> 17. 固定源码中的笔误和适用边界</h2>
+<h3 id="171-两处旧注释"><a class="markdownIt-Anchor" href="#171-两处旧注释"></a> 17.1 两处旧注释</h3>
+<ul>
+<li>第 73 行写输入是 <code>(MMA_M,8)</code> 连续块，这是 v1 风格的旧注释。v2 的基础宽切片为 <code>(H,64)</code> BF16，并在其中应用 128B swizzle。</li>
+<li>第 137 行写最终 store 到 smem，但实际写入 <code>C_ptr</code>，目的地是 global memory。中间经过寄存器，没有把输出先写回 SMEM。</li>
+</ul>
+<h3 id="172-2d-分支-b-的-global-height-应为-n"><a class="markdownIt-Anchor" href="#172-2d-分支-b-的-global-height-应为-n"></a> 17.2 2D 分支 B 的 global height 应为 N</h3>
+<p>固定源码第 177 行为 B 创建 2D tensor map 时传入高度 M。B 的物理形状为 <code>[N,K]</code>，正确高度应为 N，参数应改为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">init_tmap_2d_simple</span>(&amp;B_tmap, B_ptr, N, K, BLOCK_N, <span class="number">64</span>,</span><br><span class="line">                    CU_TENSOR_MAP_SWIZZLE_128B);</span><br></pre></td></tr></table></figure></div>
+<p>方阵测试 <code>M=N=4096</code> 不会暴露这个差异。本文附带源码快照保持原样；这里给出的是阅读与修改建议，不宣称已替作者提交修复。<a class="link" target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/blob/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100/matmul_v2.cu#L177">固定源码第 177 行<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="173-这是整除形状的教学-kernel"><a class="markdownIt-Anchor" href="#173-这是整除形状的教学-kernel"></a> 17.3 这是整除形状的教学 kernel</h3>
+<p>当前入口使用整数除法安排 grid 和 K 循环，输出没有尾部掩码，面向 M 是 128 的倍数、N 是 256 的倍数、K 是 256 的倍数的形状。TMA 的边界机制并不能自动补齐代码未调度的输出 tile 或被整除截断的 K 轮次。</p>
+<p>它还要求支持相应 tcgen05 指令和资源规模的 GPU。不能仅根据产品属于“Blackwell”就假定任意设备都支持同一组指令和 192 KiB/block 的配置。</p>
+<h2 id="18-六个常见疑问与对应答案"><a class="markdownIt-Anchor" href="#18-六个常见疑问与对应答案"></a> 18. 六个常见疑问与对应答案</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>答案</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3D 初始化为什么没传 swizzle？</td>
+<td>专用函数内部已固定配置 128B swizzle</td>
+<td>5.1</td>
+</tr>
+<tr>
+<td>box 最内维为什么从 8 变成 64？</td>
+<td>BF16 每元素 2B，分别对应 16B 和 128B 的每行切片宽度</td>
+<td>1、2、10</td>
+</tr>
+<tr>
+<td>TMA load 为什么看不到 swizzle？</td>
+<td>模式在 tensor map 中，硬件搬运时执行</td>
+<td>5.2</td>
+</tr>
+<tr>
+<td>MMA 为什么看不到 XOR？</td>
+<td>SMEM descriptor 包含模式，硬件按该布局取数</td>
+<td>5.3、14</td>
+</tr>
+<tr>
+<td>v1/v2 的 SMEM 和 TMEM 有何区别？</td>
+<td>SMEM 切片宽度和地址变了；本例 TMEM 输出形状与取数布局没变</td>
+<td>2、6、16</td>
+</tr>
+<tr>
+<td>v2 为什么分 k1/k2，能否一层循环？</td>
+<td>分别表示宽切片和片内 MMA；可用 j/4、j%4 等价替换</td>
+<td>8、9</td>
+</tr>
+<tr>
+<td>元素公式中的 128 是什么？</td>
+<td><code>H=128</code> 是 A 的行数；另一处 128 是每行字节数，单位不同</td>
+<td>6</td>
+</tr>
+<tr>
+<td>LBO/SBO 为什么变化？</td>
+<td>输入布局变了；SBO 跨 8 行，v2 K-major swizzled 模式不使用 LBO 字段</td>
+<td>7</td>
+</tr>
+<tr>
+<td><code>k2*32</code> 为什么不乘 BLOCK_M？</td>
+<td>只选择第一行的 descriptor 起点，其余行由布局描述符定位</td>
+<td>8、9</td>
+</tr>
+<tr>
+<td>MMA 是否把 SMEM 还原成普通数组？</td>
+<td>不做整块还原，按 swizzled 地址直接读取正确的逻辑元素</td>
+<td>5.3</td>
+</tr>
+<tr>
+<td>128B TMA 是否只搬 128B？</td>
+<td>128B 是切片行宽，单条指令可搬整个多行 box</td>
+<td>2</td>
+</tr>
+<tr>
+<td>第一条 MMA 传 iter_k 是乘数吗？</td>
+<td>只是零/非零的累加开关</td>
+<td>14.2</td>
+</tr>
+</tbody>
+</table>
+<h2 id="19-本地-b300-实测与教程-b200-对照"><a class="markdownIt-Anchor" href="#19-本地-b300-实测与教程-b200-对照"></a> 19. 本地 B300 实测与教程 B200 对照</h2>
+<h3 id="191-本地环境"><a class="markdownIt-Anchor" href="#191-本地环境"></a> 19.1 本地环境</h3>
+<p>以下数据来自作者提供的本地运行记录，本次文档整理没有重新运行 GPU benchmark。</p>
+<p>原始数值与环境附件：<a href="extras/b300-benchmark.csv">B300 benchmark CSV</a>、<a href="extras/b300-environment.json">B300 环境 JSON</a>。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>本地记录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU</td>
+<td>NVIDIA B300 SXM6 AC</td>
+</tr>
+<tr>
+<td>Compute capability</td>
+<td><code>(10,3)</code></td>
+</tr>
+<tr>
+<td>编译目标</td>
+<td><code>sm_103a</code></td>
+</tr>
+<tr>
+<td>PyTorch</td>
+<td><code>2.13.0+cu129</code></td>
+</tr>
+<tr>
+<td><code>torch.version.cuda</code></td>
+<td><code>12.9</code></td>
+</tr>
+<tr>
+<td>矩阵尺寸</td>
+<td><code>M=N=K=4096</code></td>
+</tr>
+<tr>
+<td>数据类型</td>
+<td>BF16 输入</td>
+</tr>
+<tr>
+<td>环境可见设备</td>
+<td>8 GPUs</td>
+</tr>
+</tbody>
+</table>
+<p>“8 GPUs”是设备枚举信息，不代表表中吞吐是 8 卡聚合。这里讨论的 kernel 是单个设备上的 GEMM；不把可见卡数乘入 FLOPs。计时重复次数、功耗/时钟设置及 CuBLAS 调用细节未在记录中提供，因此跨设备对比按观测结果解释。</p>
+<h3 id="192-本地原始数值"><a class="markdownIt-Anchor" href="#192-本地原始数值"></a> 19.2 本地原始数值</h3>
+<table>
+<thead>
+<tr>
+<th>kernel</th>
+<th>延迟（ms）</th>
+<th>TFLOPS</th>
+<th>vs CuBLAS（原记录取整）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cublas</td>
+<td>0.082</td>
+<td>1673</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>matmul_v1a：2D 16B TMA</td>
+<td>0.523</td>
+<td>263</td>
+<td>16%</td>
+</tr>
+<tr>
+<td>matmul_v1b：3D 16B TMA</td>
+<td>0.521</td>
+<td>264</td>
+<td>16%</td>
+</tr>
+<tr>
+<td>matmul_v2a：2D 128B TMA</td>
+<td>0.184</td>
+<td>748</td>
+<td>45%</td>
+</tr>
+<tr>
+<td>matmul_v2b：3D 128B TMA</td>
+<td>0.180</td>
+<td>764</td>
+<td>46%</td>
+</tr>
+</tbody>
+</table>
+<p><code>2MNK</code> 的 FLOPs 口径下，4096³ GEMM 为 137,438,953,472 FLOPs。上表时间和吞吐各自经过舍入，不能要求用三位小数延迟反算 TFLOPS 与整数列完全相等。</p>
+<h3 id="193-与原文-b200-数据对照"><a class="markdownIt-Anchor" href="#193-与原文-b200-数据对照"></a> 19.3 与原文 B200 数据对照</h3>
+<p>教程的 B200 测试同为 <code>M=N=K=4096</code>，CuBLAS 环境记录为 PyTorch 2.9.1 + CUDA 13。下表按用户提供的整数对照保留，变化列同样为取整值。</p>
+<table>
+<thead>
+<tr>
+<th>kernel</th>
+<th>B200（教程，TFLOPS 取整）</th>
+<th>B300（本地，TFLOPS）</th>
+<th>变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CuBLAS</td>
+<td>1507</td>
+<td>1673</td>
+<td>+11%</td>
+</tr>
+<tr>
+<td>v1a</td>
+<td>255</td>
+<td>263</td>
+<td>+3%</td>
+</tr>
+<tr>
+<td>v1b</td>
+<td>253</td>
+<td>264</td>
+<td>+4%</td>
+</tr>
+<tr>
+<td>v2a</td>
+<td>681</td>
+<td>748</td>
+<td>+10%</td>
+</tr>
+<tr>
+<td>v2b</td>
+<td>695</td>
+<td>764</td>
+<td>+10%</td>
+</tr>
+</tbody>
+</table>
+<p>原文未取整的 TFLOPS 分别为 1506.74、254.62、252.81、681.20、695.43。下图使用这些原始小数值和本地整数值。<a class="link" target="_blank" rel="noopener" href="https://gau-nernst.github.io/tcgen05/#128-byte-global-load-and-swizzling">教程性能表<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v2/10-benchmark.png" class="" title="B200 与 B300 吞吐对照">
+<h3 id="194-这组结果能说明什么"><a class="markdownIt-Anchor" href="#194-这组结果能说明什么"></a> 19.4 这组结果能说明什么</h3>
+<ul>
+<li>本地 v2a 相比 v1a：<code>748/263≈2.84×</code>；v2b 相比 v1b：<code>764/264≈2.89×</code>。从本地舍入延迟计算也得到相近结果。</li>
+<li>本地 v2b 达到 CuBLAS 吞吐的 <code>764/1673≈45.67%</code>。v2 已明显改善，但单缓冲等待和输出访问等仍留有优化空间，不能仅凭本表量化各项瓶颈占比。</li>
+<li>v2b 相比 v2a 的吞吐高约 2.14%；v1a/v1b 则非常接近。单纯减少 TMA 发起次数，不能保证大幅提速。</li>
+<li>B200 教程中 v2 同样比 v1 快约 2.7 倍。两组结果都支持该布局改进在这些测试条件下有效，但不能把差异全部归因于“bank conflict 消失”这一项；连续搬运宽度、指令数量、布局及硬件执行共同发生了变化。</li>
+<li>B300 对比教程 B200 时，v1 变化较小，v2 与 CuBLAS 变化较大。这是该测试的观测现象，不是隔离了软件版本、时钟、测量方法之后的硬件架构因果结论。</li>
+</ul>
+<h2 id="20-地址校验-源码导航与附件"><a class="markdownIt-Anchor" href="#20-地址校验-源码导航与附件"></a> 20. 地址校验、源码导航与附件</h2>
+<p>配套 <a href="extras/verify_layout.py">verify_layout.py</a> 在 CPU 上做以下验证：</p>
+<ul>
+<li>枚举 H=128 的 A 和 H=256 的 B、K=256 的全部元素。</li>
+<li>检查 v1/v2 字节偏移都在范围内、按 BF16 对齐、无地址重叠，且完整覆盖对应缓冲区。</li>
+<li>按地址重排再读回，确认全部逻辑元素恢复一致。</li>
+<li>比较“按小包 XOR”与“按字节位 XOR”计算的 v2 地址。</li>
+<li>核对本文数值例子、LBO/SBO 的对应地址距离。</li>
+<li>将第一行 <code>k=j*16</code> 的单元素地址与 MMA descriptor 起点公式对照。</li>
+<li>比较原始 k1/k2 序列和单层 j 循环的地址、K 覆盖与累加开关。</li>
+<li>校验 benchmark 的 FLOPs 量级和文中倍数计算。</li>
+</ul>
+<p>这些验证检查数学映射和文档数据一致性，不代替 GPU kernel 正确性测试，也不证明单层循环的 GPU 性能。结果文件：<a href="extras/verification.json">verification.json</a>。</p>
+<p>固定源码的阅读顺序：</p>
+<table>
+<thead>
+<tr>
+<th>matmul_v2.cu 行号</th>
+<th>内容</th>
+<th>本文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5–9</td>
+<td>warp、block、MMA_K 常量</td>
+<td>1</td>
+</tr>
+<tr>
+<td>20–32</td>
+<td>tid、warp、grid 与输出坐标</td>
+<td>11</td>
+</tr>
+<tr>
+<td>34–57</td>
+<td>SMEM、barrier、TMEM 初始化</td>
+<td>12</td>
+</tr>
+<tr>
+<td>61–67</td>
+<td>instruction descriptor</td>
+<td>12.4</td>
+</tr>
+<tr>
+<td>69–96</td>
+<td>TMA、完成字节数、等待</td>
+<td>13</td>
+</tr>
+<tr>
+<td>99–106</td>
+<td>SMEM descriptor</td>
+<td>7、14.1</td>
+</tr>
+<tr>
+<td>108–124</td>
+<td>MMA 与 k1/k2</td>
+<td>8、9、14</td>
+</tr>
+<tr>
+<td>125–131</td>
+<td>commit、等待、phase</td>
+<td>14.4、15</td>
+</tr>
+<tr>
+<td>134–160</td>
+<td>TMEM 读取、BF16 写回、释放</td>
+<td>16</td>
+</tr>
+<tr>
+<td>163–188</td>
+<td>tensor map 与 launch</td>
+<td>10</td>
+</tr>
+<tr>
+<td>191–207</td>
+<td>v2a/v2b 入口参数</td>
+<td>1、10</td>
+</tr>
+</tbody>
+</table>
+<p>配套源码快照：<a href="extras/matmul_v1.cu">matmul_v1.cu</a>、<a href="extras/matmul_v2.cu">matmul_v2.cu</a>、<a href="extras/common.h">common.h</a>。快照保留原作者内容与笔误，来源和 SHA-256 见 <a href="extras/source-manifest.json">source-manifest.json</a>。源码权利与使用许可遵循上游仓库。</p>
+<p>进一步阅读：</p>
+<ul>
+<li><a class="link" target="_blank" rel="noopener" href="https://gau-nernst.github.io/tcgen05/">gau-nernst：tcgen05 for dummies<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/tree/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100">固定提交的 CUDA 源码目录<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html#shared-memory-bank-swizzling">CUDA：Shared-Memory Bank Swizzling<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts">PTX：Canonical Layouts<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-descriptor">PTX：Shared Memory Descriptor<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-data-path-layout-d">PTX：TMEM Layout D<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ul>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-10-28 21:27:12</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-10-28 21:27:30
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/10/28/blackwell-matmul-v2/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-blackwell-gemm-cutlass/">#cuda, blackwell, gemm, cutlass</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/10/28/blackwell-matmul-v3/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/10/27/blackwell-matmul-v1/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">Blackwell GEMM 入门：图解 matmul_v1 的 SMEM、TMEM 与执行流程</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%8E-16b-%E5%88%B0-128b%E5%9B%BE%E8%A7%A3-blackwell-tma-swizzle-%E4%B8%8E-matmul_v2"><span class="nav-text"> 从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%98%85%E8%AF%BB%E8%B7%AF%E7%BA%BF"><span class="nav-text"> 阅读路线</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%85%88%E7%BB%9F%E4%B8%80%E5%BD%A2%E7%8A%B6-%E5%8D%95%E4%BD%8D%E5%92%8C%E4%B8%89%E4%B8%AA%E4%B8%8D%E5%90%8C%E7%9A%84%E5%AE%BD%E5%BA%A6"><span class="nav-text"> 1. 先统一形状、单位和三个不同的“宽度”</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E4%BB%8E-v1-%E7%9A%84-16b-%E5%88%87%E7%89%87%E5%88%B0-v2-%E7%9A%84-128b-%E5%88%87%E7%89%87"><span class="nav-text"> 2. 从 v1 的 16B 切片到 v2 的 128B 切片</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-swizzle-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%83%BD%E5%B8%AE%E5%8A%A9-shared-memory-%E8%AE%BF%E9%97%AE"><span class="nav-text"> 3. Swizzle 为什么能帮助 shared memory 访问</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-128b-swizzle-%E5%AE%9E%E9%99%85%E9%87%8D%E6%8E%92%E7%9A%84%E6%98%AF%E4%BB%80%E4%B9%88"><span class="nav-text"> 4. 128B swizzle 实际重排的是什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#41-%E5%8E%9F%E6%96%87%E7%9A%84-32b-64b-%E5%9B%BE%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E8%83%BD%E7%AE%80%E5%8D%95%E6%8C%89%E6%AF%8F%E8%A1%8C-xor-%E8%A1%8C%E5%8F%B7%E5%A5%97%E7%94%A8"><span class="nav-text"> 4.1 原文的 32B、64B 图为什么不能简单按“每行 XOR 行号”套用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#42-%E5%AF%B9%E7%85%A7%E5%8E%9F%E6%96%87%E7%9A%84-canonical-layout-%E8%A1%A8"><span class="nav-text"> 4.2 对照原文的 canonical layout 表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E8%B0%83%E7%94%A8%E5%A4%84%E7%9C%8B%E4%B8%8D%E5%88%B0-swizzle%E5%9B%A0%E4%B8%BA%E5%AE%83%E5%9C%A8%E4%B8%A4%E5%A5%97%E6%8F%8F%E8%BF%B0%E7%AC%A6%E9%87%8C"><span class="nav-text"> 5. 调用处看不到 swizzle，因为它在两套描述符里</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#51-init_tmap_3d_128b-%E4%B9%9F%E5%BC%80%E5%90%AF%E4%BA%86-swizzle"><span class="nav-text"> 5.1 init_tmap_3d_128B() 也开启了 swizzle</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#52-tma-%E5%8F%91%E8%B5%B7%E6%97%B6%E4%B8%BA%E4%BB%80%E4%B9%88%E6%B2%A1%E6%9C%89%E9%A2%9D%E5%A4%96%E7%9A%84-xor"><span class="nav-text"> 5.2 TMA 发起时为什么没有额外的 XOR</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#53-mma-%E5%8F%91%E8%B5%B7%E6%97%B6%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B9%9F%E6%B2%A1%E6%9C%89%E9%A2%9D%E5%A4%96%E7%9A%84-xor"><span class="nav-text"> 5.3 MMA 发起时为什么也没有额外的 XOR</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E5%8D%95%E5%85%83%E7%B4%A0%E5%9C%B0%E5%9D%80%E4%BB%8E-amk-%E4%B8%80%E6%AD%A5%E6%AD%A5%E6%89%BE%E5%88%B0-smem"><span class="nav-text"> 6. 单元素地址：从 A[m,k] 一步步找到 SMEM</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#61-v1%E5%85%88%E5%BD%93%E4%BD%9C%E6%99%AE%E9%80%9A%E4%B8%89%E7%BB%B4%E6%95%B0%E7%BB%84"><span class="nav-text"> 6.1 v1：先当作普通三维数组</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#62-v2%E4%B8%89%E7%BB%B4%E6%95%B0%E7%BB%84%E5%AF%BB%E5%9D%80%E5%86%8D%E6%9B%BF%E6%8D%A2%E8%A1%8C%E5%86%85%E5%B0%8F%E5%8C%85%E7%9A%84%E4%BD%8D%E7%BD%AE"><span class="nav-text"> 6.2 v2：三维数组寻址，再替换行内小包的位置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#63-%E5%85%B7%E4%BD%93%E8%AE%A1%E7%AE%97-a110"><span class="nav-text"> 6.3 具体计算 A[1,10]</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#64-%E5%86%8D%E6%A0%B8%E5%AF%B9%E5%87%A0%E4%B8%AA%E7%82%B9"><span class="nav-text"> 6.4 再核对几个点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E4%B8%BA%E4%BB%80%E4%B9%88-v1v2-%E7%9A%84-lbo-%E5%92%8C-sbo-%E4%B8%8D%E4%B8%80%E6%A0%B7"><span class="nav-text"> 7. 为什么 v1&#x2F;v2 的 LBO 和 SBO 不一样</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-sbo%E8%B7%A8%E8%BF%87%E4%B8%80%E7%BB%84-8-%E8%A1%8C"><span class="nav-text"> 7.1 SBO：跨过一组 8 行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-v1-%E7%9A%84-lbo%E5%AF%BB%E6%89%BE%E7%9B%B8%E9%82%BB%E7%9A%84-16b-%E9%80%BB%E8%BE%91%E5%B0%8F%E5%8C%85"><span class="nav-text"> 7.2 v1 的 LBO：寻找相邻的 16B 逻辑小包</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-v2-%E4%B8%8D%E5%86%8D%E9%80%9A%E8%BF%87-lbo-%E5%AD%97%E6%AE%B5%E6%8C%87%E5%AE%9A%E8%BF%99%E6%AE%B5%E8%B7%B3%E8%BD%AC"><span class="nav-text"> 7.3 v2 不再通过 LBO 字段指定这段跳转</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-iter_k-k1-k2-%E5%88%86%E5%88%AB%E5%9C%A8%E9%80%89%E6%8B%A9%E4%BB%80%E4%B9%88"><span class="nav-text"> 8. iter_k、k1、k2 分别在选择什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#81-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%9C%B0%E5%9D%80%E6%98%AF%E5%A4%A7%E8%B7%B3%E8%BD%AC-%E5%B0%8F%E8%B7%B3%E8%BD%AC"><span class="nav-text"> 8.1 为什么地址是“大跳转 + 小跳转”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#82-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%9C%B0%E5%9D%80%E9%87%8C%E6%B2%A1%E6%9C%89-iter_k"><span class="nav-text"> 8.2 为什么地址里没有 iter_k</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-v2-%E5%AE%8C%E5%85%A8%E5%8F%AF%E4%BB%A5%E7%94%A8-block_kmma_k-%E7%9A%84%E5%8D%95%E5%B1%82%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 9. v2 完全可以用 BLOCK_K&#x2F;MMA_K 的单层循环</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#91-%E4%BB%8E%E5%8D%95%E5%85%83%E7%B4%A0%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC-mma-%E8%B5%B7%E7%82%B9"><span class="nav-text"> 9.1 从单元素公式推导 MMA 起点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#92-%E7%AD%89%E4%BB%B7%E7%9A%84%E5%8D%95%E5%B1%82%E5%BE%AA%E7%8E%AF"><span class="nav-text"> 9.2 等价的单层循环</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-host-%E7%AB%AFtensor-map-%E4%B8%8E-kernel-launch"><span class="nav-text"> 10. Host 端：tensor map 与 kernel launch</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#101-2d-tensor-map"><span class="nav-text"> 10.1 2D tensor map</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#102-3d-tensor-map"><span class="nav-text"> 10.2 3D tensor map</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#103-launch-%E5%8F%82%E6%95%B0"><span class="nav-text"> 10.3 launch 参数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-grid-block-warp-%E4%B8%8E%E7%BA%BF%E7%A8%8B%E5%88%86%E5%B7%A5"><span class="nav-text"> 11. Grid、block、warp 与线程分工</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-%E5%87%86%E5%A4%87-smem-barrier-tmem-%E4%B8%8E-instruction-descriptor"><span class="nav-text"> 12. 准备 SMEM、barrier、TMEM 与 instruction descriptor</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#121-smem-%E5%88%86%E5%8C%BA%E5%92%8C%E5%9C%B0%E5%9D%80%E5%8D%95%E4%BD%8D"><span class="nav-text"> 12.1 SMEM 分区和地址单位</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#122-barrier-%E5%92%8C-tmem-%E5%9C%B0%E5%9D%80%E6%A7%BD"><span class="nav-text"> 12.2 barrier 和 TMEM 地址槽</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#123-%E5%88%86%E9%85%8D-tmem"><span class="nav-text"> 12.3 分配 TMEM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#124-%E4%B8%89%E5%A5%97%E4%BF%A1%E6%81%AF%E4%B8%8D%E8%A6%81%E6%B7%B7%E6%B7%86"><span class="nav-text"> 12.4 三套信息不要混淆</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-%E6%AF%8F%E8%BD%AE-tma-barrier-%E5%AD%97%E8%8A%82%E8%AE%A1%E6%95%B0%E4%B8%8E%E7%AD%89%E5%BE%85"><span class="nav-text"> 13. 每轮 TMA、barrier 字节计数与等待</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#14-%E5%8F%91%E8%B5%B7-mma%E6%8F%8F%E8%BF%B0%E7%AC%A6-%E9%A6%96%E6%AC%A1%E4%B8%8D%E7%B4%AF%E5%8A%A0-commit"><span class="nav-text"> 14. 发起 MMA：描述符、首次不累加、commit</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#141-make_desc-%E5%81%9A%E4%BB%80%E4%B9%88"><span class="nav-text"> 14.1 make_desc() 做什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#142-%E4%B8%BA%E4%BB%80%E4%B9%88%E7%AC%AC%E4%B8%80%E6%9D%A1-mma-%E5%8D%95%E7%8B%AC%E5%86%99"><span class="nav-text"> 14.2 为什么第一条 MMA 单独写</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#143-%E6%BA%90%E7%A0%81%E5%BE%AA%E7%8E%AF%E6%95%B0%E6%B2%A1%E6%9C%89%E5%B0%91"><span class="nav-text"> 14.3 源码循环数没有少</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#144-commit-%E4%B8%8E%E7%AD%89%E5%BE%85%E5%90%84%E8%87%AA%E8%B4%9F%E8%B4%A3%E4%BB%80%E4%B9%88"><span class="nav-text"> 14.4 commit 与等待各自负责什么</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#15-v2-%E7%9A%84%E6%97%B6%E9%97%B4%E7%BA%BF%E8%BF%98%E6%B2%A1%E6%9C%89%E6%90%AC%E8%BF%90%E8%AE%A1%E7%AE%97%E6%B5%81%E6%B0%B4%E9%87%8D%E5%8F%A0"><span class="nav-text"> 15. v2 的时间线：还没有搬运&#x2F;计算流水重叠</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#16-v1v2-%E7%9A%84-tmem-%E8%BE%93%E5%87%BA%E5%B8%83%E5%B1%80%E4%B8%8E%E5%86%99%E5%9B%9E%E8%A7%84%E5%88%99"><span class="nav-text"> 16. v1&#x2F;v2 的 TMEM 输出布局与写回规则</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#161-tmem-%E5%8F%96%E6%95%B0%E5%9C%B0%E5%9D%80"><span class="nav-text"> 16.1 TMEM 取数地址</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#162-bf16-%E8%BD%AC%E6%8D%A2%E4%B8%8E-global-store"><span class="nav-text"> 16.2 BF16 转换与 global store</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#17-%E5%9B%BA%E5%AE%9A%E6%BA%90%E7%A0%81%E4%B8%AD%E7%9A%84%E7%AC%94%E8%AF%AF%E5%92%8C%E9%80%82%E7%94%A8%E8%BE%B9%E7%95%8C"><span class="nav-text"> 17. 固定源码中的笔误和适用边界</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#171-%E4%B8%A4%E5%A4%84%E6%97%A7%E6%B3%A8%E9%87%8A"><span class="nav-text"> 17.1 两处旧注释</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#172-2d-%E5%88%86%E6%94%AF-b-%E7%9A%84-global-height-%E5%BA%94%E4%B8%BA-n"><span class="nav-text"> 17.2 2D 分支 B 的 global height 应为 N</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#173-%E8%BF%99%E6%98%AF%E6%95%B4%E9%99%A4%E5%BD%A2%E7%8A%B6%E7%9A%84%E6%95%99%E5%AD%A6-kernel"><span class="nav-text"> 17.3 这是整除形状的教学 kernel</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#18-%E5%85%AD%E4%B8%AA%E5%B8%B8%E8%A7%81%E7%96%91%E9%97%AE%E4%B8%8E%E5%AF%B9%E5%BA%94%E7%AD%94%E6%A1%88"><span class="nav-text"> 18. 六个常见疑问与对应答案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#19-%E6%9C%AC%E5%9C%B0-b300-%E5%AE%9E%E6%B5%8B%E4%B8%8E%E6%95%99%E7%A8%8B-b200-%E5%AF%B9%E7%85%A7"><span class="nav-text"> 19. 本地 B300 实测与教程 B200 对照</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#191-%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83"><span class="nav-text"> 19.1 本地环境</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#192-%E6%9C%AC%E5%9C%B0%E5%8E%9F%E5%A7%8B%E6%95%B0%E5%80%BC"><span class="nav-text"> 19.2 本地原始数值</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#193-%E4%B8%8E%E5%8E%9F%E6%96%87-b200-%E6%95%B0%E6%8D%AE%E5%AF%B9%E7%85%A7"><span class="nav-text"> 19.3 与原文 B200 数据对照</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#194-%E8%BF%99%E7%BB%84%E7%BB%93%E6%9E%9C%E8%83%BD%E8%AF%B4%E6%98%8E%E4%BB%80%E4%B9%88"><span class="nav-text"> 19.4 这组结果能说明什么</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#20-%E5%9C%B0%E5%9D%80%E6%A0%A1%E9%AA%8C-%E6%BA%90%E7%A0%81%E5%AF%BC%E8%88%AA%E4%B8%8E%E9%99%84%E4%BB%B6"><span class="nav-text"> 20. 地址校验、源码导航与附件</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 54 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>

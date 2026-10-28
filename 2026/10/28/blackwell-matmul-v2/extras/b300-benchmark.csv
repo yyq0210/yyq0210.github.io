@@ -1,0 +1,6 @@
+kernel,latency_ms,tflops,vs_cublas_percent_rounded
+cublas,0.082,1673,100
+matmul_v1a,0.523,263,16
+matmul_v1b,0.521,264,16
+matmul_v2a,0.184,748,45
+matmul_v2b,0.180,764,46

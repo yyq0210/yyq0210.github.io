@@ -1,0 +1,7 @@
+device,kernel,tflops,measured_latency_ms,source
+B200,cublas,1506.74,,tutorial
+B200,v2b,695.43,,tutorial
+B200,v3,939.61,,tutorial; user rounds to 940
+B300,cublas,1673,0.082,user previous benchmark
+B300,v2b,764,0.18,user previous benchmark
+B300,v3,1039,,user new benchmark; no latency supplied

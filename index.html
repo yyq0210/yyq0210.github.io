@@ -607,7 +607,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -647,7 +647,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">52</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -662,6 +662,145 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/10/28/blackwell-matmul-v3/">
+                            Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase
+matmul_v2 已经使用 128B TMA 切片与 swizzle，但仍然先等搬运、再等计算。matmul_v3 的下一步是：保留两份 SMEM 输入缓冲，提前搬运下一块 K 数据，让 TMA 与当前 MMA 有机会重叠执行。
+本文沿着实际源码解释从 host 初始化、预取、主...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Wed Oct 28 2026 21:28:00 GMT+0800">
+                
+                    2026-10-28
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-blackwell-gemm-cutlass/">cuda, blackwell, gemm, cutlass</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/10/28/blackwell-matmul-v3/">阅读全文<span class="seo-reader-text">Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/10/28/blackwell-matmul-v2/">
+                            从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2
+在 Blackwell GEMM 中，TMA 负责把 A/B 从显存搬入 shared memory（SMEM），tcgen05.mma 读取 SMEM 并将结果累加到 tensor memory（TMEM）。本文围绕 gau-nernst 的 128-byte global load an...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Wed Oct 28 2026 21:27:12 GMT+0800">
+                
+                    2026-10-28
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-blackwell-gemm-cutlass/">cuda, blackwell, gemm, cutlass</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/10/28/blackwell-matmul-v2/">阅读全文<span class="seo-reader-text">从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1234,151 +1373,6 @@ FlashKDA 的前向计算包含一个...
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/09/12/k2_bwd_recurrence_deep_dive/">
-                            k2_bwd_recurrence_deep_dive
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             K2_bwd 反向递推 kernel 逐行精讲（小白可推导版）
-
-对应源码：csrc/smxx/bwd_kernel2.cuh 的 _flash_kda_bwd_recurrence
-目标读者：没接触过自动微分 / CUDA kernel 的人。读完应能自己把每一条梯度公式推一遍，并理解代码为什么这么写。
-约定：d&lt;量&gt; 表示 loss 对该量的梯度。代码里的 exp(x) 实...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Sep 12 2026 22:30:00 GMT+0800">
-                
-                    2026-09-12
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/09/12/k2_bwd_recurrence_deep_dive/">阅读全文<span class="seo-reader-text">k2_bwd_recurrence_deep_dive</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/09/12/multi_card_cp/">
-                            multi_card_cp
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             FlashKDA 多卡 Context Parallelism (CP) 数学原理详解
-
-本文面向"小白"读者，从最基础的概念讲起，一步步推导多卡 CP 的
-forward 和 backward 数学原理，重点讲清线性分解这个核心。
-每个公式都配文字解释，最后用可手算的数值例子把整条链走一遍。
-阅读顺序建议：§1 直觉 → §2 记号 → §3 forward → §4 backward ...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Sep 12 2026 22:20:00 GMT+0800">
-                
-                    2026-09-12
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/09/12/multi_card_cp/">阅读全文<span class="seo-reader-text">multi_card_cp</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1409,7 +1403,7 @@ forward 和 backward 数学原理，重点讲清线性分解这个核心。
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 52 篇文章
+                        共撰写了 54 篇文章
                     </span>
                     
                 </p>

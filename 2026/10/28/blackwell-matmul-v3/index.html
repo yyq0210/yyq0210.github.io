@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/10/28/blackwell-matmul-v3/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/10/28/blackwell-matmul-v3/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-10-28T13:28:00.000Z">
+<meta property="article:modified_time" content="2026-10-28T13:27:30.965Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="cuda, blackwell, gemm, cutlass">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body img[src$=".svg"],
+.article-content .markdown-body img[data-src$=".svg"] {
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .mermaid {
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+.article-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Mermaid labels inherit page color; dark mode becomes white-on-white */
+.article-content .mermaid foreignObject,
+.article-content .mermaid foreignObject *,
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel {
+  color: #213547 !important;
+}
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel,
+.article-content .mermaid .label,
+.article-content .mermaid text,
+.article-content .mermaid tspan {
+  fill: #213547 !important;
+}
+</style>
+
+                
+    
+            
+                
+                    <script data-swup-reload-script>
+(function () {
+  function renderMermaid() {
+    if (!window.mermaid) return;
+    var nodes = document.querySelectorAll(".mermaid");
+    if (!nodes.length) return;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "default",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, useMaxWidth: true }
+    });
+    nodes.forEach(function (el) {
+      el.removeAttribute("data-processed");
+      var original = el.getAttribute("data-original-code");
+      if (original) el.innerHTML = original;
+    });
+    mermaid.run({ querySelector: ".mermaid" }).catch(function (err) {
+      console.error("mermaid.run failed", err);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: false });
+  });
+  window.addEventListener("load", renderMermaid);
+  document.addEventListener("swup:page:view", renderMermaid);
+  if (window.swup && window.swup.hooks) {
+    window.swup.hooks.on("page:view", renderMermaid);
+  }
+})();
+</script>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-10-28 21:28</span>
+        <span class="mobile">2026-10-28 21:28</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-10-28 21:27:30</span>
+            <span class="mobile">2026-10-28 21:27:30</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-blackwell-gemm-cutlass/">cuda, blackwell, gemm, cutlass</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="blackwell-gemm-流水线入门图解-matmul_v3-的双缓冲-barrier-与-phase"><a class="markdownIt-Anchor" href="#blackwell-gemm-流水线入门图解-matmul_v3-的双缓冲-barrier-与-phase"></a> Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</h1>
+<p><code>matmul_v2</code> 已经使用 128B TMA 切片与 swizzle，但仍然先等搬运、再等计算。<code>matmul_v3</code> 的下一步是：<strong>保留两份 SMEM 输入缓冲，提前搬运下一块 K 数据，让 TMA 与当前 MMA 有机会重叠执行。</strong></p>
+<p>本文沿着实际源码解释从 host 初始化、预取、主循环到收尾的过程，重点回答一个容易混淆的问题：**为什么两个 buffer、两个 TMA barrier，却只需要一个局部 <code>tma_phase</code> 变量？**最后附 B300 本地 1039 TFLOPS 的实测记录及教程 B200 对比。</p>
+<p>源码作者为 gau-nernst。本文依据固定提交 <a target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/blob/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100/matmul_v3.cu"><code>afcb20b1bd89065c31a1575c276aba686fc4dfce</code></a> 编写，图解和调度推导独立整理。配套包包含 PNG、可编辑 SVG、源码快照和 CPU 调度校验脚本，不依赖 Mermaid。本文未重新运行 GPU benchmark；本地性能来自作者提供的运行记录。</p>
+<h2 id="1-v2-到-v3改了调度也改了-block_k"><a class="markdownIt-Anchor" href="#1-v2-到-v3改了调度也改了-block_k"></a> 1. v2 到 v3：改了调度，也改了 BLOCK_K</h2>
+<p>首先看文件最后的入口，实例化参数是 <code>&lt;256,128,2&gt;</code>，分别对应 BLOCK_N、BLOCK_K 和 NUM_STAGES。</p>
+<table>
+<thead>
+<tr>
+<th>参数 / 资源</th>
+<th>v2b</th>
+<th>v3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BLOCK_M</td>
+<td>128</td>
+<td>128</td>
+</tr>
+<tr>
+<td>BLOCK_N</td>
+<td>256</td>
+<td>256</td>
+</tr>
+<tr>
+<td>BLOCK_K</td>
+<td>256</td>
+<td>128</td>
+</tr>
+<tr>
+<td>MMA_K</td>
+<td>16</td>
+<td>16</td>
+</tr>
+<tr>
+<td>线程数</td>
+<td>128，4 个 warp</td>
+<td>128，4 个 warp</td>
+</tr>
+<tr>
+<td>SMEM 输入缓冲份数</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>每份 A/B 缓冲</td>
+<td>192 KiB</td>
+<td>96 KiB</td>
+</tr>
+<tr>
+<td>A/B 动态 SMEM 总量</td>
+<td>192 KiB</td>
+<td>192 KiB</td>
+</tr>
+<tr>
+<td>TMA 方式</td>
+<td>3D 128B</td>
+<td>3D 128B</td>
+</tr>
+<tr>
+<td>每轮 K tile 的 MMA 数</td>
+<td>16</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<p>v3 将每轮 K 宽度减半，把空间用于第二份缓冲，所以总动态 SMEM 没有翻倍。</p>
+<p>仍然是 BF16 输入、FP32 累加、BF16 输出。A 的物理形状为 <code>[M,K]</code>，B 为 <code>[N,K]</code>，C 为 <code>[M,N]</code>，数学计算是 <code>C=A×Bᵀ</code>。</p>
+<p>当 M=N=K=4096：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">输出分块：32 × 16 = 512 个 block</span><br><span class="line">每块输出：128 × 256</span><br><span class="line"></span><br><span class="line">v2b：16 轮 K tile × 每轮 16 次 MMA = 每 block 256 次 MMA</span><br><span class="line">v3： 32 轮 K tile × 每轮  8 次 MMA = 每 block 256 次 MMA</span><br></pre></td></tr></table></figure></div>
+<p>计算总量相同。v3 每轮搬的数据更少、轮数更多；每轮仍有两条 3D TMA，因而每 block 的 A/B TMA 发起数从 v2b 的 32 条变成 64 条。<strong>流水线收益不是来自指令总数减少，而是来自等待和工作安排的改变。</strong></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/01-overlap.png" class="" title="v2 串行阶段与 v3 重叠机会">
+<p>图中只说明调度关系，不是实测时间线，也不假定 TMA/MMA 耗时相同。v2 与 v3 的 tile 各按自己的 BLOCK_K 定义。</p>
+<h2 id="2-stage-到底是什么一份可复用的-ab-输入缓冲"><a class="markdownIt-Anchor" href="#2-stage-到底是什么一份可复用的-ab-输入缓冲"></a> 2. stage 到底是什么：一份可复用的 A/B 输入缓冲</h2>
+<p>NUM_STAGES=2 表示准备两份输入数据区。stage 不是线程、warp 或一份独立输出。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">A_size = BLOCK_M × BLOCK_K × sizeof(BF16)</span><br><span class="line">       = 128 × 128 × 2 = 32768B = 32 KiB</span><br><span class="line"></span><br><span class="line">B_size = BLOCK_N × BLOCK_K × sizeof(BF16)</span><br><span class="line">       = 256 × 128 × 2 = 65536B = 64 KiB</span><br><span class="line"></span><br><span class="line">stage_bytes = A_size + B_size = 98304B = 96 KiB</span><br></pre></td></tr></table></figure></div>
+<p>每份 stage 内先放 A，再放 B；两份 stage 连续存储：</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/02-smem.png" class="" title="SMEM 双缓冲字节分区">
+<table>
+<thead>
+<tr>
+<th>数据区</th>
+<th>相对 smem 的起点</th>
+<th>大小</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stage 0 的 A</td>
+<td>0B</td>
+<td>32768B</td>
+</tr>
+<tr>
+<td>stage 0 的 B</td>
+<td>32768B</td>
+<td>65536B</td>
+</tr>
+<tr>
+<td>stage 1 的 A</td>
+<td>98304B</td>
+<td>32768B</td>
+</tr>
+<tr>
+<td>stage 1 的 B</td>
+<td>131072B</td>
+<td>65536B</td>
+</tr>
+<tr>
+<td>总数据区终点，不包含</td>
+<td>196608B</td>
+<td>192 KiB</td>
+</tr>
+</tbody>
+</table>
+<p>第 i 个 K tile 使用 <code>stage_id=i%NUM_STAGES</code>：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">stage 0：tile 0 → tile 2 → tile 4 → …</span><br><span class="line">stage 1：tile 1 → tile 3 → tile 5 → …</span><br></pre></td></tr></table></figure></div>
+<p>每个槽位有自己的生命周期：空闲 → TMA 写入 → 数据就绪 → MMA 读取 → 计算完成、可复用。源码通过固定调度和 barrier 保证这些顺序，不需要显式创建一个状态枚举。</p>
+<h2 id="3-host-初始化-grid-与线程角色"><a class="markdownIt-Anchor" href="#3-host-初始化-grid-与线程角色"></a> 3. host 初始化、grid 与线程角色</h2>
+<p>host 为 A/B 分别调用 <code>init_tmap_3d_128B()</code>。与 v2 相同，128B swizzle 已在这个函数内部编码，不需要在调用处再次传 swizzle 参数。</p>
+<p>本例 TMA box 的最内维仍为 64 个 BF16，即 128B；因为 BLOCK_K=128，第三维的宽切片数是 2：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A boxDim = {64,128,2}</span><br><span class="line">B boxDim = {64,256,2}</span><br></pre></td></tr></table></figure></div>
+<p>维度顺序为最快变化维在前。A 的 globalDim 为 <code>{64,M,K/64}</code>，globalStrides 为 <code>{K×2,128}</code> 字节；B 使用 N 作为高度。</p>
+<p>launch 分配的动态 SMEM 为 <code>(BLOCK_M+BLOCK_N)×BLOCK_K×NUM_STAGES×2</code>。barrier 和 TMEM 地址槽是另行声明的静态共享元数据；192 KiB 指 A/B 动态数据区。</p>
+<p>grid 仍为 <code>(M/128)×(N/256)</code>。kernel 内通过 <code>bid_m=bid/grid_n</code>、<code>bid_n=bid%grid_n</code> 还原二维输出 tile 坐标，并计算 off_m/off_n。</p>
+<table>
+<thead>
+<tr>
+<th>工作</th>
+<th>执行者</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>初始化全部 TMA barrier 和 MMA barrier</td>
+<td>warp 0 中 elected 的一个线程</td>
+</tr>
+<tr>
+<td>分配 TMEM</td>
+<td>warp 1 的全部 32 个线程</td>
+</tr>
+<tr>
+<td>发起 TMA、MMA、commit</td>
+<td>warp 0 中 elected 的一个线程</td>
+</tr>
+<tr>
+<td>等待 TMA / MMA 完成</td>
+<td>全部 128 个线程</td>
+</tr>
+<tr>
+<td>读取 TMEM 并写 C</td>
+<td>全部四个 warp</td>
+</tr>
+<tr>
+<td>释放 TMEM</td>
+<td>warp 0 全部 32 个线程</td>
+</tr>
+</tbody>
+</table>
+<p><code>elect_sync()</code> 的作用是避免重复发起整块操作。虽然控制指令由同一个 warp 发出，TMA 引擎和 Tensor Core 可以异步工作，因此不要求两个 warp 分别控制它们才能重叠。</p>
+<h2 id="4-两个-tma-barrier-一个-mma-barrier各自跟踪什么"><a class="markdownIt-Anchor" href="#4-两个-tma-barrier-一个-mma-barrier各自跟踪什么"></a> 4. 两个 TMA barrier、一个 MMA barrier，各自跟踪什么</h2>
+<p>源码声明：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">__shared__ <span class="type">uint64_t</span> tma_mbars[NUM_STAGES];</span><br><span class="line">__shared__ <span class="type">uint64_t</span> mma_mbars[<span class="number">1</span>];</span><br><span class="line">__shared__ <span class="type">int</span> tmem_addr[<span class="number">1</span>];</span><br></pre></td></tr></table></figure></div>
+<p>两个输入 stage 各有一个 TMA barrier。每个 barrier 都有独立的硬件状态；一个 stage 里 A 和 B 的搬运共同向该 stage 的 barrier 报告完成。</p>
+<p>MMA 只需要一个 barrier，因为外层每次发起一组 MMA 后都会等待它们完成，再发下一组。本文中的“一组”指一个 BLOCK_K tile 内的 8 条 MMA。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/03-barriers.png" class="" title="buffer、barrier 与 phase 变量的关系">
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>默认数量</th>
+<th>意义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SMEM 输入 stage</td>
+<td>2</td>
+<td>存放当前 / 未来 A/B</td>
+</tr>
+<tr>
+<td>TMA barrier</td>
+<td>2</td>
+<td>各自记录对应 stage 的搬运完成情况</td>
+</tr>
+<tr>
+<td>MMA barrier</td>
+<td>1</td>
+<td>记录当前这一组 MMA 是否完成</td>
+</tr>
+<tr>
+<td><code>tma_phase</code></td>
+<td>每个线程一个局部变量</td>
+<td>当前 TMA wait 的预期 parity</td>
+</tr>
+<tr>
+<td><code>mma_phase</code></td>
+<td>每个线程一个局部变量</td>
+<td>当前 MMA wait 的预期 parity</td>
+</tr>
+</tbody>
+</table>
+<p>barrier 初始化 arrival count 都为 1。等待线程有 128 个，并不意味着 count 应设为 128：wait 与 arrive 是不同操作。</p>
+<p><code>fence.mbarrier_init.release.cluster</code> 发布初始化，随后 <code>__syncthreads()</code> 让线程在使用 barrier 和分配返回的 TMEM 地址前完成同步。</p>
+<p>每个 barrier 对象是 8B，且这里 mbar_addr 是原始字节地址，所以 <code>tma_mbar_addr+stage_id*8</code> 是选择 barrier。它不同于选择矩阵缓冲的 <code>smem+stage_id*98304</code>。</p>
+<h2 id="5-loaditer_k选择槽位发起未来搬运"><a class="markdownIt-Anchor" href="#5-loaditer_k选择槽位发起未来搬运"></a> 5. <code>load(iter_k)</code>：选择槽位，发起未来搬运</h2>
+<p>load 是 kernel 内的 lambda，不是另一次 kernel launch。所有线程经过它，只有 warp 0 中被 elect 的一个线程执行 TMA 发起操作。</p>
+<p>它做四件事：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1. stage_id = iter_k % NUM_STAGES</span><br><span class="line">2. 找到 tma_mbars[stage_id]</span><br><span class="line">3. 找到当前 stage 的 A/B 目的地址</span><br><span class="line">4. 发两条 3D TMA，并设置 expect_tx</span><br></pre></td></tr></table></figure></div>
+<p>地址关系为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">stage_id = iter_k % NUM_STAGES;</span><br><span class="line">mbar_addr = tma_mbar_addr + stage_id * <span class="number">8</span>;</span><br><span class="line">A_smem = smem + stage_id * (A_size + B_size);</span><br><span class="line">B_smem = A_smem + A_size;</span><br><span class="line">off_k = iter_k * BLOCK_K;</span><br></pre></td></tr></table></figure></div>
+<p>A/B 的 tensor map 第三维以 64 个 BF16 为一个切片，传入坐标为 <code>off_k/64</code>。</p>
+<table>
+<thead>
+<tr>
+<th>调用</th>
+<th>源 K 范围</th>
+<th>第三维坐标</th>
+<th>SMEM stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>load(0)</td>
+<td><code>[0,128)</code></td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>load(1)</td>
+<td><code>[128,256)</code></td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>load(2)</td>
+<td><code>[256,384)</code></td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr>
+<td>load(3)</td>
+<td><code>[384,512)</code></td>
+<td>6</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>每次 load 搬 A 的 32 KiB 和 B 的 64 KiB，所以 <code>expect_tx=A_size+B_size=98304B</code>。TMA 完成通知抵扣待完成字节数；arrival 与字节条件同时满足后，该 barrier 阶段完成。</p>
+<p>**load 的结尾没有等待搬运完成。**控制流继续向后执行时，TMA 硬件可能仍在搬运。这是后续重叠的前提。</p>
+<h2 id="6-computeiter_k等待当前槽位然后发起-mma"><a class="markdownIt-Anchor" href="#6-computeiter_k等待当前槽位然后发起-mma"></a> 6. <code>compute(iter_k)</code>：等待当前槽位，然后发起 MMA</h2>
+<p>compute 也先用取模确定 stage。它等待的是当前 tile 对应的 TMA barrier，而不是全部 barrier，也不是刚刚预取的未来 tile：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">compute(0) → 等 stage 0 的第一次搬运</span><br><span class="line">compute(1) → 等 stage 1 的第一次搬运</span><br><span class="line">compute(2) → 等 stage 0 的第二次搬运</span><br></pre></td></tr></table></figure></div>
+<p>wait 完成后，通过 <code>tcgen05.fence::after_thread_sync</code> 建立后续 tcgen05 操作的顺序要求，再从该 stage 的 A/B 地址发起 MMA。fence 不替代 wait，不能仅保留 fence 就认为搬运已经完成。</p>
+<p>compute 的末尾把当前组 MMA 的完成通知 commit 到唯一的 MMA barrier，但它自己不在末尾等待 MMA。**compute 返回代表发起工作，不代表计算已经完成。**外层循环负责真正的 MMA wait。</p>
+<h2 id="7-为什么两个-buffer-只有一个-tma_phase"><a class="markdownIt-Anchor" href="#7-为什么两个-buffer-只有一个-tma_phase"></a> 7. 为什么两个 buffer 只有一个 <code>tma_phase</code></h2>
+<p>这里必须区分“每个 barrier 的硬件状态”和“线程给 wait 传入的期望值”。</p>
+<p>两个 TMA barrier 的硬件状态始终独立。局部 <code>tma_phase</code> 只表示：当前消费的这个 stage，应该确认哪一代搬运已经完成。</p>
+<p>程序按 tile 顺序消费，stage 顺序固定为 0→1→0→1。每个 stage 的使用次数因此可以从 iter_k 推导，不需要单独保存一个 phase 数组。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/05-phases.png" class="" title="TMA 与 MMA parity 的序列">
+<table>
+<thead>
+<tr>
+<th>消费 tile</th>
+<th>stage</th>
+<th>该 stage 的使用次数，从 1 开始</th>
+<th>TMA 等待 parity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1</td>
+<td>3</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>一圈里，每个 stage 都消费同一代的数据。绕完一圈后，下一圈使用相反的 parity。所以源码在消费完最后一个 stage 的 TMA 数据后更新局部变量：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (stage_id == NUM_STAGES - <span class="number">1</span>)</span><br><span class="line">    tma_phase ^= <span class="number">1</span>;</span><br></pre></td></tr></table></figure></div>
+<p>它不是用软件翻转硬件 barrier；它更新的是下一次 wait 的参数。阶段完成和硬件状态推进由 barrier 协议自身完成。</p>
+<p>这里还可以不保存变量，直接计算当前 wait 的期望值：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">expected_tma_phase = (iter_k / NUM_STAGES) % <span class="number">2</span>;</span><br></pre></td></tr></table></figure></div>
+<p>NUM_STAGES=2 时，这个序列是 <code>0,0,1,1,0,0,...</code>。</p>
+<h3 id="71-一个局部-phase-不代表两个-barrier-现在状态相同"><a class="markdownIt-Anchor" href="#71-一个局部-phase-不代表两个-barrier-现在状态相同"></a> 7.1 一个局部 phase 不代表两个 barrier 现在状态相同</h3>
+<p>预取是异步的，某个未来 stage 的 TMA 可以提前完成。比如 compute(1) 正在等待 barrier 1 的 phase 0，而 load(2) 对 barrier 0 的第二次搬运可能已经发起，甚至完成。</p>
+<p>此时线程仍可使用 <code>tma_phase=0</code> 等待 barrier 1。这不要求 barrier 0 的实时状态也为 0。</p>
+<p>**期望参数只针对本次选中的 barrier；它不是所有 barrier 状态的汇总快照。**用当前 stage 编号和预期代数共同决定等待对象，才是完整含义。</p>
+<h3 id="72-每个-buffer-一个-phase-也能写"><a class="markdownIt-Anchor" href="#72-每个-buffer-一个-phase-也能写"></a> 7.2 每个 buffer 一个 phase 也能写</h3>
+<p>以下是局部状态的等价表达，不是共享给所有线程的数组：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> phases[NUM_STAGES] = {};</span><br><span class="line"></span><br><span class="line"><span class="comment">// 按 iter_k 顺序调用的消费逻辑</span></span><br><span class="line"><span class="type">int</span> stage_id = iter_k % NUM_STAGES;</span><br><span class="line"><span class="type">int</span> mbar_addr = tma_mbar_addr + stage_id * <span class="number">8</span>;</span><br><span class="line"><span class="built_in">mbarrier_wait</span>(mbar_addr, phases[stage_id]);</span><br><span class="line">phases[stage_id] ^= <span class="number">1</span>;</span><br></pre></td></tr></table></figure></div>
+<p>固定环形访问下，数组提供的信息可以从 iter_k 推导，因此源码压缩为一个标量。如果改成不同 stage 独立复用、乱序消费等调度，单个标量未必足够，就需要另外跟踪各自代数。</p>
+<h3 id="73-mma_phase-为什么每轮翻转"><a class="markdownIt-Anchor" href="#73-mma_phase-为什么每轮翻转"></a> 7.3 <code>mma_phase</code> 为什么每轮翻转</h3>
+<p>MMA 只有一个 barrier，所有 tile 依次复用它：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">MMA 0 → parity 0</span><br><span class="line">MMA 1 → parity 1</span><br><span class="line">MMA 2 → parity 0</span><br><span class="line">……</span><br></pre></td></tr></table></figure></div>
+<p>因此 <code>expected_mma_phase=iter_k%2</code>。例如 iter_k=2，TMA 等待 parity 是 1，而 MMA 等待 parity 是 0；不能把两个 phase 变量混用。</p>
+<h2 id="8-每个-stage-内的-swizzle-和-k1k2-沿用-v2"><a class="markdownIt-Anchor" href="#8-每个-stage-内的-swizzle-和-k1k2-沿用-v2"></a> 8. 每个 stage 内的 swizzle 和 <code>k1/k2</code> 沿用 v2</h2>
+<p>一个 stage 中，A 含两个 <code>128×64</code> BF16 宽切片，B 含两个 <code>256×64</code> 宽切片。每行宽 128B，仍以 16B 小包做 128B swizzle。</p>
+<p>TMA map 指定写入模式，MMA SMEM descriptor 指定对应读取模式。v3 的 <code>make_desc()</code> 与 v2 一样：SBO=1024B；K-major swizzled 模式不使用原来的 LBO 字段；swizzle 编码为 2。</p>
+<p>只有 A_smem/B_smem 基址来自不同 stage，片内地址公式没有改变：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a_addr = A_smem + k1 * BLOCK_M * <span class="number">128</span> + k2 * <span class="number">32</span>;</span><br><span class="line">b_addr = B_smem + k1 * BLOCK_N * <span class="number">128</span> + k2 * <span class="number">32</span>;</span><br></pre></td></tr></table></figure></div>
+<p>本例 k1 只有 0、1；k2 为 0、1、2、3，所以一轮 8 次 MMA。</p>
+<p>完整的逻辑 K 起点是：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">global_k_start = iter_k * <span class="number">128</span> + k1 * <span class="number">64</span> + k2 * <span class="number">16</span>;</span><br></pre></td></tr></table></figure></div>
+<p>以 iter_k=3、k1=1、k2=2 为例：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">stage_id = 3%2 = 1</span><br><span class="line">全局 K 起点 = 3×128 + 1×64 + 2×16 = 480</span><br><span class="line">本次处理 K[480:496]</span><br><span class="line"></span><br><span class="line">A 起点相对 smem：98304 + 16384 + 64 = 114752B</span><br><span class="line">B 起点相对 smem：131072 + 32768 + 64 = 163904B</span><br></pre></td></tr></table></figure></div>
+<p><code>k2*32</code> 选择第一行内的 MMA 起点，其余行由 descriptor 和 swizzle 定位。单元素地址公式也只需额外加 stage 基址；不要把 stage_id 和 swizzle 行号混在一起。</p>
+<p>具体来说，令 r 为当前 A/B tile 内的行号、q 为当前 BLOCK_K 内的 K 坐标，H 是该矩阵 tile 的高度（A 为 128，B 为 256），则单个 BF16 的物理字节偏移为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">slice = q / <span class="number">64</span>;          <span class="comment">// 当前 stage 内的第几个 128B 宽切片</span></span><br><span class="line">pack  = (q % <span class="number">64</span>) / <span class="number">8</span>;    <span class="comment">// 行内第几个 16B 包，0..7</span></span><br><span class="line">inner = q % <span class="number">8</span>;          <span class="comment">// 包内第几个 BF16，0..7</span></span><br><span class="line"></span><br><span class="line">offset = matrix_stage_base</span><br><span class="line">       + slice * H * <span class="number">128</span></span><br><span class="line">       + r * <span class="number">128</span></span><br><span class="line">       + (pack ^ (r % <span class="number">8</span>)) * <span class="number">16</span></span><br><span class="line">       + inner * <span class="number">2</span>;</span><br></pre></td></tr></table></figure></div>
+<p>其中 A 的 matrix_stage_base 为 <code>stage_id*98304</code>，B 再加 32768；整个 offset 相对 smem 起点计量，单位全部是字节。这里各 stage 和切片起点满足当前 swizzle 布局的对齐要求。</p>
+<p>下面按“逻辑包编号 → 物理包槽位”看 XOR 换位；包内部的 8 个 BF16 顺序不变：</p>
+<table>
+<thead>
+<tr>
+<th>行号 r</th>
+<th>包 0</th>
+<th>包 1</th>
+<th>包 2</th>
+<th>包 3</th>
+<th>包 4</th>
+<th>包 5</th>
+<th>包 6</th>
+<th>包 7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+<td>5</td>
+<td>6</td>
+<td>7</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>3</td>
+<td>2</td>
+<td>5</td>
+<td>4</td>
+<td>7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2</td>
+<td>3</td>
+<td>0</td>
+<td>1</td>
+<td>6</td>
+<td>7</td>
+<td>4</td>
+<td>5</td>
+</tr>
+<tr>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>0</td>
+<td>7</td>
+<td>6</td>
+<td>5</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p>例如同一切片内，r=0、q=0 的相对位置为 0B，r=1、q=0 则为 <code>128+16=144B</code>，不是 128B。这个“换包槽位”的规则与 v2 相同；v3 额外做的只是从两份 stage 中选择基址。不要把上面的单元素 XOR 地址，再手动套进已经声明 swizzle 的 MMA descriptor，重复做一次换位。</p>
+<h2 id="9-首次不累加stage-回到-0不表示累加器要清零"><a class="markdownIt-Anchor" href="#9-首次不累加stage-回到-0不表示累加器要清零"></a> 9. 首次不累加：stage 回到 0，不表示累加器要清零</h2>
+<p>每轮第一条 MMA 仍把 iter_k 作为零/非零的累加开关。只有整个 K 归约的第一条，即 iter_k=0 且片内首条，才不读取旧 TMEM 值。其他 MMA 都累加。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">compute(0) 用 stage 0：第一条不累加旧值</span><br><span class="line">compute(1) 用 stage 1：继续累加</span><br><span class="line">compute(2) 又回 stage 0：仍然继续累加</span><br></pre></td></tr></table></figure></div>
+<p>stage_id 回到 0 只意味着复用输入槽位，与输出累加器初始化无关。不能把首次累加条件误写为 <code>stage_id!=0</code>。</p>
+<p>源码先单独发出第一条，再发 k2=1、2、3，最后处理 k1=1 的四次 MMA：<code>1+3+4=8</code>。同样可以用 j=0…7 的单层循环，其中 k1=j/4、k2=j%4；地址与累加规则保持不变。</p>
+<h2 id="10-三段式主循环预取-稳态-收尾"><a class="markdownIt-Anchor" href="#10-三段式主循环预取-稳态-收尾"></a> 10. 三段式主循环：预取、稳态、收尾</h2>
+<p>令 T=K/BLOCK_K，S=NUM_STAGES。实际源码的调度可以写成：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 语义伪代码；TMA 与 MMA 的发起都是异步操作</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; S - <span class="number">1</span>; ++i)</span><br><span class="line">    <span class="built_in">load</span>(i);</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; T - S + <span class="number">1</span>; ++i) {</span><br><span class="line">    <span class="built_in">load</span>(i + S - <span class="number">1</span>);</span><br><span class="line">    <span class="built_in">compute</span>(i);</span><br><span class="line">    <span class="built_in">wait_current_mma</span>();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = T - S + <span class="number">1</span>; i &lt; T; ++i) {</span><br><span class="line">    <span class="built_in">compute</span>(i);</span><br><span class="line">    <span class="built_in">wait_current_mma</span>();</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/06-loop-phases.png" class="" title="预取、主循环和收尾">
+<h3 id="101-为什么只预取-s1-块"><a class="markdownIt-Anchor" href="#101-为什么只预取-s1-块"></a> 10.1 为什么只预取 S−1 块</h3>
+<p>第一次进入主循环时，会先发出第 S−1 块的 load，然后计算第 0 块。因此预取与第一轮主循环合起来，正好为 S 个槽位各发起一份数据。</p>
+<p>当 S=2：先 load(0)，主循环开头 load(1)，然后 compute(0)。不应不加调整地预取两块后又按原循环重复 load(1)。</p>
+<p>原文章节的高层示意片段有“预取 N−1”注释与循环上界不一致之处；本文按实际 <code>matmul_v3.cu</code> 的 <code>i&lt;NUM_STAGES-1</code> 和独立收尾循环解释。</p>
+<h3 id="102-k4096-的完整计数"><a class="markdownIt-Anchor" href="#102-k4096-的完整计数"></a> 10.2 K=4096 的完整计数</h3>
+<p>T=4096/128=32，S=2：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">预取：load(0)</span><br><span class="line"></span><br><span class="line">主循环 i=0..30，共 31 轮：</span><br><span class="line">    load(i+1)</span><br><span class="line">    compute(i)</span><br><span class="line">    等待 MMA(i)</span><br><span class="line"></span><br><span class="line">收尾：compute(31)，等待 MMA(31)</span><br></pre></td></tr></table></figure></div>
+<p>总计 load 32 次、compute 32 次，每个 K tile 恰好一次。最后一轮主循环搬 tile 31、算 tile 30，所以收尾仍须计算 tile 31。</p>
+<h2 id="11-为什么顺序调用的-load-和-compute-可以重叠"><a class="markdownIt-Anchor" href="#11-为什么顺序调用的-load-和-compute-可以重叠"></a> 11. 为什么顺序调用的 load 和 compute 可以重叠</h2>
+<p><code>load(i+1); compute(i);</code> 的含义不是“等下一块搬完，再算当前块”。准确的执行步骤是：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">向 TMA 提交下一块 i+1 的搬运请求</span><br><span class="line">    ↓</span><br><span class="line">只等待当前块 i 的搬运完成</span><br><span class="line">    ↓</span><br><span class="line">向 Tensor Core 提交当前块 i 的 MMA</span><br></pre></td></tr></table></figure></div>
+<p>如果当前数据已经可用，而下一块仍在搬运，那么硬件可同时执行：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">TMA：写 stage 1 的 tile 1</span><br><span class="line">MMA：读 stage 0 的 tile 0</span><br></pre></td></tr></table></figure></div>
+<p>两个操作访问不同的输入槽位。控制代码顺序提交指令，并不要求两个专用引擎串行执行到完成。</p>
+<p>不过“有重叠机会”不等于每次都完全重叠。若当前 TMA 尚未完成，compute 会等待；若未来 TMA 很早结束，后续没有需要继续隐藏的搬运；流水深度、带宽和计算时间都会影响实际效果。</p>
+<h2 id="12-覆盖安全为什么-load2-不会破坏正在计算的-tile-0"><a class="markdownIt-Anchor" href="#12-覆盖安全为什么-load2-不会破坏正在计算的-tile-0"></a> 12. 覆盖安全：为什么 load(2) 不会破坏正在计算的 tile 0</h2>
+<p>固定源码保留了每轮末尾的 MMA wait。它确保当前组 MMA 执行完成，随后下一轮才会复用旧槽位。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/04-reuse.png" class="" title="缓冲复用顺序">
+<p>两级情况下：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">load(1)       写 stage 1</span><br><span class="line">compute(0)    读 stage 0</span><br><span class="line">wait MMA(0)   确认读取与计算完成</span><br><span class="line">    ↓</span><br><span class="line">load(2)       才重新写 stage 0</span><br><span class="line">compute(1)    读 stage 1</span><br><span class="line">wait MMA(1)</span><br><span class="line">    ↓</span><br><span class="line">load(3)       才重新写 stage 1</span><br></pre></td></tr></table></figure></div>
+<p>所以 MMA wait 不仅是“等结果”，还参与了输入缓冲可复用的保证。不能只因为有双缓冲就直接删除等待。</p>
+<p>对一般 S-stage，主循环 i 预取的数据编号为 <code>i+S-1</code>，它复用的上一个编号是：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(i+S−1)−S = i−1</span><br></pre></td></tr></table></figure></div>
+<p>而 compute(i−1) 已在上一轮被等待完成。主循环第一轮使用的是初始未占用的最后一个槽位。因此在该固定调度模型里，不需要再给每个 stage 增设一份独立的 MMA 完成 barrier。</p>
+<p>如果要让多个 compute 轮次都在未等待完成时继续推进，或者改为独立 producer/consumer warp，原来的隐式复用关系就不够了，需要重新设计协议；那是后续版本的工作。</p>
+<h2 id="13-commit-wait-fence-与-syncthreads-分别保证什么"><a class="markdownIt-Anchor" href="#13-commit-wait-fence-与-syncthreads-分别保证什么"></a> 13. commit、wait、fence 与 syncthreads 分别保证什么</h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>本例的角色</th>
+<th>不应误解为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TMA 发起</td>
+<td>提交搬运请求</td>
+<td>搬运已经完成</td>
+</tr>
+<tr>
+<td>arrive.expect_tx</td>
+<td>设置完成字节数并执行 arrival</td>
+<td>一次普通线程同步</td>
+</tr>
+<tr>
+<td>TMA barrier wait</td>
+<td>确认当前 tile 搬运阶段完成</td>
+<td>等全部未来 stage</td>
+</tr>
+<tr>
+<td>tcgen05 MMA 发起</td>
+<td>提交计算</td>
+<td>输出立即可读</td>
+</tr>
+<tr>
+<td>tcgen05 commit</td>
+<td>安排前面 MMA 完成后的通知</td>
+<td>阻塞直到计算结束</td>
+</tr>
+<tr>
+<td>MMA barrier wait</td>
+<td>确认当前组计算完成，允许后续复用</td>
+<td>可随意删除的等待</td>
+</tr>
+<tr>
+<td>tcgen05 fence after_thread_sync</td>
+<td>建立线程同步与 tcgen05 操作的顺序关系</td>
+<td>等待全部异步工作完成</td>
+</tr>
+<tr>
+<td><code>__syncthreads()</code></td>
+<td>CTA 线程同步，初始化与最终释放前使用</td>
+<td>自动等待所有已提交 MMA</td>
+</tr>
+</tbody>
+</table>
+<p>初始化 TMEM 的 alloc 和最终 dealloc 由整个 warp 协同执行。TMA/MMA 的发起只需要 elected thread。把二者混淆为“所有 tcgen05 指令都只需要一个线程”会出错。</p>
+<p>有关 barrier 阶段、完成语义和 tcgen05 同步模式，参见 <a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions-mbarrier">PTX mbarrier<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 与 <a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-memory-consistency-model">tcgen05 memory consistency<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>。</p>
+<h2 id="14-两个输入-stage共用一个输出-tmem"><a class="markdownIt-Anchor" href="#14-两个输入-stage共用一个输出-tmem"></a> 14. 两个输入 stage，共用一个输出 TMEM</h2>
+<p>v3 不会给 stage 0/1 各分一份输出。所有 K tile 更新同一块 <code>128×256</code> FP32 TMEM。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/07-compute.png" class="" title="输入多缓冲与输出累加器">
+<p>输出指令描述符仍指定 BF16 A/B、FP32 累加和 M=128、N=256。等所有 K tile 都完成后，epilogue 才读取最终结果。</p>
+<table>
+<thead>
+<tr>
+<th>warp</th>
+<th>输出 tile 的行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0–31</td>
+</tr>
+<tr>
+<td>1</td>
+<td>32–63</td>
+</tr>
+<tr>
+<td>2</td>
+<td>64–95</td>
+</tr>
+<tr>
+<td>3</td>
+<td>96–127</td>
+</tr>
+</tbody>
+</table>
+<p>TMEM 地址形式仍为 <code>taddr+((warp_id*32)&lt;&lt;16)+n*8</code>。<code>.32x32b.x8</code> 在这里让每个 lane 每次读取其对应行的 8 个 FP32，<code>wait::ld</code> 后转成 8 个 BF16，打包 16B 写回 global C。</p>
+<p>每个线程负责 <code>off_m+tid</code> 行，共循环 BLOCK_N/8=32 次。线程内部的 8 个元素连续，但相邻 lane 写的是不同输出行，所以不能仅根据 int4 store 就称为完全合并的跨 warp 写入。</p>
+<p>最后 <code>__syncthreads()</code> 确保所有线程读完 TMEM，再由 warp 0 协同释放。源码第 161 行的“store to smem”是旧注释，实际目的地是 C_ptr 指向的 global memory。</p>
+<h2 id="15-适用边界与常见误读"><a class="markdownIt-Anchor" href="#15-适用边界与常见误读"></a> 15. 适用边界与常见误读</h2>
+<h3 id="151-stage-多不等于越快"><a class="markdownIt-Anchor" href="#151-stage-多不等于越快"></a> 15.1 stage 多不等于越快</h3>
+<p>本例双缓冲使用 192 KiB 动态 SMEM。保持 BLOCK_K=128 而直接把 stage 改为 3，会需要 288 KiB 的 A/B 数据区；不能忽略设备的每 block 资源上限。增大 stage 还会影响资源占用、调度和预取开销，性能需要实际测试。</p>
+<h3 id="152-源码没有自动处理所有短-k-和尾部形状"><a class="markdownIt-Anchor" href="#152-源码没有自动处理所有短-k-和尾部形状"></a> 15.2 源码没有自动处理所有短 K 和尾部形状</h3>
+<p>默认实现要求 M 是 128 的倍数、N 是 256 的倍数、K 是 128 的倍数，输出没有通用尾部掩码。</p>
+<p>对一般 S-stage，原三段循环还要求 T=K/BLOCK_K 至少为 S−1，且至少有一次有效计算，即 <code>T&gt;=max(1,S-1)</code>。否则可能预取超出逻辑 tile 数，或让收尾循环从负数开始。默认 S=2 下至少需要一个完整的 K tile。</p>
+<h3 id="153-两个-buffer-并不等于两个-tma-永远在同时传输"><a class="markdownIt-Anchor" href="#153-两个-buffer-并不等于两个-tma-永远在同时传输"></a> 15.3 两个 buffer 并不等于两个 TMA 永远在同时传输</h3>
+<p>NUM_STAGES 指可用于预取/消费的缓冲深度，不保证任意时刻恰好有 S 项搬运未完成。TMA 可能提前完成，多个请求也不保证在所有内部资源上完全并行。</p>
+<h3 id="154-v3-不是-warp-specialization"><a class="markdownIt-Anchor" href="#154-v3-不是-warp-specialization"></a> 15.4 v3 不是 warp specialization</h3>
+<p>它仍由 warp 0 elected thread 顺序发起 load 和 compute。异步引擎允许重叠，不需要单独 producer warp。下一版才会进一步拆分控制角色；本文不把下一版的每-stage MMA barrier 机制混入 v3。</p>
+<h3 id="155-phase-不是-buffer-编号也不是是否有数据"><a class="markdownIt-Anchor" href="#155-phase-不是-buffer-编号也不是是否有数据"></a> 15.5 phase 不是 buffer 编号，也不是“是否有数据”</h3>
+<p>buffer 编号是 <code>iter_k%S</code>，TMA 等待 parity 是 <code>(iter_k/S)%2</code>，MMA 等待 parity 是 <code>iter_k%2</code>。三个值可以不同。只保存 parity 能成立，依赖当前调度不会跨代误用，并正确等待再复用。</p>
+<h2 id="16-b300-本地实测764-1039-tflops"><a class="markdownIt-Anchor" href="#16-b300-本地实测764-1039-tflops"></a> 16. B300 本地实测：764 → 1039 TFLOPS</h2>
+<h3 id="161-环境与数据来源"><a class="markdownIt-Anchor" href="#161-环境与数据来源"></a> 16.1 环境与数据来源</h3>
+<p>沿用前篇已确认的本地环境：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU</td>
+<td>NVIDIA B300 SXM6 AC</td>
+</tr>
+<tr>
+<td>Compute capability</td>
+<td><code>(10,3)</code></td>
+</tr>
+<tr>
+<td>编译目标</td>
+<td><code>sm_103a</code></td>
+</tr>
+<tr>
+<td>PyTorch</td>
+<td><code>2.13.0+cu129</code></td>
+</tr>
+<tr>
+<td><code>torch.version.cuda</code></td>
+<td><code>12.9</code></td>
+</tr>
+<tr>
+<td>尺寸与输入</td>
+<td>M=N=K=4096，BF16</td>
+</tr>
+<tr>
+<td>环境可见 GPU 数</td>
+<td>8，不能当作本表 8 卡聚合吞吐</td>
+</tr>
+</tbody>
+</table>
+<p>本次新增记录为 v3 的 1039 TFLOPS，未提供独立的实测延迟。本文不把由吞吐反算的时间冒充计时输出，也没有在整理时重跑 GPU。原始数值附件：<a href="extras/benchmark.csv">benchmark.csv</a>、<a href="extras/environment.json">environment.json</a>。</p>
+<h3 id="162-教程-b200-与本地-b300"><a class="markdownIt-Anchor" href="#162-教程-b200-与本地-b300"></a> 16.2 教程 B200 与本地 B300</h3>
+<p>教程 B200 环境记录为 PyTorch 2.9.1 + CUDA 13，矩阵同为 4096³。原文 v3 为 <strong>939.61 TFLOPS</strong>，取整即用户对照表中的 <strong>940</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>kernel</th>
+<th>B200 教程 TFLOPS</th>
+<th>B300 本地 TFLOPS</th>
+<th>本地相对 CuBLAS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CuBLAS</td>
+<td>1506.74</td>
+<td>1673</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>v2b：3D 128B TMA</td>
+<td>695.43</td>
+<td>764</td>
+<td>45.7%</td>
+</tr>
+<tr>
+<td>v3：2-stage pipelining</td>
+<td>939.61（约 940）</td>
+<td>1039</td>
+<td>62.1%</td>
+</tr>
+</tbody>
+</table>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/10/28/blackwell-matmul-v3/08-benchmark.png" class="" title="B200/B300 的 v2b、v3 与 CuBLAS 对比">
+<p>吞吐变化：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">B300：1039 / 764 = 1.35995 → 约 +36.0%</span><br><span class="line">B200：939.61 / 695.43 ≈ 1.35112 → 约 +35.1%</span><br><span class="line"></span><br><span class="line">本地 v3 / CuBLAS：1039 / 1673 ≈ 62.1%</span><br><span class="line">B300 v3 / 教程 B200 v3：1039 / 939.61 ≈ 1.10578 → 约 +10.6%</span><br></pre></td></tr></table></figure></div>
+<p>吞吐提升 36% 不等于耗时减少 36%。相同工作量下，由吞吐比推得的耗时比例约为 <code>764/1039=73.53%</code>，即减少约 26.47%。这只是固定工作量的换算，不是新增延迟实测。</p>
+<p>原文性能来源：<a class="link" target="_blank" rel="noopener" href="https://gau-nernst.github.io/tcgen05/#pipelining">Pipelining 性能表<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>。本地和教程都观察到 v3 相比 v2b 进一步提升，但软件版本、运行环境和计时细节并未完全控制；不能将 B200/B300 差异全部归因于单一硬件因素。</p>
+<p>v3 相比 v2b 同时改变了 BLOCK_K 和 stage 数，表中的 +36% 是整个版本变化的测量结果。要单独隔离重叠、K 分块、TMA 发起开销等因素，还需要额外实验或 profiling。</p>
+<h2 id="17-调度校验-源码导航与附件"><a class="markdownIt-Anchor" href="#17-调度校验-源码导航与附件"></a> 17. 调度校验、源码导航与附件</h2>
+<p>配套 <a href="extras/verify_pipeline.py">verify_pipeline.py</a> 是 CPU 上的顺序调度模型，不启动 CUDA。它检查默认参数及多组合法 stage/tile 组合：</p>
+<ul>
+<li>每个 tile 恰好 load、compute 一次，K 区间没有漏算或重复。</li>
+<li>复用槽位前，该槽位旧 tile 的 compute 已经完成等待。</li>
+<li>当前 compute 消费的槽位确实存放对应 tile。</li>
+<li>单个 tma_phase 与每-buffer phase 数组，以及由 iter_k 推导的 parity 一致。</li>
+<li>MMA phase 每轮翻转，与唯一 MMA barrier 的复用次数一致。</li>
+<li>原始预取、主循环、收尾边界与调度计数正确。</li>
+<li>stage A/B 地址范围、MMA 地址及首次累加条件一致。</li>
+<li>B300 +36.0%、相对 CuBLAS 62.1% 等数值计算一致。</li>
+</ul>
+<p>模型验证不模拟 GPU warp 调度、内存可见性或硬件 barrier，实现层面的正确性和性能仍需 GPU 测试。结果见 <a href="extras/verification.json">verification.json</a>，默认 32-tile 调度轨迹见 <a href="extras/schedule.csv">schedule.csv</a>。</p>
+<table>
+<thead>
+<tr>
+<th>固定源码行号</th>
+<th>内容</th>
+<th>本文章节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5–9、209–215</td>
+<td>参数和入口</td>
+<td>1</td>
+</tr>
+<tr>
+<td>20–32</td>
+<td>grid 与输出 tile 坐标</td>
+<td>3</td>
+</tr>
+<tr>
+<td>34–38</td>
+<td>SMEM 与 A/B 大小</td>
+<td>2</td>
+</tr>
+<tr>
+<td>43–65</td>
+<td>barrier、TMEM、phase 初始化</td>
+<td>4、7</td>
+</tr>
+<tr>
+<td>67–73</td>
+<td>instruction descriptor</td>
+<td>14</td>
+</tr>
+<tr>
+<td>75–88</td>
+<td>load lambda</td>
+<td>5</td>
+</tr>
+<tr>
+<td>90–103</td>
+<td>当前 TMA 等待与 phase 翻转</td>
+<td>6、7</td>
+</tr>
+<tr>
+<td>105–134</td>
+<td>MMA 描述符、发起、commit</td>
+<td>8、9、13</td>
+</tr>
+<tr>
+<td>138–149</td>
+<td>预取与稳态主循环</td>
+<td>10–12</td>
+</tr>
+<tr>
+<td>151–156</td>
+<td>收尾</td>
+<td>10</td>
+</tr>
+<tr>
+<td>158–184</td>
+<td>TMEM 输出与释放</td>
+<td>14</td>
+</tr>
+<tr>
+<td>187–206</td>
+<td>tensor map 与 launch</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>源码快照：<a href="extras/matmul_v3.cu">matmul_v3.cu</a>、<a href="extras/matmul_v2.cu">matmul_v2.cu</a>、<a href="extras/common.h">common.h</a>。来源及 SHA-256 见 <a href="extras/source-manifest.json">source-manifest.json</a>，源码权利与许可遵循上游仓库。</p>
+<p>进一步阅读：<a class="link" target="_blank" rel="noopener" href="https://gau-nernst.github.io/tcgen05/#pipelining">原文 Pipelining<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>、<a class="link" target="_blank" rel="noopener" href="https://github.com/gau-nernst/learn-cuda/blob/afcb20b1bd89065c31a1575c276aba686fc4dfce/02_matmul_sm100/matmul_v3.cu">固定提交的 v3<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>、<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-descriptor">PTX Shared Memory Descriptor<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>、<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-data-path-layout-d">PTX Layout D<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-10-28 21:28:00</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-10-28 21:27:30
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/10/28/blackwell-matmul-v3/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-blackwell-gemm-cutlass/">#cuda, blackwell, gemm, cutlass</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/10/28/blackwell-matmul-v2/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">从 16B 到 128B：图解 Blackwell TMA Swizzle 与 matmul_v2</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#blackwell-gemm-%E6%B5%81%E6%B0%B4%E7%BA%BF%E5%85%A5%E9%97%A8%E5%9B%BE%E8%A7%A3-matmul_v3-%E7%9A%84%E5%8F%8C%E7%BC%93%E5%86%B2-barrier-%E4%B8%8E-phase"><span class="nav-text"> Blackwell GEMM 流水线入门：图解 matmul_v3 的双缓冲、barrier 与 phase</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-v2-%E5%88%B0-v3%E6%94%B9%E4%BA%86%E8%B0%83%E5%BA%A6%E4%B9%9F%E6%94%B9%E4%BA%86-block_k"><span class="nav-text"> 1. v2 到 v3：改了调度，也改了 BLOCK_K</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-stage-%E5%88%B0%E5%BA%95%E6%98%AF%E4%BB%80%E4%B9%88%E4%B8%80%E4%BB%BD%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84-ab-%E8%BE%93%E5%85%A5%E7%BC%93%E5%86%B2"><span class="nav-text"> 2. stage 到底是什么：一份可复用的 A&#x2F;B 输入缓冲</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-host-%E5%88%9D%E5%A7%8B%E5%8C%96-grid-%E4%B8%8E%E7%BA%BF%E7%A8%8B%E8%A7%92%E8%89%B2"><span class="nav-text"> 3. host 初始化、grid 与线程角色</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E4%B8%A4%E4%B8%AA-tma-barrier-%E4%B8%80%E4%B8%AA-mma-barrier%E5%90%84%E8%87%AA%E8%B7%9F%E8%B8%AA%E4%BB%80%E4%B9%88"><span class="nav-text"> 4. 两个 TMA barrier、一个 MMA barrier，各自跟踪什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-loaditer_k%E9%80%89%E6%8B%A9%E6%A7%BD%E4%BD%8D%E5%8F%91%E8%B5%B7%E6%9C%AA%E6%9D%A5%E6%90%AC%E8%BF%90"><span class="nav-text"> 5. load(iter_k)：选择槽位，发起未来搬运</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-computeiter_k%E7%AD%89%E5%BE%85%E5%BD%93%E5%89%8D%E6%A7%BD%E4%BD%8D%E7%84%B6%E5%90%8E%E5%8F%91%E8%B5%B7-mma"><span class="nav-text"> 6. compute(iter_k)：等待当前槽位，然后发起 MMA</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%A4%E4%B8%AA-buffer-%E5%8F%AA%E6%9C%89%E4%B8%80%E4%B8%AA-tma_phase"><span class="nav-text"> 7. 为什么两个 buffer 只有一个 tma_phase</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#71-%E4%B8%80%E4%B8%AA%E5%B1%80%E9%83%A8-phase-%E4%B8%8D%E4%BB%A3%E8%A1%A8%E4%B8%A4%E4%B8%AA-barrier-%E7%8E%B0%E5%9C%A8%E7%8A%B6%E6%80%81%E7%9B%B8%E5%90%8C"><span class="nav-text"> 7.1 一个局部 phase 不代表两个 barrier 现在状态相同</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#72-%E6%AF%8F%E4%B8%AA-buffer-%E4%B8%80%E4%B8%AA-phase-%E4%B9%9F%E8%83%BD%E5%86%99"><span class="nav-text"> 7.2 每个 buffer 一个 phase 也能写</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#73-mma_phase-%E4%B8%BA%E4%BB%80%E4%B9%88%E6%AF%8F%E8%BD%AE%E7%BF%BB%E8%BD%AC"><span class="nav-text"> 7.3 mma_phase 为什么每轮翻转</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-%E6%AF%8F%E4%B8%AA-stage-%E5%86%85%E7%9A%84-swizzle-%E5%92%8C-k1k2-%E6%B2%BF%E7%94%A8-v2"><span class="nav-text"> 8. 每个 stage 内的 swizzle 和 k1&#x2F;k2 沿用 v2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-%E9%A6%96%E6%AC%A1%E4%B8%8D%E7%B4%AF%E5%8A%A0stage-%E5%9B%9E%E5%88%B0-0%E4%B8%8D%E8%A1%A8%E7%A4%BA%E7%B4%AF%E5%8A%A0%E5%99%A8%E8%A6%81%E6%B8%85%E9%9B%B6"><span class="nav-text"> 9. 首次不累加：stage 回到 0，不表示累加器要清零</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-%E4%B8%89%E6%AE%B5%E5%BC%8F%E4%B8%BB%E5%BE%AA%E7%8E%AF%E9%A2%84%E5%8F%96-%E7%A8%B3%E6%80%81-%E6%94%B6%E5%B0%BE"><span class="nav-text"> 10. 三段式主循环：预取、稳态、收尾</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#101-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AA%E9%A2%84%E5%8F%96-s1-%E5%9D%97"><span class="nav-text"> 10.1 为什么只预取 S−1 块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#102-k4096-%E7%9A%84%E5%AE%8C%E6%95%B4%E8%AE%A1%E6%95%B0"><span class="nav-text"> 10.2 K&#x3D;4096 的完整计数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%A1%BA%E5%BA%8F%E8%B0%83%E7%94%A8%E7%9A%84-load-%E5%92%8C-compute-%E5%8F%AF%E4%BB%A5%E9%87%8D%E5%8F%A0"><span class="nav-text"> 11. 为什么顺序调用的 load 和 compute 可以重叠</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-%E8%A6%86%E7%9B%96%E5%AE%89%E5%85%A8%E4%B8%BA%E4%BB%80%E4%B9%88-load2-%E4%B8%8D%E4%BC%9A%E7%A0%B4%E5%9D%8F%E6%AD%A3%E5%9C%A8%E8%AE%A1%E7%AE%97%E7%9A%84-tile-0"><span class="nav-text"> 12. 覆盖安全：为什么 load(2) 不会破坏正在计算的 tile 0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-commit-wait-fence-%E4%B8%8E-syncthreads-%E5%88%86%E5%88%AB%E4%BF%9D%E8%AF%81%E4%BB%80%E4%B9%88"><span class="nav-text"> 13. commit、wait、fence 与 syncthreads 分别保证什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#14-%E4%B8%A4%E4%B8%AA%E8%BE%93%E5%85%A5-stage%E5%85%B1%E7%94%A8%E4%B8%80%E4%B8%AA%E8%BE%93%E5%87%BA-tmem"><span class="nav-text"> 14. 两个输入 stage，共用一个输出 TMEM</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#15-%E9%80%82%E7%94%A8%E8%BE%B9%E7%95%8C%E4%B8%8E%E5%B8%B8%E8%A7%81%E8%AF%AF%E8%AF%BB"><span class="nav-text"> 15. 适用边界与常见误读</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#151-stage-%E5%A4%9A%E4%B8%8D%E7%AD%89%E4%BA%8E%E8%B6%8A%E5%BF%AB"><span class="nav-text"> 15.1 stage 多不等于越快</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#152-%E6%BA%90%E7%A0%81%E6%B2%A1%E6%9C%89%E8%87%AA%E5%8A%A8%E5%A4%84%E7%90%86%E6%89%80%E6%9C%89%E7%9F%AD-k-%E5%92%8C%E5%B0%BE%E9%83%A8%E5%BD%A2%E7%8A%B6"><span class="nav-text"> 15.2 源码没有自动处理所有短 K 和尾部形状</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#153-%E4%B8%A4%E4%B8%AA-buffer-%E5%B9%B6%E4%B8%8D%E7%AD%89%E4%BA%8E%E4%B8%A4%E4%B8%AA-tma-%E6%B0%B8%E8%BF%9C%E5%9C%A8%E5%90%8C%E6%97%B6%E4%BC%A0%E8%BE%93"><span class="nav-text"> 15.3 两个 buffer 并不等于两个 TMA 永远在同时传输</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#154-v3-%E4%B8%8D%E6%98%AF-warp-specialization"><span class="nav-text"> 15.4 v3 不是 warp specialization</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#155-phase-%E4%B8%8D%E6%98%AF-buffer-%E7%BC%96%E5%8F%B7%E4%B9%9F%E4%B8%8D%E6%98%AF%E6%98%AF%E5%90%A6%E6%9C%89%E6%95%B0%E6%8D%AE"><span class="nav-text"> 15.5 phase 不是 buffer 编号，也不是“是否有数据”</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#16-b300-%E6%9C%AC%E5%9C%B0%E5%AE%9E%E6%B5%8B764-1039-tflops"><span class="nav-text"> 16. B300 本地实测：764 → 1039 TFLOPS</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#161-%E7%8E%AF%E5%A2%83%E4%B8%8E%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90"><span class="nav-text"> 16.1 环境与数据来源</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#162-%E6%95%99%E7%A8%8B-b200-%E4%B8%8E%E6%9C%AC%E5%9C%B0-b300"><span class="nav-text"> 16.2 教程 B200 与本地 B300</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#17-%E8%B0%83%E5%BA%A6%E6%A0%A1%E9%AA%8C-%E6%BA%90%E7%A0%81%E5%AF%BC%E8%88%AA%E4%B8%8E%E9%99%84%E4%BB%B6"><span class="nav-text"> 17. 调度校验、源码导航与附件</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 54 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
