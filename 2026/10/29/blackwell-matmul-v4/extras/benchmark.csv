@@ -1,0 +1,7 @@
+device,kernel,tflops_original,tflops_user_table,measured_latency_ms,source
+B200,cublas,1506.74,1507,,tutorial
+B200,v3,939.61,940,,tutorial
+B200,v4,1208.83,1209,,tutorial
+B300,cublas,1676,1676,,latest user-provided table
+B300,v3,1039,1039,,latest user-provided table
+B300,v4,1271,1271,,latest user-provided table

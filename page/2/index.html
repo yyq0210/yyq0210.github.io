@@ -553,7 +553,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -593,7 +593,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">54</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -608,6 +608,151 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/09/12/cp_optimization/">
+                            cp_optimization
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             FlashKDA Context Parallelism (CP) 优化
+ 1. 概述
+ 问题
+FlashKDA 是一个带循环状态的注意力 kernel。对于长序列（如 64K tokens），单次前向的 kernel2 中状态递推是串行的，GPU SM 利用率低。
+ 为什么需要 CP？—— FlashKDA vs fla_chunk_kda 基线对比
+FlashKDA 的前向计算包含一个...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Sep 12 2026 22:50:00 GMT+0800">
+                
+                    2026-09-12
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/09/12/cp_optimization/">阅读全文<span class="seo-reader-text">cp_optimization</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/09/12/k1_bwd_prepare_deep_dive/">
+                            k1_bwd_prepare_deep_dive
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             K1_bwd “prepare” kernel 逐行精讲（小白可推导版）
+
+对应源码：csrc/smxx/bwd_kernel1.cuh 的 _flash_kda_bwd_prepare
+目标读者：没接触过自动微分 / CUDA kernel 的人。读完应能自己推出 L2 归一化反向、数值稳定的 、以及门控的逆向 cumsum，并理解代码为何这样写。
+约定：d&lt;量&gt; 表示 lo...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Sep 12 2026 22:40:00 GMT+0800">
+                
+                    2026-09-12
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/09/12/k1_bwd_prepare_deep_dive/">阅读全文<span class="seo-reader-text">k1_bwd_prepare_deep_dive</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1190,165 +1335,6 @@ Part B（移植 Dao AI Lab 2026 的 ReplaySSM）。Part A（decode 版）见
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/06/24/FlashQLA%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E6%9E%90/">
-                            FlashQLA流水线解析
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            链接：Qwen
- tilelang_fused_chunk_gdr_fwd_kernel 流水线机制详解
-本文面向第一次接触这个 kernel 的读者，目标不是逐行翻译代码，而是帮助你建立一个清晰的整体心智模型：
-
-这个 kernel 在算什么
-为什么它要拆成多组线程
-为什么要做双缓冲
-为什么会有这么多 barrier
-一个 chunk 在 kernel 里到底经历了哪些阶段
-
-文中默认讨论...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Wed Jun 24 2026 23:50:00 GMT+0800">
-                
-                    2026-06-24
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/06/24/FlashQLA%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E6%9E%90/">阅读全文<span class="seo-reader-text">FlashQLA流水线解析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/06/22/NIKO/">
-                            应无所住，而生其心--CS步枪最长的河NiKo
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             幸有金雨一场，替青春加冕
-🏆Team Falcons · IEM Cologne 2026 Champions
-灭蜂斩龙，问鼎科隆！
-十载饮冰，难凉热血！
-Nikola “NiKo” Kovač，a living legend.
-The Crownless King finally bled his way to the Iron Throne.
-Veni！Vidi！Vici！
-
-201...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Mon Jun 22 2026 03:50:00 GMT+0800">
-                
-                    2026-06-22
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/CS/">CS</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/CS/">CS</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/tags/NiKo/">NiKo</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/06/22/NIKO/">阅读全文<span class="seo-reader-text">应无所住，而生其心--CS步枪最长的河NiKo</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1379,7 +1365,7 @@ Veni！Vidi！Vici！
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 54 篇文章
+                        共撰写了 56 篇文章
                     </span>
                     
                 </p>
