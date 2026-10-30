@@ -545,7 +545,7 @@ mjx-container[display="true"] + br {
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -553,7 +553,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -585,7 +585,7 @@ mjx-container[display="true"] + br {
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -593,7 +593,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -608,6 +608,87 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/06/14/cute(7)simple_gemm/">
+                            cute（7）simple_gemm
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             前置阅读
+
+官方文档：CuTe — NVIDIA CUTLASS Documentation
+reed博士：(4 封私信) cute 之 简单GEMM实现 - 知乎
+
+ 7 简单 GEMM（不用 Shared Memory）
+
+对应代码：07_simple_gemm.cu
+需要 GPU。
+
+ 核心概念
+用 TiledMMA 实现真正的矩阵乘法：
+
+直接从 global memory 读到寄...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sun Jun 14 2026 22:13:32 GMT+0800">
+                
+                    2026-06-14
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cutlass-cute/">cuda, cutlass,cute</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/06/14/cute(7)simple_gemm/">阅读全文<span class="seo-reader-text">cute（7）simple_gemm</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1361,92 +1442,6 @@ Layout = Shape + Stride，它是一个函数，把多维坐标映...
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/06/03/%E6%89%8B%E6%92%95KDA/">
-                            手撕KDA
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            前置知识：KDA算法公式、triton、cuda、c++
-从 FLA（flash-linear-attention）仓库的代码入手
-仓库链接：fla-org/flash-linear-attention: 🚀 Efficient implementations for emerging model architectures
- 0 公式回顾
-
-
-
-
-
-
-
-
- 1 Naive
-代码链接：fl...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Wed Jun 03 2026 23:50:00 GMT+0800">
-                
-                    2026-06-03
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/tags/KDA/">KDA</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/06/03/%E6%89%8B%E6%92%95KDA/">阅读全文<span class="seo-reader-text">手撕KDA</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1477,7 +1472,7 @@ Layout = Shape + Stride，它是一个函数，把多维坐标映...
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 56 篇文章
+                        共撰写了 57 篇文章
                     </span>
                     
                 </p>

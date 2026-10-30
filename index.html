@@ -599,7 +599,7 @@ mjx-container[display="true"] + br {
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -607,7 +607,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -639,7 +639,7 @@ mjx-container[display="true"] + br {
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -647,7 +647,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">56</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -662,6 +662,76 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/10/30/cute-cutlass-blackwell/">
+                            CuTe / CUTLASS Blackwell 图解：从 Layout 到 get_slice、partition 与 fragment
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             CuTe / CUTLASS Blackwell 图解：从 Layout 到 get_slice、partition 与 fragment
+读 CuTe，先分清三个问题： 这是什么元素？它存在什么位置？谁用什么指令访问它？ 大部分看起来复杂的封装，都在把其中一种坐标换成另一种坐标。
+UMMA 是 CUTLASS 中对 Blackwell tcgen05.mma 的称呼。本文围绕数据中心 B...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Fri Oct 30 2026 21:42:32 GMT+0800">
+                
+                    2026-10-30
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-cute-cutlass-blackwell/">cuda, cute, cutlass, blackwell</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/10/30/cute-cutlass-blackwell/">阅读全文<span class="seo-reader-text">CuTe / CUTLASS Blackwell 图解：从 Layout 到 get_slice、partition 与 fragment</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1296,78 +1366,6 @@ matmul_v2 已经使用 128B TMA 切片与 swizzle，但仍然先等搬运、再�
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/09/12/YOCO_%E8%AE%BA%E6%96%87%E4%B8%8E%E6%8E%A8%E7%90%86%E6%95%B0%E6%8D%AE%E6%B5%81%E8%AF%A6%E8%A7%A3/">
-                            YOCO_论文与推理数据流详解
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             YOCO：You Only Cache Once——论文、架构与推理数据流详解
-
-论文：You Only Cache Once: Decoder-Decoder Architectures for Language Models
-arXiv：2405.05254（v2）
-作者：Yutao Sun、Li Dong 等，Microsoft Research / Tsinghua Univers...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Sep 12 2026 23:51:00 GMT+0800">
-                
-                    2026-09-12
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/09/12/YOCO_%E8%AE%BA%E6%96%87%E4%B8%8E%E6%8E%A8%E7%90%86%E6%95%B0%E6%8D%AE%E6%B5%81%E8%AF%A6%E8%A7%A3/">阅读全文<span class="seo-reader-text">YOCO_论文与推理数据流详解</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1398,7 +1396,7 @@ arXiv：2405.05254（v2）
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 56 篇文章
+                        共撰写了 57 篇文章
                     </span>
                     
                 </p>
