@@ -618,6 +618,223 @@ mjx-container[display="true"] + br {
                 
                 <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
                     <h3 class="home-article-title">
+                        <a href="/2026/03/22/bwd-ncu-and-optimization-playbook/">
+                            bwd-ncu-and-optimization-playbook
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             反向 Kernel A/B 优化通用方法论 —— ncu 指标解析 + 共同优化手段总结
+日期：2026-07-22
+GPU：H20-3e（sm_90a，Hopper）。
+本文是 Kernel A（串行 dstate 反向 scan） 和 Kernel B（并行 per-token 梯度，split 成 4 个小
+kernel） 两条优化战役的横向提炼：把两边反复用到的同一批 ncu 指标...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sun Mar 22 2026 23:50:00 GMT+0800">
+                
+                    2026-03-22
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/03/22/bwd-ncu-and-optimization-playbook/">阅读全文<span class="seo-reader-text">bwd-ncu-and-optimization-playbook</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/03/21/bwd-kernelA-beginner-guide-full/">
+                            bwd-kernelA-beginner-guide-full
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             反向 A Kernel 优化全解析（小白版，从零讲起）
+日期：2026-07-21
+GPU：H20-3e（sm_90a，Hopper）。
+本文对象 = 反向传播的 Kernel A（串行 dstate 反向扫描），当前冠军源码
+csrc/smxx/bwd_a_dstate_scan_s12.cuh（= 优化日志 docs/20260715-bwd-kernelA-optimization-...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Mar 21 2026 23:50:00 GMT+0800">
+                
+                    2026-03-21
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/03/21/bwd-kernelA-beginner-guide-full/">阅读全文<span class="seo-reader-text">bwd-kernelA-beginner-guide-full</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/03/20/bwd-kernelB-beginner-guide-full/">
+                            bwd-kernelB-beginner-guide-full
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             反向 B Kernel 优化全解析（小白版，从零讲起）
+日期：2026-07-20
+GPU：H20-3e（sm_90a，Hopper）。
+本文对象 = 反向传播的 Kernel B（split 成 B1/B2/B3/B0 四个），当前冠军源码
+csrc/smxx/bwd_b_split_fuse_b2_b3_sinfix_a1d.cuh（= 文档 l8 + 两项文档未记录的补充
+sinfi...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Fri Mar 20 2026 23:50:00 GMT+0800">
+                
+                    2026-03-20
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/LLM/">LLM</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/03/20/bwd-kernelB-beginner-guide-full/">阅读全文<span class="seo-reader-text">bwd-kernelB-beginner-guide-full</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
                         <a href="/2026/03/05/DeepSeekV4%E4%B9%8BCSA+HCA/">
                             DeepSeekV4之CSA+HCA
                         </a>
@@ -678,229 +895,6 @@ mjx-container[display="true"] + br {
     </div>
 
     <a href="/2026/03/05/DeepSeekV4%E4%B9%8BCSA+HCA/">阅读全文<span class="seo-reader-text">DeepSeekV4之CSA+HCA</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/02/28/replayssm(B)SpecDecode/">
-                            replayssm(B)SpecDecode
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             PR #28695 详解：GDN ReplaySSM Ring Spec-Verify
-
-本文件逐字记录了关于 SGLang PR
-#28695
-「[GDN] Support ReplaySSM Ring Spec-Verify」的全部讲解。
-它是 #28511 的
-Part B（移植 Dao AI Lab 2026 的 ReplaySSM）。Part A（decode 版）见
-姊妹文档 ...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Feb 28 2026 22:30:00 GMT+0800">
-                
-                    2026-02-28
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/02/28/replayssm(B)SpecDecode/">阅读全文<span class="seo-reader-text">replayssm(B)SpecDecode</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/02/28/replayssm(A)Decode/">
-                            replayssm(A)Decode
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             ReplaySSM —— GDN/KDA 线性注意力的 buffered output-only decode
-
-本文是对上游 PR [GDN][KDA] ReplaySSM buffered output-only decode for LinearAttention（sgl-project/sglang #28451，作者 yuan-luo，base main，13 文件+1722/-...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Feb 28 2026 22:30:00 GMT+0800">
-                
-                    2026-02-28
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/02/28/replayssm(A)Decode/">阅读全文<span class="seo-reader-text">replayssm(A)Decode</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/02/24/FlashQLA%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E6%9E%90/">
-                            FlashQLA流水线解析
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            链接：Qwen
- tilelang_fused_chunk_gdr_fwd_kernel 流水线机制详解
-本文面向第一次接触这个 kernel 的读者，目标不是逐行翻译代码，而是帮助你建立一个清晰的整体心智模型：
-
-这个 kernel 在算什么
-为什么它要拆成多组线程
-为什么要做双缓冲
-为什么会有这么多 barrier
-一个 chunk 在 kernel 里到底经历了哪些阶段
-
-文中默认讨论...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Tue Feb 24 2026 23:50:00 GMT+0800">
-                
-                    2026-02-24
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/02/24/FlashQLA%E6%B5%81%E6%B0%B4%E7%BA%BF%E8%A7%A3%E6%9E%90/">阅读全文<span class="seo-reader-text">FlashQLA流水线解析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
