@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Compuer Science, Large Langaue Model">
+    
+    
+    <meta name="author" content="鱿鱼圈">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes ASAP (before DOMContentLoaded)
+            (function() {
+                const addBodyClass = () => {
+                    const b = document.body;
+                    if (!b) return false;
+                    b.classList.add(theme + "-mode");
+                    return true;
+                };
+
+                // Try immediately
+                if (addBodyClass()) return;
+
+                // Observe until body exists
+                const mo = new MutationObserver(() => {
+                    if (addBodyClass()) mo.disconnect();
+                });
+                mo.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        })();
+    </script>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://www.yuyanqi.com/2026/07/03/cuda-memory-optimization/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CUDA 内存优化图解">
+<meta property="og:url" content="https://www.yuyanqi.com/2026/07/03/cuda-memory-optimization/index.html">
+<meta property="og:site_name" content="stay hungry stay foolish">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-07-03T13:18:21.000Z">
+<meta property="article:modified_time" content="2026-11-03T13:30:32.700Z">
+<meta property="article:author" content="鱿鱼圈">
+<meta property="article:tag" content="cuda, optimization">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yuyanqi.com/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            CUDA 内存优化图解 | stay hungry stay foolish
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <style>
+.article-content .mathjax-svg svg {
+  overflow: visible;
+  max-width: 100%;
+}
+.article-content .math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.article-content .math-inline {
+  display: inline-block;
+  margin: 0 0.15em;
+  vertical-align: middle;
+}
+.home-banner-container .description .home-banner-intro {
+  margin-top: 1.1rem;
+  max-width: 40rem;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  font-weight: 350;
+  font-family: 'Geist Variable', 'Noto Sans SC', sans-serif;
+  text-align: center;
+  color: var(--home-banner-text-color);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.home-banner-container .description .home-banner-intro p {
+  margin: 0 0 0.55em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.home-banner-container .description .home-banner-intro p:last-child {
+  margin-bottom: 0;
+}
+.home-banner-container .description .home-banner-intro strong {
+  font-weight: 600;
+}
+/* Keep small images at intrinsic size; only shrink large ones on narrow screens */
+.article-content .markdown-body img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body p > img:not(.not-markdown),
+.article-content .markdown-body figure.image-caption img:not(.not-markdown) {
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .markdown-body img[src$=".svg"],
+.article-content .markdown-body img[data-src$=".svg"] {
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+}
+.article-content .mermaid {
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+.article-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Mermaid labels inherit page color; dark mode becomes white-on-white */
+.article-content .mermaid foreignObject,
+.article-content .mermaid foreignObject *,
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel {
+  color: #213547 !important;
+}
+.article-content .mermaid .nodeLabel,
+.article-content .mermaid .edgeLabel,
+.article-content .mermaid .label,
+.article-content .mermaid text,
+.article-content .mermaid tspan {
+  fill: #213547 !important;
+}
+</style>
+
+                
+    
+            
+                
+                    <script data-swup-reload-script>
+(function () {
+  function renderMermaid() {
+    if (!window.mermaid) return;
+    var nodes = document.querySelectorAll(".mermaid");
+    if (!nodes.length) return;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "default",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, useMaxWidth: true }
+    });
+    nodes.forEach(function (el) {
+      el.removeAttribute("data-processed");
+      var original = el.getAttribute("data-original-code");
+      if (original) el.innerHTML = original;
+    });
+    mermaid.run({ querySelector: ".mermaid" }).catch(function (err) {
+      console.error("mermaid.run failed", err);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: false });
+  });
+  window.addEventListener("load", renderMermaid);
+  document.addEventListener("swup:page:view", renderMermaid);
+  if (window.swup && window.swup.hooks) {
+    window.swup.hooks.on("page:view", renderMermaid);
+  }
+})();
+</script>
+
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+    
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"www.yuyanqi.com","root":"/","language":"zh-CN"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":false,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":false,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"欢迎来到鱿鱼圈的博客","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":[{"icon":"fa-brands fa-github","url":null},{"icon":"fa-brands fa-twitter","url":null},{"icon":"fa-solid fa-at","url":"you@example.com"},{"icon":"fa-brands fa-telegram","url":null},{"icon":"/images/custom-icon.svg","url":null}],"qrs":[{"icon":"fa-brands fa-weixin","qr":null},{"icon":"/images/custom-icon.svg","qr":null}]}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":true,"version":"11.4.1","theme":{"light":"default","dark":"dark"}}},"version":"2.9.0","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur","masonry":{"batch_size":12,"initial_batch_size":24}},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3},"intro":{"enable":true,"content":"Hi, I'm **Yu Yanqi** (鱿鱼圈), a master's student in Computer Science.\n\nMy interests include **LLMs**, **AI infrastructure**, and **Deep Learning Systems**.\n"}},"footer":{"runtime":true,"icon":"<i class=\"fa-solid fa-heart fa-beat\" style=\"--fa-animation-duration: 0.5s; color: #f54545\"></i>","start":"2022/8/17 11:45:14","statistics":true,"customize":null,"icp":{"enable":false,"number":null,"url":null}},"footerStart":"2022/8/17 11:45:14","mermaid":{"style":{"light":"default","dark":"dark"}}};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.i18n = {"search":"站内搜索您需要的内容...","toc":"目录","prev":"上一页","next":"下一页","prev_posts":"上一篇","next_posts":"下一篇","page":"第 %d 页","recent_posts":"最新文章","share":"分享","powered_by":"由 %s 驱动","theme":"主题","rss_feed":"RSS Feed","category":"分类","categories":"分类","tag":"标签","tags":"标签","post":"文章","posts":"文章","tagcloud":"标签云","comment":"评论","comments":"评论","top":"置顶","sticky":"置顶","go-back-home":"回到首页","masonry_loading":"照片加载中...","image_viewer":"图片查看器","close":"关闭","exif":{"title":"EXIF","cards":{"camera":"相机","lens":"镜头","exposure":"曝光","other":"其他"},"fields":{"make":"品牌","model":"机型","date_taken":"拍摄时间","lens_model":"镜头","focal_length":"焦距","focus_mode":"对焦模式","shutter":"快门","aperture":"光圈","iso":"感光度","exposure_program":"曝光程序","exposure_compensation":"曝光补偿","metering_mode":"测光模式","flash":"闪光灯","white_balance":"白平衡","latitude":"纬度","longitude":"经度","altitude":"海拔"},"status":{"loading":"加载中...","no_exif":"无 EXIF 信息","library_missing":"EXIF 库未加载","image_source_missing":"图片地址不可用","unavailable":"EXIF 不可用（可能被 CORS 阻止或缺少元数据）","flag_unavailable":"EXIF 不可用"}},"home":"首页","archive":"归档","archives":"归档","about":"关于","links":"链接","link":"链接","friends":"友情链接","friend":"友情链接","timeline":"时间轴","shuoshuo":"说说","bookmarks":"书签","site_uv":"访问人数","site_pv":"总访问量","read_more":"阅读全文","wordcount":"字","min2read":"分钟","changelog":"更新日志","status":"状态","runtime":"博客已运行","days":"天","hours":"小时","minutes":"分钟","seconds":"秒","optimized_by":"并由 Evan 进行优化","rights":"版权所有","site_posts":"共撰写了 %s 篇文章","site_wordcount":"共 %s 字","copyright":{"title":"标题","author":"作者","link":"链接","create_time":"创建于","update_time":"更新于","license_title":"版权声明","license_content":"本文章采用 %s 进行许可。","all_rights_reserved":"版权所有 &#169 %s，禁止转载。","public_domain":"本文为公有领域作品，可自由转载、引用。"},"ago":{"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"},"create_time":"创建","update_time":"更新","expired":"这篇文章最后更新于 %s 天前，内容可能已经过时。"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 8.1.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
+
+
+<body>
+	<div class="progress-bar-container">
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                stay hungry stay foolish
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">59</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">CUDA 内存优化图解</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] shrink-0 rounded-medium border border-border-color p-px">
+				<img src="/images/sdq.png">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">鱿鱼圈</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-07-03 21:18:21</span>
+        <span class="mobile">2026-07-03 21:18:21</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-11-03 21:30:32</span>
+            <span class="mobile">2026-11-03 21:30:32</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/cuda-optimization/">cuda, optimization</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h1 id="cuda-内存优化图解"><a class="markdownIt-Anchor" href="#cuda-内存优化图解"></a> CUDA 内存优化图解</h1>
+<p>从 CPU 与 GPU 之间的数据传输，到 GPU 内部的访存布局、缓存复用和分配策略。</p>
+<p>本文按 NVIDIA《CUDA C++ Best Practices Guide》第十章的 10.1～10.4 组织，并结合 GEMM、TMA 和 Blackwell 的学习场景展开。核心目标是让读者能从代码推导出：数据在哪里、谁访问它、访问哪些地址、什么时候可以复用，以及为什么一种优化可能没有收益。</p>
+<p>这是一份教学整理，不是原文逐句翻译。数值推演明确标为示例；历史平台的测试结论不作为 B300 的性能保证。CUDA 代码片段用于解释机制，除非另有说明，省略了错误处理与资源清理，没有声称经过 GPU 实测。</p>
+<p>原文：<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#memory-optimizations">第十章 Memory Optimizations<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>。核对日期：2026 年 11 月 2 日。</p>
+<h2 id="阅读路线"><a class="markdownIt-Anchor" href="#阅读路线"></a> 阅读路线</h2>
+<table>
+<thead>
+<tr>
+<th>对应小节</th>
+<th>要解决的问题</th>
+<th>本文的重点例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10.1 主机与设备传输</td>
+<td>如何避免数据传输拖慢程序</td>
+<td>pinned buffer、多 stream 分块流水</td>
+</tr>
+<tr>
+<td>10.2.1 全局内存</td>
+<td>一个 warp 的访问是否浪费带宽</td>
+<td>对齐、偏移、stride 与 sector</td>
+</tr>
+<tr>
+<td>10.2.2 L2</td>
+<td>怎样保留反复访问的数据</td>
+<td>热点取模访问、窗口和 hitRatio</td>
+</tr>
+<tr>
+<td>10.2.3 共享内存</td>
+<td>怎样复用、重排和异步搬运数据</td>
+<td>GEMM、padding、swizzle、cp.async</td>
+</tr>
+<tr>
+<td>10.2.4～10.2.7</td>
+<td>私有变量与特殊访问路径如何工作</td>
+<td>local memory、constant、寄存器压力</td>
+</tr>
+<tr>
+<td>10.3 分配</td>
+<td>如何减少反复分配带来的开销</td>
+<td>复用 workspace、stream ordered allocator</td>
+</tr>
+<tr>
+<td>10.4 NUMA</td>
+<td>CPU 内存与 GPU 的拓扑关系</td>
+<td>CPU 亲和性、内存节点与 GPU 邻近性</td>
+</tr>
+</tbody>
+</table>
+<h2 id="101-主机与设备之间的数据传输"><a class="markdownIt-Anchor" href="#101-主机与设备之间的数据传输"></a> 10.1 主机与设备之间的数据传输</h2>
+<h3 id="先区分两段数据路径"><a class="markdownIt-Anchor" href="#先区分两段数据路径"></a> 先区分两段数据路径</h3>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/01-memory-path.png" class="" title="主机传输与设备内访存的区别">
+<p><code>cudaMemcpyAsync</code> 的 H2D/D2H 传输发生在主机内存与设备内存之间；前面学习的 TMA 和普通 <code>cp.async</code>，关注的是设备端 GMEM 到 SMEM 等路径。两者都可以组织流水，但控制接口、同步对象和性能瓶颈不同。</p>
+<p>若 benchmark 预先把 A、B、C 放在 GPU，只测 GEMM kernel，那么 pinned memory 不会直接提升这项 kernel TFLOPS。测量从 CPU 输入到 CPU 输出的端到端耗时时，H2D、D2H 和主机准备才会进入结果。</p>
+<h3 id="减少往返优先于提高单次传输速度"><a class="markdownIt-Anchor" href="#减少往返优先于提高单次传输速度"></a> 减少往返优先于提高单次传输速度</h3>
+<p>原文强调：减少主机与设备传输，把中间数据留在设备，并尽可能合并小传输。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#data-transfer-between-host-and-device">原文 10.1<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>以 <code>GEMM → 激活 → GEMM</code> 为例，让三个操作连续在 GPU 执行，可以避免激活前下载、激活后上传。下面是自设的时间例子：</p>
+<table>
+<thead>
+<tr>
+<th>激活执行位置</th>
+<th style="text-align:right">激活计算</th>
+<th style="text-align:right">额外往返</th>
+<th style="text-align:right">合计</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td style="text-align:right">10 μs</td>
+<td style="text-align:right">200 μs</td>
+<td style="text-align:right">210 μs</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td style="text-align:right">20 μs</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">20 μs</td>
+</tr>
+</tbody>
+</table>
+<p>这说明局部操作更快，不代表整条计算链更快。对小传输也可以建立一个简化模型：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">单次传输时间 ≈ 固定提交成本 + 数据量 / 有效带宽</span><br></pre></td></tr></table></figure></div>
+<p>一千次小传输需要支付一千次固定成本。打包可能改善效率，但打包和拆包时间也要计入端到端测量。</p>
+<h3 id="1011-pinned-memory"><a class="markdownIt-Anchor" href="#1011-pinned-memory"></a> 10.1.1 Pinned memory</h3>
+<p>Pinned memory 是锁页或已注册的主机内存，仍然属于 CPU 侧内存。常用接口如下。</p>
+<table>
+<thead>
+<tr>
+<th>接口</th>
+<th>作用</th>
+<th>配对操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>malloc</code></td>
+<td>普通主机分配</td>
+<td><code>free</code></td>
+</tr>
+<tr>
+<td><code>cudaMallocHost</code> / <code>cudaHostAlloc</code></td>
+<td>分配 pinned 主机缓冲区</td>
+<td><code>cudaFreeHost</code></td>
+</tr>
+<tr>
+<td><code>cudaHostRegister</code></td>
+<td>注册已有主机内存</td>
+<td><code>cudaHostUnregister</code></td>
+</tr>
+<tr>
+<td><code>cudaMalloc</code></td>
+<td>分配设备内存</td>
+<td><code>cudaFree</code></td>
+</tr>
+</tbody>
+</table>
+<p>注册不等于把数据搬进 GPU；普通 pageable 内存的传输可能先经过驱动的 pinned 暂存区，增加一次暂存工作。复用预先分配好的 pinned buffer，能避免反复建立暂存路径。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__MEMORY.html">内存管理 API<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>、<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html">API 同步语义<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>可以将输入缓冲区设计成生命周期较长的池：CPU 填入空闲 buffer，提交 H2D，确认传输完成后再改写它。Pinned 内存不应无限增加，锁页操作和占用主机资源都有成本。</p>
+<h3 id="1012-异步不等于重叠"><a class="markdownIt-Anchor" href="#1012-异步不等于重叠"></a> 10.1.2 异步不等于重叠</h3>
+<p>“异步”首先说明调用者可以在工作完成前继续执行；“重叠”说明两个工作在时间上同时推进。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// h 为 pinned 内存；d 为设备内存。</span></span><br><span class="line"><span class="built_in">cudaMemcpyAsync</span>(d, h, bytes, cudaMemcpyHostToDevice, s);</span><br><span class="line">process&lt;&lt;&lt;grid, block, <span class="number">0</span>, s&gt;&gt;&gt;(d);</span><br><span class="line"><span class="built_in">prepare_next_input</span>();</span><br></pre></td></tr></table></figure></div>
+<p>同一个 stream 内，<code>process</code> 排在复制之后。CPU 的准备工作可以与设备工作重叠，但这个 kernel 不会越过同 stream 中尚未完成的输入传输。<code>Async</code> API 对 pageable 内存仍可能暂存或阻塞，不能简单理解为任何参数下都立即返回。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html">API 同步语义<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/02-transfer-pipeline.png" class="" title="分块传输与计算的理想重叠">
+<p>图中每块上传 2 ms、计算 3 ms，是教学假设。H2D 和计算属于不同执行资源，并且块间没有数据依赖时，可以上传块 1 的同时计算块 0。同一块内部始终保持 <code>H2D → kernel</code>。</p>
+<p>对于总上传时间 T、总计算时间 E，均匀分成 n 块，忽略额外开销和资源竞争的两阶段模型为：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">流水时间 ≈ T/n + E/n + (n-1) × max(T/n, E/n)</span><br><span class="line">         = max(T,E) + min(T,E)/n</span><br></pre></td></tr></table></figure></div>
+<p>例如 T=8 ms、E=12 ms、n=4：串行是 20 ms，理想流水是 14 ms。这个推导没有包含 D2H；三阶段流水要分别考虑上传、计算、下载和可用复制引擎。</p>
+<p>下面是独立数据块的提交框架，<code>count</code> 表示元素数量，不要求能被块数整除。缓冲区均在提交前准备好。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">constexpr</span> <span class="type">int</span> chunks = <span class="number">4</span>;</span><br><span class="line">cudaStream_t streams[chunks];</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; chunks; ++i)</span><br><span class="line">    <span class="built_in">cudaStreamCreateWithFlags</span>(&amp;streams[i], cudaStreamNonBlocking);</span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> step = (count + chunks - <span class="number">1</span>) / chunks;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; chunks; ++i) {</span><br><span class="line">    <span class="type">size_t</span> begin = <span class="built_in">size_t</span>(i) * step;</span><br><span class="line">    <span class="keyword">if</span> (begin &gt;= count) <span class="keyword">continue</span>;</span><br><span class="line">    <span class="type">size_t</span> len = std::<span class="built_in">min</span>(step, count - begin);</span><br><span class="line">    <span class="type">size_t</span> bytes = len * <span class="built_in">sizeof</span>(<span class="type">float</span>);</span><br><span class="line">    <span class="keyword">auto</span> s = streams[i];</span><br><span class="line"></span><br><span class="line">    <span class="built_in">cudaMemcpyAsync</span>(d + begin, h + begin, bytes,</span><br><span class="line">                    cudaMemcpyHostToDevice, s);</span><br><span class="line">    process&lt;&lt;&lt;(len + <span class="number">255</span>) / <span class="number">256</span>, <span class="number">256</span>, <span class="number">0</span>, s&gt;&gt;&gt;(d + begin, len);</span><br><span class="line">    <span class="built_in">cudaMemcpyAsync</span>(h + begin, d + begin, bytes,</span><br><span class="line">                    cudaMemcpyDeviceToHost, s);</span><br><span class="line">}</span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">auto</span> s : streams) {</span><br><span class="line">    <span class="built_in">cudaStreamSynchronize</span>(s);</span><br><span class="line">    <span class="built_in">cudaStreamDestroy</span>(s);</span><br><span class="line">}</span><br><span class="line"><span class="comment">// 现在 CPU 可以读取 h 的结果或复用这些区域。</span></span><br></pre></td></tr></table></figure></div>
+<p><code>process</code> 必须检查线程索引小于 <code>len</code>。循环里若每提交一块就立刻同步，会丢失块间重叠的机会。多个 stream 也不会创造额外带宽：块太小、资源不足或依赖过多时，可能没有收益。</p>
+<p>Legacy default stream 会与普通 blocking stream 产生隐式排序；<code>cudaStreamNonBlocking</code> 避免的是这类隐式关系，不是“强制并行”。Per-thread default stream 又有不同语义。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html">Stream 同步规则<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1013-zero-copy"><a class="markdownIt-Anchor" href="#1013-zero-copy"></a> 10.1.3 Zero Copy</h3>
+<p>Zero Copy 通过可访问的主机映射，让 kernel 直接读取主机侧数据，省去显式建立设备副本的步骤。映射能力和指针获取应按平台及 API 支持检查。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__UNIFIED.html">Unified Addressing API<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>独立显卡上的直观区别是：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">显式上传：CPU 内存 → GPU 显存 → 计算期间重复读取设备副本</span><br><span class="line">直接访问：GPU 需要主机数据时，通过主机—设备互连取得数据</span><br></pre></td></tr></table></figure></div>
+<p>对只访问输入少量位置的算法，建立整个设备副本可能不划算；对反复复用权重 tile 的 GEMM，应比较预先上传后复用的方案。“没有显式 copy”并不意味着没有数据传输。集成式 GPU 或一致性互连系统需要用自身的缓存与内存模型判断，不能机械套用独立 PCIe GPU 的成本。</p>
+<h3 id="1014-uva-与-unified-memory"><a class="markdownIt-Anchor" href="#1014-uva-与-unified-memory"></a> 10.1.4 UVA 与 Unified Memory</h3>
+<p>UVA 统一虚拟地址空间，CUDA 可以查询指针的属性和所属设备，并在适当条件下推断复制方向。它不承诺任意处理器都能解引用任意指针，也不统一访问成本。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__UNIFIED.html">Unified Addressing API<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>可以怎样理解</th>
+<th>不能据此推导</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pinned</td>
+<td>主机内存适合注册和 DMA 传输</td>
+<td>数据已驻留显存</td>
+</tr>
+<tr>
+<td>Zero Copy</td>
+<td>直接访问映射主机数据</td>
+<td>跨链路成本消失</td>
+</tr>
+<tr>
+<td>UVA</td>
+<td>地址空间统一、指针可识别</td>
+<td>自动迁移到最快位置</td>
+</tr>
+<tr>
+<td>Unified Memory</td>
+<td>系统管理可供 CPU/GPU 访问的内存</td>
+<td>所有访问都像寄存器一样快</td>
+</tr>
+</tbody>
+</table>
+<p><code>cudaMallocManaged</code> 属于 Unified Memory 的接口。这里最重要的是把“地址能否表达”“处理器能否访问”“数据实际在哪里”三个问题分开。</p>
+<h2 id="102-设备内部的存储空间"><a class="markdownIt-Anchor" href="#102-设备内部的存储空间"></a> 10.2 设备内部的存储空间</h2>
+<h3 id="总览"><a class="markdownIt-Anchor" href="#总览"></a> 总览</h3>
+<table>
+<thead>
+<tr>
+<th>空间或层级</th>
+<th>主要角色</th>
+<th>性能分析关注点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GMEM</td>
+<td>大规模矩阵和结果</td>
+<td>合并、缓存、字节流量</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>多个 SM 可使用的缓存</td>
+<td>工作集大小、复用距离、竞争</td>
+</tr>
+<tr>
+<td>SMEM</td>
+<td>CTA 显式管理的暂存区</td>
+<td>bank、同步、每 CTA 容量</td>
+</tr>
+<tr>
+<td>Registers</td>
+<td>线程的活动值</td>
+<td>数量、依赖、并发与 spill</td>
+</tr>
+<tr>
+<td>Local</td>
+<td>线程私有但可能落在设备内存的存储</td>
+<td>是否产生额外加载和写回</td>
+</tr>
+<tr>
+<td>Constant</td>
+<td>常量访问空间</td>
+<td>warp 内地址一致性</td>
+</tr>
+<tr>
+<td>Texture</td>
+<td>带采样特性的访问机制</td>
+<td>空间局部性、采样规则</td>
+</tr>
+</tbody>
+</table>
+<p>Global、local 是地址空间概念，不代表每次访问都必须穿透缓存到 HBM。SMEM 生命周期随 CTA；线程私有的寄存器通常不能由其他线程直接按地址读取。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html#gpu-device-memory-spaces">CUDA 存储空间<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1021-用一个-warp-的一次指令分析-gmem"><a class="markdownIt-Anchor" href="#1021-用一个-warp-的一次指令分析-gmem"></a> 10.2.1 用一个 warp 的一次指令分析 GMEM</h3>
+<p>假设 32 个活跃 lane，各读取一个 4B float，数组基址对齐到 32B。计算每个 lane 的地址，再统计覆盖哪些 32B sector，比只看单线程是否顺序访问更可靠。<a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/unlock-gpu-performance-global-memory-access-in-cuda/">NVIDIA 全局访存分析<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/03-sectors.png" class="" title="不同地址表达式覆盖的 sector 数量">
+<table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>访问下标</th>
+<th style="text-align:right">sector 数</th>
+<th style="text-align:right">唯一有效字节 / sector 字节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A[lane]</code></td>
+<td>0～31</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">100%</td>
+</tr>
+<tr>
+<td><code>A[lane+1]</code></td>
+<td>1～32</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">80%</td>
+</tr>
+<tr>
+<td><code>A[2*lane]</code></td>
+<td>0、2、4…62</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">50%</td>
+</tr>
+<tr>
+<td><code>A[4*lane]</code></td>
+<td>0、4、8…124</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">25%</td>
+</tr>
+<tr>
+<td><code>A[8*lane]</code></td>
+<td>0、8、16…248</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">12.5%</td>
+</tr>
+</tbody>
+</table>
+<p>例如第二行：请求的有效数据仍为 128B，但覆盖 5×32B=160B。这个比例不等于端到端速度比例；相邻 warp 的额外取数可能被缓存复用。Sector 统计也不是最终 HBM 事务数量。</p>
+<p>行主序矩阵的地址是 <code>row*N+col</code>。若 lane 对应 col，地址连续；若 lane 对应 row，相邻 lane 相隔 N 个元素。下面的代码对每个线程是顺序读取，对 warp 却是大 stride：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; K; ++k) {</span><br><span class="line">    <span class="comment">// 固定一个 k 看 32 个 lane，地址相隔 K 个元素。</span></span><br><span class="line">    <span class="type">float</span> x = A[lane * K + k];</span><br><span class="line">    <span class="comment">// 使用 x ...</span></span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>合并访问不要求 lane 必须严格按地址升序排列；重要的是这一条请求覆盖的地址集合。若 lane 仅在同一组 sector 内交换访问位置，sector 数不变。重复读取同一地址，也不应误算成 32 份独立 HBM 数据。<a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/how-access-global-memory-efficiently-cuda-c-kernels/">全局访问与线程分组<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1022-l2-的热点窗口"><a class="markdownIt-Anchor" href="#1022-l2-的热点窗口"></a> 10.2.2 L2 的热点窗口</h3>
+<p>先区分三个量：</p>
+<table>
+<thead>
+<tr>
+<th>量</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>热点大小 H</td>
+<td>kernel 实际反复访问的范围</td>
+</tr>
+<tr>
+<td>策略窗口 W</td>
+<td>哪段 GMEM 地址应用 access policy</td>
+</tr>
+<tr>
+<td>set-aside 容量 C</td>
+<td>L2 中 persisting 访问可以优先使用的容量</td>
+</tr>
+</tbody>
+</table>
+<p>设置窗口不是分配一块新的显存，也不是立即把 W 字节复制到 L2。它改变后续访问的保留倾向。<code>hitRatio=p</code> 描述窗口内访问被赋予 <code>hitProp</code> 的近似比例，不是保证缓存命中率为 p；<code>missProp</code> 也不是一次实际 cache miss 才触发的动作。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/l2-cache-control.html">L2 Cache Control<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/04-l2-window.png" class="" title="热点范围 策略窗口与缓存容量">
+<p>原文所谓 sliding-window benchmark 展示的是两个取模索引：一个映射到小热点，一个映射到大区域。它不是展示每轮自动修改窗口起点的完整滑动算法。以热点 4 个元素、大数组 16 个元素、16 个线程为例：</p>
+<table>
+<thead>
+<tr>
+<th>tid 范围</th>
+<th>热点索引 <code>tid % 4</code></th>
+<th>大数组索引 <code>tid % 16</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0～3</td>
+<td>0、1、2、3</td>
+<td>0、1、2、3</td>
+</tr>
+<tr>
+<td>4～7</td>
+<td>0、1、2、3</td>
+<td>4、5、6、7</td>
+</tr>
+<tr>
+<td>8～11</td>
+<td>0、1、2、3</td>
+<td>8、9、10、11</td>
+</tr>
+<tr>
+<td>12～15</td>
+<td>0、1、2、3</td>
+<td>12、13、14、15</td>
+</tr>
+</tbody>
+</table>
+<p>热点每个元素被四个线程访问，大数组每个元素只被一个线程访问。这是访问频率差异，不是执行顺序保证；也不是把变量命名为 <code>persistent</code> 就自动获得缓存属性。</p>
+<p>原文使用原地读改写。当不同线程取模后落到同一元素，会产生非原子竞争。下面是更适合讲解和构造正确实验的自编版本：输入只读，输出按 tid 唯一写入。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">probe_reuse</span><span class="params">(<span class="type">const</span> <span class="type">float</span>* hot, <span class="type">const</span> <span class="type">float</span>* stream_data,</span></span></span><br><span class="line"><span class="params"><span class="function">                            <span class="type">float</span>* out, <span class="type">size_t</span> hot_count,</span></span></span><br><span class="line"><span class="params"><span class="function">                            <span class="type">size_t</span> stream_count, <span class="type">size_t</span> work_count)</span> </span>{</span><br><span class="line">    <span class="type">size_t</span> tid = <span class="built_in">size_t</span>(blockIdx.x) * blockDim.x + threadIdx.x;</span><br><span class="line">    <span class="keyword">if</span> (tid &gt;= work_count) <span class="keyword">return</span>;</span><br><span class="line">    <span class="comment">// 前提：hot_count、stream_count 均大于 0，输入输出不重叠。</span></span><br><span class="line">    <span class="type">float</span> a = hot[tid % hot_count];</span><br><span class="line">    <span class="type">float</span> b = stream_data[tid % stream_count];</span><br><span class="line">    out[tid] = a + b;</span><br><span class="line">}</span><br></pre></td></tr></table></figure></div>
+<p>做实验时应固定输出写流量、输入分布、总线程数和预热方式，仅改变策略。该版本与原文原地读改写的流量不同，因此不应期待复现完全相同的加速数值。</p>
+<h4 id="容量不足与-hitratio"><a class="markdownIt-Anchor" href="#容量不足与-hitratio"></a> 容量不足与 hitRatio</h4>
+<p>若热点 H=60 MiB，而 persisting 优先容量只有 C=30 MiB，试图让所有热点都有很高保留倾向，可能导致它们彼此替换。用 <code>W×p</code> 粗略估算获得优先属性的数据规模，可以辅助选参数；这个乘积不是实际驻留量保证。</p>
+<p>原文最后同时使用 <code>W=20 MiB</code> 和 <code>p=20 MiB/H</code>，随后文字却解释为从整个热点中选择约 20 MB。按 API 定义，比例仅作用于 W 范围，因此代码与这句解释不一致；这里是对公开示例的语义分析，不是声称已经定位其图表生成程序的错误。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#tuning-the-access-window-hit-ratio">原文示例<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>对 H=60 MiB，三种策略的差别如下：</p>
+<table>
+<thead>
+<tr>
+<th>目的或配置</th>
+<th style="text-align:right">W</th>
+<th style="text-align:right">p</th>
+<th style="text-align:right">粗略的 W×p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整个热点参与选择</td>
+<td style="text-align:right">60 MiB</td>
+<td style="text-align:right">1/3</td>
+<td style="text-align:right">20 MiB</td>
+</tr>
+<tr>
+<td>只优先照顾前缀</td>
+<td style="text-align:right">20 MiB</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">20 MiB</td>
+</tr>
+<tr>
+<td>原文两项配置组合</td>
+<td style="text-align:right">20 MiB</td>
+<td style="text-align:right">1/3</td>
+<td style="text-align:right">约 6.67 MiB</td>
+</tr>
+</tbody>
+</table>
+<p>若要让整个热点参与选择，示意配置为：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 假设 hot_bytes &gt; 0，且不超过设备 accessPolicyMaxWindowSize。</span></span><br><span class="line">cudaStreamAttrValue policy{};</span><br><span class="line"><span class="keyword">auto</span>&amp; w = policy.accessPolicyWindow;</span><br><span class="line">w.base_ptr = hot_ptr;</span><br><span class="line">w.num_bytes = hot_bytes;</span><br><span class="line">w.hitRatio = std::<span class="built_in">min</span>(<span class="number">1.0f</span>, <span class="built_in">float</span>(target_bytes) / <span class="built_in">float</span>(hot_bytes));</span><br><span class="line">w.hitProp = cudaAccessPropertyPersisting;</span><br><span class="line">w.missProp = cudaAccessPropertyStreaming;</span><br><span class="line"><span class="built_in">cudaStreamSetAttribute</span>(s, cudaStreamAttributeAccessPolicyWindow, &amp;policy);</span><br><span class="line"><span class="comment">// 需要在 s 上启动对应 kernel；另行查询并配置受支持的 set-aside 容量。</span></span><br></pre></td></tr></table></figure></div>
+<p>还要考虑多个 stream 共享 L2 的竞争、MIG/MPS 下功能限制，以及热点不再使用时恢复 normal 属性。窗口外没有自动套用这个窗口的 missProp；它可能受其他正常缓存策略影响。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/l2-cache-control.html">L2 管理与限制<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1023-共享内存与-bank"><a class="markdownIt-Anchor" href="#1023-共享内存与-bank"></a> 10.2.3 共享内存与 bank</h3>
+<p>SMEM 提供显式的数据复用和线程间交换。对于常见标量 32-bit 访问，用 <code>bank=(byte_address/4)%32</code> 分析。同一请求中访问相同 bank 的不同字可能冲突；多个 lane 读取同一个字可以广播。多个 lane 写同一位置则要考虑竞争，不能解释为广播。<a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/">Shared Memory<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/05-banks.png" class="" title="32 列与 33 列布局的 bank 分布">
+<p>对于 <code>float tile[32][32]</code>，以 4B 元素为单位：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">offset(r,c) = 32r+c</span><br><span class="line">bank(r,c)   = (32r+c) mod 32 = c</span><br></pre></td></tr></table></figure></div>
+<p>固定行、lane 对应列时，分散到 32 个 bank。固定列、lane 对应行时，不同字都进入同一个 bank。改成 <code>tile[32][33]</code>：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">offset(r,c) = 33r+c</span><br><span class="line">bank(r,c)   = (r+c) mod 32</span><br></pre></td></tr></table></figure></div>
+<p>多出的列改变行起点，使每下一行的 bank 编号偏移一位。因此按列访问也能分散。统一的基址 bank 偏移不改变这一结论。<a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/">NVIDIA 转置与 padding<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>Padding 改变 stride；swizzle 改变坐标到地址的映射。两者都可能改善访问分布，但上述 float 标量推导不能直接替代 BF16 向量访存、ldmatrix 或 UMMA 的指令级布局分析。</p>
+<h4 id="gemm-中的两类复用"><a class="markdownIt-Anchor" href="#gemm-中的两类复用"></a> GEMM 中的两类复用</h4>
+<p>设一个 warp 负责 C 的一行，lane 对应列 n。固定 k：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">lane 0：A[m,k] × B[k,n0]</span><br><span class="line">lane 1：A[m,k] × B[k,n1]</span><br><span class="line">lane 2：A[m,k] × B[k,n2]</span><br><span class="line">...</span><br></pre></td></tr></table></figure></div>
+<p>A 的同一元素被多列输出共享，B 的同一 tile 又被多行输出共享。因此可以先协作装载 A/B，再从 SMEM 重用。这里只计算逻辑使用次数，不能把每个乘法的输入都当成独立的 HBM 读取。</p>
+<p>若块计算 BM×BN 的输出，一个 BK 阶段读取 BM×BK 和 BK×BN 个输入。假设 BF16、只数这些输入字节，则：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">输入字节 = 2 × BK × (BM+BN)</span><br><span class="line">计算量   = 2 × BM × BN × BK FLOP</span><br><span class="line">输入相关算术强度 = BM×BN / (BM+BN) FLOP/B</span><br></pre></td></tr></table></figure></div>
+<p>对 BM=BN=128，结果是 64 FLOP/B。此简化没有计算 C 写回、重复装载和缓存流量；它仅说明 tile 复用为什么重要。增大 tile 还会增加资源占用，不能只看这个比值。</p>
+<h4 id="c-等于-a-乘-a-转置"><a class="markdownIt-Anchor" href="#c-等于-a-乘-a-转置"></a> C 等于 A 乘 A 转置</h4>
+<p><code>C[m,n]=sum_k A[m,k]A[n,k]</code>。lane 对应 n 时，第二个操作数 <code>A[(n0+lane)*K+k]</code> 在同一次指令内大步长访问。可以先沿 GMEM 连续方向装载，再在 SMEM 中重新排列，以满足计算需要。</p>
+<p>装载阶段和计算阶段必须分别画出地址。例如把一行 GMEM 写入 SMEM 的一列，可能修好了 GMEM 合并，却引入 SMEM bank conflict。Padding 示例正是用来化解后一问题。原文 A/B 的 warp 内共享和跨 warp 共享还使用不同范围的同步；不能把 <code>__syncwarp</code> 无条件换成全 CTA 数据交换的保证。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#shared-memory-in-matrix-multiplication-c-ab">原文矩阵示例<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="10234-异步复制与-tma"><a class="markdownIt-Anchor" href="#10234-异步复制与-tma"></a> 10.2.3.4 异步复制与 TMA</h3>
+<p>硬件支持的 GMEM→SMEM 异步复制可绕过搬运数据的中间寄存器，并与独立计算交错推进。普通 cp.async 的完成等待与线程间同步要匹配，不能只放一个 <code>__syncthreads</code> 就认为复制完成。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html">CUDA 异步数据复制<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>SM80 普通 cp.async</th>
+<th>SM90/SM100 TMA 张量搬运</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>常见发起方式</td>
+<td>多线程分别指定小段地址</td>
+<td>选定线程提交整个 tile</td>
+</tr>
+<tr>
+<td>地址展开</td>
+<td>程序计算各线程地址</td>
+<td>tensor map 与坐标描述</td>
+</tr>
+<tr>
+<td>SMEM 布局</td>
+<td>软件计算目标地址</td>
+<td>可配置硬件 swizzle</td>
+</tr>
+<tr>
+<td>主要机会</td>
+<td>减少中间寄存器、隐藏延迟</td>
+<td>进一步减少地址和提交工作、组织 producer/consumer</td>
+</tr>
+</tbody>
+</table>
+<p>这里的 TMA 补充来自设备端异步复制文档，不是第十章对 Blackwell 的完整介绍。TMA 的 GMEM→SMEM load 常用事务字节 barrier，store 使用不同完成机制；一个阶段既要确认数据到达，也要确认消费者用完后才能覆盖 buffer。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/06-device-pipeline.png" class="" title="单 buffer 串行与多 buffer 流水">
+<p>判断收益时，用两个问题代替“新指令是不是更快”：省掉的开销是否在关键路径？新增同步和资源占用是否抵消收益？若原本供数已被覆盖，计算吞吐不变，减少提交指令可能几乎不改变稳态时间。</p>
+<p>Occupancy 是驻留 warp 比例，不是有用工作的比例。等待时间被隐藏与 latency-bound 相反：后者意味着等待仍限制了推进。高 occupancy 的 warp 可以一起等同一个依赖；低 occupancy 的深流水也可能保持足够多的在途操作。</p>
+<h3 id="1024-local-memory"><a class="markdownIt-Anchor" href="#1024-local-memory"></a> 10.2.4 Local memory</h3>
+<p>Local 表示线程私有，不表示位于片上。较大的局部对象、动态索引数组和寄存器 spill 都可能带来 local 存储。变量实际放在哪里取决于编译结果，不能看到 <code>float a[64]</code> 就认定它在寄存器。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html">CUDA 线程私有存储<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>例如每线程使用一个动态索引的数组，再将每线程寄存器上限强行减小，可能让编译器增加 local load/store。评估时同时看编译报告中的寄存器、stack/spill 信息与实际耗时；只降低寄存器数字不是成功标准。</p>
+<div class="code-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 对实际 kernel 编译，观察 ptxas 资源报告。</span></span><br><span class="line">nvcc -Xptxas=-v -c kernel.cu</span><br></pre></td></tr></table></figure></div>
+<h3 id="1025-texture-memory"><a class="markdownIt-Anchor" href="#1025-texture-memory"></a> 10.2.5 Texture memory</h3>
+<p>Texture 访问提供空间局部性相关缓存和采样功能，例如插值、坐标和边界模式。它不是与显存完全分离的一块神奇高速 RAM。对读图像的插值计算，这些功能可能直接省工作；对规则 GEMM，通常优先优化 tile、复用与流水。</p>
+<p>不要在同一 kernel 中用普通 global store 改写纹理底层数据后，假定 texture fetch 会立即看到一致结果。应遵循具体纹理 API 的一致性约束。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#texture-memory">原文 Texture Memory<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1026-constant-memory"><a class="markdownIt-Anchor" href="#1026-constant-memory"></a> 10.2.6 Constant memory</h3>
+<p>Constant 的关键是 warp 内有多少不同读取地址。所有 lane 读取同一个系数适合广播；每个 lane 都读不同常量，则需要考虑地址分歧带来的服务成本。</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// k 对整个 warp 相同：适合常量广播的使用方式。</span></span><br><span class="line"><span class="type">float</span> coefficient = coeff[k];</span><br><span class="line"><span class="comment">// coeff[lane] 是另一种访问模式，不能仅因只读就认定更快。</span></span><br></pre></td></tr></table></figure></div>
+<p>把“只读”与“warp 内访问相同”分开：大权重矩阵虽然只读，但并不自动适合 constant 空间。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#constant-memory">原文 Constant Memory<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="1027-registers"><a class="markdownIt-Anchor" href="#1027-registers"></a> 10.2.7 Registers</h3>
+<p>寄存器保存线程当前需要的操作数、地址和中间结果。每线程维护 8×8 个 FP32 累加值，就至少有 64 个数值需要容纳，此外还有索引和临时值。真实分配不能由源代码变量数直接等同得出。</p>
+<p>更多累加器可以提高数据复用或独立计算量，也可能减少驻留并发；压低上限又可能产生 spill。<code>float4</code> 的潜在收益与向量化访存相关，不能简单解释为它必然减少寄存器 bank conflict。<code>-maxrregcount</code> 和 launch bounds 应作为实验变量，不是固定越小越好的旋钮。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#registers">原文 Registers<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="103-内存分配"><a class="markdownIt-Anchor" href="#103-内存分配"></a> 10.3 内存分配</h2>
+<p>先考虑把工作区申请移出热循环：</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">反复申请 → kernel → 释放 → 反复申请 ...</span><br><span class="line"></span><br><span class="line">改为：申请足够的 workspace → 多次复用 → 最后释放</span><br></pre></td></tr></table></figure></div>
+<p>若生命周期确实动态，stream ordered allocator 可以按 stream 顺序申请、使用和释放，并通过内存池复用存储。所有访问必须落在有效生命周期内。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__MEMORY__POOLS.html">Stream Ordered Allocator API<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span>* workspace = <span class="literal">nullptr</span>;</span><br><span class="line"><span class="built_in">cudaMallocAsync</span>(&amp;workspace, bytes, s);</span><br><span class="line">work&lt;&lt;&lt;grid, block, <span class="number">0</span>, s&gt;&gt;&gt;(workspace);</span><br><span class="line"><span class="built_in">cudaFreeAsync</span>(workspace, s);</span><br></pre></td></tr></table></figure></div>
+<p>CPU 拿到指针不代表另一条 stream 可以无依赖地开始访问。若 s1 分配、s2 消费，应在 s1 的分配之后记录 event，让 s2 等待；释放方还要等待 s2 的最后使用完成。</p>
+<div class="code-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">s1：alloc → ready event ────────────────────→ 等 done → free</span><br><span class="line">                  │                              ↑</span><br><span class="line">s2：              └─ 等 ready → kernel → done ───┘</span><br></pre></td></tr></table></figure></div>
+<p>内存池减少反复申请的成本，但不会让越界、use-after-free 或生命周期管理消失。应先查询 <code>cudaDevAttrMemoryPoolsSupported</code>，再按环境选择路径。框架可能已有缓存分配器，比较方案时应避免把裸 API 和框架缓存路径混为一谈。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/stream-ordered-memory-allocation.html">Allocator 生命周期说明<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h2 id="104-numa-与-gpu-邻近性"><a class="markdownIt-Anchor" href="#104-numa-与-gpu-邻近性"></a> 10.4 NUMA 与 GPU 邻近性</h2>
+<p>多 CPU 节点系统中，CPU 线程、主机内存页和 GPU 可能属于不同的拓扑位置。若 GPU 附近的 CPU 负责提交，却从另一节点的内存供数，数据可能额外经过 CPU 节点间互连。</p>
+<img lazyload="" src="/images/loading.svg" data-src="/2026/07/03/cuda-memory-optimization/07-numa.png" class="" title="两节点 NUMA 拓扑示意">
+<p>图是简化假设，不代表任意 B300 服务器的真实接线。先查询拓扑，再决定 CPU 和主机缓冲区放在哪里：</p>
+<div class="code-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">nvidia-smi topo -m</span><br><span class="line">numactl --hardware</span><br><span class="line">numactl --show</span><br></pre></td></tr></table></figure></div>
+<p><code>nvidia-smi topo -m</code> 可查看 GPU 间及 CPU 亲和性信息；容器可用 CPU、内存节点还受 cpuset 等约束。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/deploy/nvidia-smi/index.html">NVIDIA SMI 文档<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>以下命令仅在确认目标 GPU 邻近节点 0 且资源足够时作为实验配置：</p>
+<div class="code-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">numactl --cpunodebind=0 --membind=0 ./benchmark</span><br></pre></td></tr></table></figure></div>
+<p><code>--cpunodebind</code> 限制执行线程的 CPU 节点，<code>--membind</code> 限制内存分配节点。<code>--membind=0,1</code> 允许从两个节点分配，不等于自动挑选 GPU 最近的节点，也不等于轮转交错分配；轮转策略是 <code>--interleave</code>。<a class="link" target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man8/numactl.8.html">numactl 手册<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>因此，第十章中的节点列表示例不能直接复制为所有服务器的最佳设置。比较本地与远端内存供数时，应保持输入规模、pinned buffer、CPU 工作量与 GPU 工作相同，观察端到端时间和 H2D 带宽。只测一个完全驻留显存的长 GEMM，对主机 NUMA 变化可能不敏感。</p>
+<h2 id="把整章应用到一个-gemm"><a class="markdownIt-Anchor" href="#把整章应用到一个-gemm"></a> 把整章应用到一个 GEMM</h2>
+<p>假设目标是 CPU 输入矩阵、GPU 计算、CPU 读取结果，按下面的顺序记录证据：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>具体问题</th>
+<th>可执行的对照</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>端到端</td>
+<td>时间主要在 H2D、kernel 还是 D2H</td>
+<td>分别计时，再测整体</td>
+</tr>
+<tr>
+<td>主机供数</td>
+<td>pinned 与 NUMA 是否影响传输</td>
+<td>固定 GPU，改变缓冲区或节点</td>
+</tr>
+<tr>
+<td>分配</td>
+<td>是否每轮重复申请 workspace</td>
+<td>预分配复用对照动态申请</td>
+</tr>
+<tr>
+<td>GMEM</td>
+<td>请求触及多少 sector</td>
+<td>固定计算，调整线程与列的映射</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>热点是否被大量流式访问挤出</td>
+<td>固定工作集，开关策略窗口</td>
+</tr>
+<tr>
+<td>SMEM</td>
+<td>装载和消费各有什么 bank 模式</td>
+<td>分别推导两阶段地址</td>
+</tr>
+<tr>
+<td>流水</td>
+<td>消费者是否缺数据，生产者是否等空 buffer</td>
+<td>扫描 stage，同时记录资源占用</td>
+</tr>
+<tr>
+<td>寄存器</td>
+<td>复用收益是否被 spill 抵消</td>
+<td>对比 tile、寄存器和实际流量</td>
+</tr>
+</tbody>
+</table>
+<p>Nsight Systems 更适合观察主机提交、拷贝和 kernel 时间线；Nsight Compute 可进一步看单个 kernel 的资源、内存和调度状态。Profiler 采集可能改变缓存或执行条件，应把普通运行计时与 profiling 结果结合，不只盯住一个 stall 百分比。<a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html">Nsight Compute Profiling Guide<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h3 id="常见误读对照"><a class="markdownIt-Anchor" href="#常见误读对照"></a> 常见误读对照</h3>
+<table>
+<thead>
+<tr>
+<th>容易得出的结论</th>
+<th>更准确的判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Async 代表两个工作一定同时执行</td>
+<td>要同时满足依赖、资源和提交条件</td>
+</tr>
+<tr>
+<td>Zero Copy 没有数据传输</td>
+<td>省去显式副本，访问仍可能跨互连</td>
+</tr>
+<tr>
+<td>单线程连续读取就是合并访问</td>
+<td>固定一次指令，看整个 warp 的地址</td>
+</tr>
+<tr>
+<td>GMEM 合并后 SMEM 一定也快</td>
+<td>SMEM 要另外分析 bank 和消费布局</td>
+</tr>
+<tr>
+<td>hitRatio 是实际命中率</td>
+<td>它是访问属性分配提示</td>
+</tr>
+<tr>
+<td>num_bytes 是预留的 L2 字节数</td>
+<td>它是 GMEM 策略窗口的字节范围</td>
+</tr>
+<tr>
+<td>local memory 在片上</td>
+<td>local 指线程作用域</td>
+</tr>
+<tr>
+<td>occupancy 越高越快</td>
+<td>看是否存在可推进工作和足够在途请求</td>
+</tr>
+<tr>
+<td>TMA 取代 cp.async 必然更快</td>
+<td>看关键路径与新增资源成本</td>
+</tr>
+<tr>
+<td>图中的模型时间就是实测</td>
+<td>模型用于推理，最后要在目标平台验证</td>
+</tr>
+</tbody>
+</table>
+<h2 id="原文与补充资料"><a class="markdownIt-Anchor" href="#原文与补充资料"></a> 原文与补充资料</h2>
+<p>文内链接分别支持相邻的 API、硬件规则和示例解释。第十章用于组织主题；L2 窗口不一致的判断、sector 算术、两阶段时间推导和无竞争探测 kernel 是本文的分析与教学扩展。</p>
+<ul>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#memory-optimizations">CUDA Best Practices 第十章<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html">API 同步语义<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html">Stream 同步规则<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/l2-cache-control.html">L2 Cache Control<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html">设备端异步复制<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/stream-ordered-memory-allocation.html">Stream Ordered Memory Allocator<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/unlock-gpu-performance-global-memory-access-in-cuda/">NVIDIA 全局访存分析<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/">NVIDIA 矩阵转置与 padding<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+<li><a class="link" target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man8/numactl.8.html">numactl 参数语义<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></li>
+</ul>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> CUDA 内存优化图解</li>
+        <li><strong>作者:</strong> 鱿鱼圈</li>
+        <li><strong>创建于
+                :</strong> 2026-07-03 21:18:21</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2026-11-03 21:30:32
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://yuyanqi.com/2026/07/03/cuda-memory-optimization/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/cuda-optimization/">#cuda, optimization</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/2026/07/03/cuda-execution-config/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">CUDA 执行配置优化图解</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/30/cute-cutlass-blackwell/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">CuTe / CUTLASS Blackwell 图解：从 Layout 到 get_slice、partition 与 fragment</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+		<div class="comment-container px-2 sm:px-6 md:px-8 pb-8">
+			<div class="comments-container mt-10 w-full ">
+    <div id="comment-anchor" class="w-full h-2.5"></div>
+    <div class="comment-area-title w-full my-1.5 md:my-2.5 text-xl md:text-3xl font-bold">
+        评论
+    </div>
+    
+
+        
+            
+    <div id="waline"></div>
+    <script type="module" data-swup-reload-script>
+      import { init } from '/js/libs/waline.js';
+
+      (function() {
+        const startPath = location.pathname;
+        const startTime = Date.now();
+        const retryDelay = 200;
+        const retryLimit = 5000;
+
+        const runWaline = () => {
+          if (location.pathname !== startPath) {
+            return;
+          }
+
+          const container = document.getElementById('waline');
+          if (!container) {
+            if (Date.now() - startTime < retryLimit) {
+              setTimeout(runWaline, retryDelay);
+            }
+            return;
+          }
+
+          if (window.redefineWalineInstance?.destroy) {
+            window.redefineWalineInstance.destroy();
+          }
+
+          container.innerHTML = '';
+          window.redefineWalineInstance = init({
+            el: '#waline',
+            serverURL: 'https://example.example.com',
+            path: location.pathname,
+            dark: 'body[class~="dark-mode"]',
+            reaction: false,
+            requiredMeta: ['nick', 'mail'],
+            emoji: [],
+                      lang: 'zh-CN',
+          });
+        };
+
+        runWaline();
+      })();
+    </script>
+
+
+
+        
+    
+</div>
+
+		</div>
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">CUDA 内存优化图解</div>
+		<ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#cuda-%E5%86%85%E5%AD%98%E4%BC%98%E5%8C%96%E5%9B%BE%E8%A7%A3"><span class="nav-text"> CUDA 内存优化图解</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%98%85%E8%AF%BB%E8%B7%AF%E7%BA%BF"><span class="nav-text"> 阅读路线</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#101-%E4%B8%BB%E6%9C%BA%E4%B8%8E%E8%AE%BE%E5%A4%87%E4%B9%8B%E9%97%B4%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BC%A0%E8%BE%93"><span class="nav-text"> 10.1 主机与设备之间的数据传输</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%88%E5%8C%BA%E5%88%86%E4%B8%A4%E6%AE%B5%E6%95%B0%E6%8D%AE%E8%B7%AF%E5%BE%84"><span class="nav-text"> 先区分两段数据路径</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%87%8F%E5%B0%91%E5%BE%80%E8%BF%94%E4%BC%98%E5%85%88%E4%BA%8E%E6%8F%90%E9%AB%98%E5%8D%95%E6%AC%A1%E4%BC%A0%E8%BE%93%E9%80%9F%E5%BA%A6"><span class="nav-text"> 减少往返优先于提高单次传输速度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1011-pinned-memory"><span class="nav-text"> 10.1.1 Pinned memory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1012-%E5%BC%82%E6%AD%A5%E4%B8%8D%E7%AD%89%E4%BA%8E%E9%87%8D%E5%8F%A0"><span class="nav-text"> 10.1.2 异步不等于重叠</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1013-zero-copy"><span class="nav-text"> 10.1.3 Zero Copy</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1014-uva-%E4%B8%8E-unified-memory"><span class="nav-text"> 10.1.4 UVA 与 Unified Memory</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#102-%E8%AE%BE%E5%A4%87%E5%86%85%E9%83%A8%E7%9A%84%E5%AD%98%E5%82%A8%E7%A9%BA%E9%97%B4"><span class="nav-text"> 10.2 设备内部的存储空间</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E8%A7%88"><span class="nav-text"> 总览</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1021-%E7%94%A8%E4%B8%80%E4%B8%AA-warp-%E7%9A%84%E4%B8%80%E6%AC%A1%E6%8C%87%E4%BB%A4%E5%88%86%E6%9E%90-gmem"><span class="nav-text"> 10.2.1 用一个 warp 的一次指令分析 GMEM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1022-l2-%E7%9A%84%E7%83%AD%E7%82%B9%E7%AA%97%E5%8F%A3"><span class="nav-text"> 10.2.2 L2 的热点窗口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1023-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E4%B8%8E-bank"><span class="nav-text"> 10.2.3 共享内存与 bank</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10234-%E5%BC%82%E6%AD%A5%E5%A4%8D%E5%88%B6%E4%B8%8E-tma"><span class="nav-text"> 10.2.3.4 异步复制与 TMA</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1024-local-memory"><span class="nav-text"> 10.2.4 Local memory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1025-texture-memory"><span class="nav-text"> 10.2.5 Texture memory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1026-constant-memory"><span class="nav-text"> 10.2.6 Constant memory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1027-registers"><span class="nav-text"> 10.2.7 Registers</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#103-%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D"><span class="nav-text"> 10.3 内存分配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#104-numa-%E4%B8%8E-gpu-%E9%82%BB%E8%BF%91%E6%80%A7"><span class="nav-text"> 10.4 NUMA 与 GPU 邻近性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%8A%E6%95%B4%E7%AB%A0%E5%BA%94%E7%94%A8%E5%88%B0%E4%B8%80%E4%B8%AA-gemm"><span class="nav-text"> 把整章应用到一个 GEMM</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E8%AF%AF%E8%AF%BB%E5%AF%B9%E7%85%A7"><span class="nav-text"> 常见误读对照</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8E%9F%E6%96%87%E4%B8%8E%E8%A1%A5%E5%85%85%E8%B5%84%E6%96%99"><span class="nav-text"> 原文与补充资料</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2022</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">鱿鱼圈</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 59 篇文章
+                    </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.9.0</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+                
+        
+                
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+		<li class="go-comment">
+			<i class="fa-regular fa-comments"></i>
+		</li>
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container" role="dialog" aria-modal="true" aria-label="图片查看器">
+	<button class="image-viewer-close" type="button" aria-label="关闭">
+		<i class="fa-solid fa-xmark"></i>
+	</button>
+	<button class="image-viewer-prev" type="button" aria-label="上一页">
+		<i class="fa-solid fa-chevron-left"></i>
+	</button>
+	<div class="image-viewer-frame">
+		<img src="" alt="">
+	</div>
+	<div class="image-viewer-exif-panel hidden absolute left-1/2 bottom-20 -translate-x-1/2 w-[min(92vw,420px)] max-h-[60vh] overflow-hidden rounded-2xl bg-background-color-transparent-80 p-4 text-left shadow-redefine-flat backdrop-blur-md" role="dialog" aria-label="EXIF" aria-hidden="true">
+		<div class="flex items-center justify-between mb-3">
+			<span class="text-sm font-semibold text-first-text-color">EXIF</span>
+			<button class="image-viewer-exif-close flex h-8 w-8 items-center justify-center rounded-full bg-background-color-transparent-80 text-first-text-color transition hover:bg-background-color-transparent-40" type="button" aria-label="关闭">
+				<i class="fa-solid fa-xmark text-[0.65rem]"></i>
+			</button>
+		</div>
+		<div class="image-viewer-exif-cards grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide"></div>
+		<template class="image-viewer-exif-card-template">
+			<div class="rounded-lg bg-background-color-transparent-40 px-3 py-2">
+				<div class="image-viewer-exif-card-header flex items-center gap-2 mb-1">
+					<i class="image-viewer-exif-card-icon fa-solid fa-circle-info text-xs text-third-text-color"></i>
+					<div class="image-viewer-exif-card-title text-xs font-semibold text-first-text-color"></div>
+				</div>
+				<div class="image-viewer-exif-card-items flex flex-col gap-1"></div>
+			</div>
+		</template>
+	</div>
+	<button class="image-viewer-exif-toggle flex items-center gap-2 hidden absolute left-1/2 bottom-6 -translate-x-1/2 rounded-full border border-border-color bg-background-color-transparent-80 px-4 py-2 text-first-text-color backdrop-blur-md transition hover:bg-background-color-transparent-40" type="button" aria-label="EXIF" aria-expanded="false">
+		<i class="fa-solid fa-circle-info text-xs"></i>
+		<span class="text-xs font-semibold uppercase tracking-wider">EXIF</span>
+	</button>
+	<button class="image-viewer-next" type="button" aria-label="下一页">
+		<i class="fa-solid fa-chevron-right"></i>
+	</button>
+</div>
+
+
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    window.swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("redefine:swup:ready", {
+            detail: {
+                swup: window.swup,
+            },
+        }),
+    );
+</script>
+
+
+
+
+	
+<script src="/js/build/main.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+
+
+
+
+
+    
+        
+<script src="/js/build/libs/mermaid.min.js"></script>
+
+    
+
+
+
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+
+	
+</body>
+
+</html>
