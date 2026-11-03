@@ -599,7 +599,7 @@ mjx-container[display="true"] + br {
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -607,7 +607,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">59</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -639,7 +639,7 @@ mjx-container[display="true"] + br {
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
@@ -647,7 +647,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">57</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">59</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -662,6 +662,147 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/11/03/cuda-execution-config/">
+                            CUDA 执行配置优化图解
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             CUDA 执行配置优化图解
+从 occupancy、寄存器依赖到 block、流水线、stream 与 context
+第十章讨论数据怎么搬、怎么复用；第十一章讨论：把多少工作放到 GPU 上，怎样让这些工作在等待与计算之间衔接起来。
+本文按 NVIDIA《CUDA C++ Best Practices Guide》第十一章的 11.1～11.6 组织，用自行设计的算例、图示和代码解释调参...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Tue Nov 03 2026 21:20:13 GMT+0800">
+                
+                    2026-11-03
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-optimization/">cuda, optimization</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/11/03/cuda-execution-config/">阅读全文<span class="seo-reader-text">CUDA 执行配置优化图解</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/2026/11/03/cuda-memory-optimization/">
+                            CUDA 内存优化图解
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                             CUDA 内存优化图解
+从 CPU 与 GPU 之间的数据传输，到 GPU 内部的访存布局、缓存复用和分配策略。
+本文按 NVIDIA《CUDA C++ Best Practices Guide》第十章的 10.1～10.4 组织，并结合 GEMM、TMA 和 Blackwell 的学习场景展开。核心目标是让读者能从代码推导出：数据在哪里、谁访问它、访问哪些地址、什么时候可以复用，以及为什...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Tue Nov 03 2026 21:18:21 GMT+0800">
+                
+                    2026-11-03
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/cuda/">cuda</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/tags/cuda-optimization/">cuda, optimization</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/2026/11/03/cuda-memory-optimization/">阅读全文<span class="seo-reader-text">CUDA 内存优化图解</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1225,147 +1366,6 @@ matmul_v2 已经使用 128B TMA 切片与 swizzle，但仍然先等搬运、再�
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/09/20/%E4%B8%87%E5%AD%97%E9%95%BF%E6%96%87%E8%A7%A3%E6%9E%90DeekSeekV4.1flash/">
-                            万字长文解析DeekSeekV4.1flash
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             万字长文解析DeekSeekV4.1flash
-
-从整体架构图出发，完整串联多模态输入、Causal Encoder–Decoder、CSA2、MoE、Single-Pass mHC、Engram、DSpark、Prefill/Decode、KV Cache 生命周期、Prefix Caching、Bounded Replay、PD 分离和 PD 流水线。
-本文是新建的模型架构文档，不覆盖...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sun Sep 20 2026 19:10:00 GMT+0800">
-                
-                    2026-09-20
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/09/20/%E4%B8%87%E5%AD%97%E9%95%BF%E6%96%87%E8%A7%A3%E6%9E%90DeekSeekV4.1flash/">阅读全文<span class="seo-reader-text">万字长文解析DeekSeekV4.1flash</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/2026/09/12/DeepSeek-V4_CSA-HCA%E4%B8%8EV4.1-CSA2%E8%AF%A6%E8%A7%A3/">
-                            DeepSeek-V4_CSA-HCA与V4.1-CSA2详解
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                             DeepSeek-V4 CSA/HCA 与 DeepSeek-V4.1 CSA2：从模型原理到推理基础设施
-
-本文基于 DeepSeek-V4 与 DeepSeek-V4.1-Flash 官方技术报告和官方参考推理代码整理。重点解释 CSA2，包括 Compressor、Full/Reindex/Reuse、Hierarchical Sparse Indexer、CED Prefill/D...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Sep 12 2026 23:52:00 GMT+0800">
-                
-                    2026-09-12
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/categories/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/tags/LLM/">LLM</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/2026/09/12/DeepSeek-V4_CSA-HCA%E4%B8%8EV4.1-CSA2%E8%AF%A6%E8%A7%A3/">阅读全文<span class="seo-reader-text">DeepSeek-V4_CSA-HCA与V4.1-CSA2详解</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1396,7 +1396,7 @@ matmul_v2 已经使用 128B TMA 切片与 swizzle，但仍然先等搬运、再�
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 57 篇文章
+                        共撰写了 59 篇文章
                     </span>
                     
                 </p>
